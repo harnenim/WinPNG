@@ -76,7 +76,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	
 	// 우측 이미지
 	private JPanel panelPreview = new JPanel();
-	private JLabel ivTarget = new JLabel(), ivOutput = new JLabel();
+	private JLabel ivTarget = new JLabel(), jlTarget = new JLabel("입력 이미지")
+	             , ivOutput = new JLabel(), jlOutput = new JLabel("출력 이미지");
 	private JCheckBox cbUseTarget = new JCheckBox("입력 이미지 사용", true);
 	private JTextField tfWidth = new JTextField("640");
 	private JButton btnSave = new MyButton("저장", this), btnSaveAs = new MyButton("다른 이름으로 저장", this), btnCopy = new MyButton("복사", this);
@@ -217,11 +218,11 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			{
 				panelPreview.setLayout(new BoxLayout(panelPreview, BoxLayout.Y_AXIS));
 				panelPreview.add(new JPanel());
-				panelPreview.add(new JLabel("입력 이미지"));
+				panelPreview.add(jlTarget);
 				panelPreview.add(ivTarget);
 				panelPreview.add(cbUseTarget);
 				panelPreview.add(new JPanel());
-				panelPreview.add(new JLabel("출력 이미지"));
+				panelPreview.add(jlOutput);
 				panelPreview.add(ivOutput);
 				panelPreview.add(new JPanel());
 				panelRight.add(panelPreview, BorderLayout.CENTER);
@@ -332,6 +333,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			if (model.isEmpty()) {
 				outputImage = null;
 				ivOutput.setIcon(null);
+				jlOutput.setText("출력 이미지");
 				break;
 			}
 			
@@ -368,6 +370,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 							outputImage = Container.toBitmapTwice(containers, minWidth);
 						}
 						ivOutput.setIcon(new ImageIcon(outputImage.getScaledInstance(280, 158, Image.SCALE_SMOOTH)));
+						jlOutput.setText("출력 이미지(" + outputImage.getWidth() + "×" + outputImage.getHeight() + ")");
 						
 					} catch (Exception e) {
 						logger.error("이미지 생성 실패");
@@ -398,6 +401,9 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	private void updateTarget(BufferedImage image) {
 		logger.info("updateTarget");
 		ivTarget.setIcon(new ImageIcon((targetImage = image).getScaledInstance(280, 158, Image.SCALE_SMOOTH)));
+		if (image != null) {
+			jlTarget.setText("입력 이미지(" + image.getWidth() + "×" + image.getHeight() + ")");
+		}
 	}
 	
 	/**
@@ -459,7 +465,12 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				
 			} else if (path.indexOf("https:") >= 0) {
 				path = path.substring(path.indexOf("https:")).replace('\\', '/').replace(":/", "://").replace("///", "//");
-				bmp = ImageIO.read(fileFromUrl(path));
+				try {
+					bmp = ImageIO.read(fileFromUrl(path));
+				} catch (Exception e) {
+					logger.debug(e);
+					bmp = ImageIO.read(fileFromUrl("http://" + path.substring(8)));
+				}
 				
 			} else {
 				file = new File(path);
@@ -557,9 +568,14 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		if (tr.isDataFlavorSupported(DataFlavor.imageFlavor)) {
 			logger.info("이미지일 경우 -> 출력물에 활용할 이미지로 붙여넣기");
 			try {
-				updateTarget((BufferedImage) tr.getTransferData(DataFlavor.imageFlavor));
-				if (cbUseTarget.isSelected()) {
-					updateOutput();
+				BufferedImage image = (BufferedImage) tr.getTransferData(DataFlavor.imageFlavor);
+				if (c == tfPngFile) {
+					openBitmap(image);
+				} else {
+					updateTarget(image);
+					if (cbUseTarget.isSelected()) {
+						updateOutput();
+					}
 				}
 				return true;
 				
@@ -945,7 +961,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			case 86: { // V
 				if (e.isControlDown()) {
 					Component c = e.getComponent();
-					if (c == tfPngFile || c == tfExportDir) {
+					if (c == tfExportDir) {
 						// 기본 텍스트 붙여넣기
 						break;
 					}
@@ -1218,6 +1234,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					
 				} else {
 					logger.debug("DataFlavor don't support javaFileListFlavor and imageFlavor");
+					
 					DataFlavor[] flavors = tr.getTransferDataFlavors();
 					boolean handled = false;
 
@@ -1237,17 +1254,21 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 							
 							BufferedReader br = new BufferedReader(reader);
 							logger.debug("br: " + br);
-							
+
+							// BufferedReader로 가져오기 시도
+							logger.info("BufferedReader로 가져오기 시도");
 							List<File> fileList = createFileList(br);
 							logger.debug("fileList.size: " + fileList.size());
 							if (fileList.size() > 0) {
 								gui.dropFiles(fileList, c);
+								evt.getDropTargetContext().dropComplete(true);
+								logger.debug("dropComplete");
+								handled = true;
+								break;
 							}
-							evt.getDropTargetContext().dropComplete(true);
-							logger.debug("dropComplete");
 							
-							handled = true;
-							break;
+							// BufferedReader로 가져오기 실패
+							logger.info("BufferedReader로 가져오기 실패");
 						}
 					}
 					if (!handled) {
@@ -1293,6 +1314,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 						if (line.startsWith("<!--StartFragment-->")) {
 							int index = line.indexOf(" src=");
 							if (index > 0) {
+								// 이미지 주소 가져오기
 								String src = line.substring(index + 5, line.indexOf(">", index));
 								char target = ' ';
 								if (src.charAt(0) == '"') {
@@ -1306,15 +1328,27 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 								if (index > 0) {
 									src = src.substring(0, index);
 								}
+								src = src.replace("&amp;", "&");
+								
+								// 이미지 주소에서 파일 가져오기
+								File file = null;
 								try {
-									File file = fileFromUrl(new URL(src));
-									if (file != null) {
-										list.add(file);
-									}
-									
+									file = fileFromUrl(src);
 								} catch (Exception e) {
-									logger.error("파일 가져오기 실패");
 									logger.debug(e);
+								}
+								if (file == null && src.startsWith("https://")) {
+									try {
+										logger.debug("https였을 경우 http로 재시도");
+										file = fileFromUrl("http://" + src.substring(8));
+									} catch (Exception e) {
+										logger.debug(e);
+									}
+								}
+								if (file == null) {
+									logger.error("파일 가져오기 실패");
+								} else {
+									list.add(file);
 								}
 							}
 						}
@@ -1384,10 +1418,6 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 						JOptionPane.showMessageDialog(GUI.this, "이미지를 적용할 수 없습니다.");
 					}
 					
-				} else if (c == panelExport) {
-					String exportDir = (file.isDirectory() ? file.getAbsolutePath() : file.getParent());
-					System.out.println(exportDir);
-					
 				} else {
 					// PNG 파일 열기
 					if (!ext.equals("png")) {
@@ -1425,17 +1455,9 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	 * @return
 	 * @throws Exception
 	 */
-	private static File fileFromUrl(String url) throws Exception {
-		return fileFromUrl(new URL(url));
-	}
-	/**
-	 * URL에서 파일 생성
-	 * @param url
-	 * @return
-	 * @throws Exception
-	 */
-	private static File fileFromUrl(URL url) throws Exception {
-		logger.info("fileFromUrl");
+	private static File fileFromUrl(String strUrl) throws Exception {
+		logger.info("fileFromUrl: " + strUrl);
+		URL url = new URL(strUrl);
 		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 		conn.setConnectTimeout(2000);
 		conn.setReadTimeout(2000);
@@ -1454,11 +1476,20 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			String path = url.getPath();
 			filename = path.substring(path.lastIndexOf("/") + 1);
 		} else {
-			URLDecoder.decode(contentDisposition.replaceFirst("(?i)^.*filename=\"?([^\"]+)\"?.*$", "$1"), "UTF-8");
+			filename = URLDecoder.decode(contentDisposition.replaceFirst("(?i)^.*filename=\"?([^\"]+)\"?.*$", "$1"), "UTF-8");
 		}
 		
+		// 확장자 없으면 PNG로 시도
 		int index = filename.lastIndexOf(".");
-		File file = new File(TMP_DIR + (index > 0 ? filename : filename + ".png")); // 확장자 없으면 PNG로 시도
+		if (index > 0) {
+			String ext = filename.substring(index);
+			if (".php".contentEquals(ext)) {
+				filename = filename.substring(0, index) + ".png";
+			}
+		} else {
+			filename += ".png";
+		}
+		File file = new File(TMP_DIR + filename);
 		file.deleteOnExit();
 		
 		InputStream is = null;
