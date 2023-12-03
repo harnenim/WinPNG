@@ -251,9 +251,9 @@ public class Container {
 	 */
 	private static int bytesToInt(byte[] bytes, int offset) {
 		return (((int) bytes[offset + 0]) & 0xFF) << 24
-			|  (((int) bytes[offset + 1]) & 0xFF) << 16
-			|  (((int) bytes[offset + 2]) & 0xFF) <<  8
-			|  (((int) bytes[offset + 3]) & 0xFF);
+		    |  (((int) bytes[offset + 1]) & 0xFF) << 16
+		    |  (((int) bytes[offset + 2]) & 0xFF) <<  8
+		    |  (((int) bytes[offset + 3]) & 0xFF);
 	}
 	/**
 	 * 3바이트를 int로 변환
