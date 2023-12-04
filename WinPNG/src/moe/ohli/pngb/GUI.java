@@ -43,6 +43,104 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	private BufferedImage outputImage = null;
 	
 	private Properties props = new Properties();
+	
+	/**
+	 * 컨테이너의 원본 파일명을 갖는 객체
+	 * 
+	 * @author harne_
+	 *
+	 */
+	private static class ModelItem {
+		public Container container;
+		public String originalPath;
+		public ModelItem(Container container, String originalPath) {
+			this.container = container;
+			this.originalPath = originalPath;
+		}
+		/**
+		 * 리스트뷰에 출력할 텍스트
+		 */
+		@Override
+		public String toString() {
+			return container.path + " (" + comma(container.binary.length) + ")" + (originalPath == null ? "" : ": " + originalPath);
+		}
+		private String comma(int value) {
+			String result = "" + (value % 1000);
+			value /= 1000;
+			while (value > 0) {
+				result = (value % 1000) + "," + result;
+				value /= 1000;
+			}
+			return result;
+		}
+	}
+	
+	/**
+	 * 필요한 기능을 내포한 리스트뷰 객체
+	 * 
+	 * @author harne_
+	 *
+	 */
+	private static class MyListView extends JList<ModelItem> {
+		private DefaultListModel<ModelItem> model;
+		
+		public MyListView() {
+			super(new DefaultListModel<>());
+			this.model = (DefaultListModel<ModelItem>) getModel();
+		}
+		public int     count  ()              { return model.size   (); }
+		public boolean isEmpty()              { return model.isEmpty(); }
+		public void    clear  ()              {        model.clear  (); }
+		public void    add   (ModelItem item) {        model.addElement   (item); }
+		public boolean remove(ModelItem item) { return model.removeElement(item); }
+		
+		private void removeSelected() {
+			for (ModelItem item : getSelectedValuesList()) {
+				remove(item);
+			}
+		}
+		public List<ModelItem> getAllItems() {
+			List<ModelItem> items = new ArrayList<>();
+			Enumeration<ModelItem> elements = model.elements();
+			while (elements.hasMoreElements()) {
+				items.add(elements.nextElement());
+			}
+			return items;
+		}
+		public List<Container> getAllContainers() {
+			List<Container> containers = new ArrayList<>();
+			Enumeration<ModelItem> elements = model.elements();
+			while (elements.hasMoreElements()) {
+				containers.add(elements.nextElement().container);
+			}
+			return containers;
+		}
+		public List<Container> getSelectedContainers() {
+			List<Container> containers = new ArrayList<>();
+			for (ModelItem item : getSelectedValuesList()) {
+				containers.add(item.container);
+			}
+			return containers;
+		}
+		public void addContainers(List<Container> containers) {
+			for (Container cont : containers) {
+				add(new ModelItem(cont, null));
+			}
+		}
+		private void sort() {
+			List<ModelItem> items = getAllItems();
+			Collections.sort(items, new Comparator<ModelItem>() {
+				@Override
+				public int compare(ModelItem o1, ModelItem o2) {
+					return o1.container.path.compareTo(o2.container.path);
+				}
+			});
+			clear();
+			for (ModelItem item : items) {
+				add(item);
+			}
+		}
+	}
     
     /**
      * 기본 스타일 적용된 버튼
@@ -67,8 +165,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	
 	// 좌측 내용물
 	private JPanel panelFilesEdit = new JPanel(new BorderLayout());
-	private DefaultListModel<Container> model = new DefaultListModel<Container>();
-	private JList<Container> lvFiles = new JList<Container>(model);
+	private MyListView lvFiles = new MyListView();
 	private JButton btnAddFile = new MyButton("추가", this), btnDelete = new MyButton("삭제", this);
 	private JPanel panelExport = new JPanel(new BorderLayout());
 	private JTextField tfExportDir = new JTextField("목록에서 파일 선택 후 탐색기로 드래그, 혹은 파일을 추출할 경로 입력");
@@ -78,8 +175,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	private JPanel panelPreview = new JPanel();
 	private JLabel ivTarget = new JLabel(), jlTarget = new JLabel("입력 이미지")
 	             , ivOutput = new JLabel(), jlOutput = new JLabel("출력 이미지");
-	private JCheckBox cbUseTarget = new JCheckBox("입력 이미지 사용", true);
-	private JTextField tfWidth = new JTextField("640");
+	private JCheckBox cbUseTarget = new JCheckBox("입력 이미지 사용", false);
+	private JTextField tfWidth = new JTextField("0");
 	private JButton btnSave = new MyButton("저장", this), btnSaveAs = new MyButton("다른 이름으로 저장", this), btnCopy = new MyButton("복사", this);
 	
 	private static final boolean USE_JFC = false;
@@ -148,7 +245,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			
 			// 기타 설정
 			try {
-				cbUseTarget.setSelected(!"N".equals(props.getProperty("useTargetImage")));
+				cbUseTarget.setSelected("Y".equals(props.getProperty("useTargetImage")));
 			} catch (Exception e) {
 				logger.warn("이미지 입력 설정 가져오기 실패");
 				logger.debug(e);
@@ -159,7 +256,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			} catch (Exception e) {
 				logger.warn("최소 크기 설정 가져오기 실패");
 				logger.debug(e);
-				tfWidth.setText("640");
+				tfWidth.setText("0");
 			}
 			try {
 				String exportDir = props.getProperty("exportDir");
@@ -176,7 +273,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		if (Calendar.getInstance().get(Calendar.YEAR) != 2023) {
 			setVisible(true);
 			setEnabled(true);
-			JOptionPane.showMessageDialog(this, "ㅋㅋ?ㅎㅎ!");
+			alert("ㅋㅋ?ㅎㅎ!");
 			dispose();
 			return;
 		}
@@ -304,6 +401,23 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					} finally {
 						if (fos != null) try { fos.close(); } catch (Exception e) { }
 					}
+					
+					// 임시 디렉토리는 deleteOnExit 동작이 잘 안 돼서
+					// 아예 빼버리고 이쪽에서 삭제함
+					try {
+						File[] files = new File(TMP_DIR).listFiles();
+						for (File file : files) {
+							if (file.isDirectory()) {
+								try {
+									// 디렉토리명이 숫자면 임시 폴더로 간주
+									Long.parseLong(file.getName());
+									deleteDirectory(file);
+								} catch (Exception e) {}
+							}
+						}
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
 				}
 			});
 		}
@@ -316,6 +430,24 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 
 		setVisible(true);
 		setEnabled(true);
+	}
+	/**
+	 * 디렉토리 삭제
+	 * @param file
+	 * @return
+	 */
+	private static int deleteDirectory(File file) {
+		System.out.println("deleteDirectory: " + file.getAbsolutePath());
+		int count = 0;
+		if (file.isDirectory()) {
+			// 디렉토리일 경우 하위 디렉토리/파일 먼저 삭제
+			for (File subFile : file.listFiles()) {
+				count += deleteDirectory(subFile);
+			}
+		}
+		file.delete();
+		count++;
+		return count;
 	}
 	
 	/**
@@ -330,7 +462,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			return;
 		}
 		do {
-			if (model.isEmpty()) {
+			if (lvFiles.isEmpty()) {
 				outputImage = null;
 				ivOutput.setIcon(null);
 				jlOutput.setText("출력 이미지");
@@ -343,14 +475,14 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			} catch (Exception e) {
 				logger.warn("올바른 크기를 입력하세요.");
 				logger.debug(e);
-				JOptionPane.showMessageDialog(this, "올바른 크기를 입력하세요.");
+				alert("올바른 크기를 입력하세요.");
 				break;
 			}
 			
 			final int minWidth = inputMinWidth;
 			if (minWidth > 1920) {
 				logger.warn("최소 크기가 너무 큽니다.");
-				JOptionPane.showMessageDialog(this, "최소 크기가 너무 큽니다.\n1920 이하의 값을 적어주세요.");
+				alert("최소 크기가 너무 큽니다.\n1920 이하의 값을 적어주세요.");
 				break;
 			}
 			
@@ -358,11 +490,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
-					List<Container> containers = new ArrayList<Container>();
-					Enumeration<Container> elements = model.elements();
-					while (elements.hasMoreElements()) {
-						containers.add(elements.nextElement());
-					}
+					List<Container> containers = lvFiles.getAllContainers();
+					Collections.shuffle(containers); // 섞어서 난수화, 불러올 때 정렬
 					try {
 						if (cbUseTarget.isSelected()) {
 							outputImage = new Container.WithTarget(targetImage, containers).toBitmap(minWidth);
@@ -418,7 +547,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			int result = fcPng.showOpenDialog(this);
 			if (result == JFileChooser.APPROVE_OPTION) {
 				if (!openPng(fcPng.getSelectedFile().getAbsolutePath())) {
-					JOptionPane.showMessageDialog(this, "해석할 수 없는 파일입니다.");
+					alert("해석할 수 없는 파일입니다.");
 				}
 			}
 		} else {
@@ -441,7 +570,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			String filename = fdOpen.getFile();
 			if (filename != null) {
 				if (!openPng(fdOpen.getDirectory() + filename)) {
-					JOptionPane.showMessageDialog(this, "해석할 수 없는 파일입니다.");
+					alert("해석할 수 없는 파일입니다.");
 				}
 			}
 		}
@@ -503,16 +632,15 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				return false;
 			}
 			
-			// 파일일 경우 열려있는 파일 설정
+			// 파일에서 열었을 경우 열려있는 파일 설정
 			if (file != null) {
 				pngFile = file;
 				tfPngFile.setText(pngFile.getAbsolutePath());
 			}
 			
-			model.clear();
-			for (Container cont : parsed.containers) {
-				model.addElement(cont);
-			}
+			lvFiles.clear();
+			lvFiles.addContainers(parsed.containers);
+			lvFiles.sort();
 			updateTarget(parsed.targetImage == null ? JUNK_IMAGE : parsed.targetImage);
 			updateOutput();
 			
@@ -620,7 +748,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	 */
 	private void checkAndSave() {
 		if (outputImage == null) {
-			JOptionPane.showMessageDialog(this, "이미지로 저장할 내용이 없습니다.");
+			alert("이미지로 저장할 내용이 없습니다.");
 		} else if (pngFile == null) {
 			savePng();
 		} else {
@@ -640,7 +768,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			int result = fcPng.showSaveDialog(this);
 			if (result == JFileChooser.APPROVE_OPTION) {
 				if (!savePng(fcPng.getSelectedFile())) {
-					JOptionPane.showMessageDialog(this, "저장되지 않았습니다.");
+					alert("저장되지 않았습니다.");
 				}
 			}
 		} else {
@@ -667,7 +795,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					filename += ".png";
 				}
 				if (!savePng(new File(fdSave.getDirectory() + filename))) {
-					JOptionPane.showMessageDialog(this, "저장되지 않았습니다.");
+					alert("저장되지 않았습니다.");
 				}
 			}
 		}
@@ -728,50 +856,27 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				Toolkit.getDefaultToolkit().getSystemClipboard().setContents(contents, null);
 				logger.debug("copy end: " + Calendar.getInstance().getTimeInMillis());
 				
-				JOptionPane.showMessageDialog(this, "이미지가 클립보드에 복사됐습니다.");
+				alert("이미지가 클립보드에 복사됐습니다.");
 				
 			} catch (Exception e) {
 				logger.error("이미지 복사 실패");
 				logger.debug(e);
-				JOptionPane.showMessageDialog(this, "클립보드에 접근하지 못했습니다.");
+				alert("클립보드에 접근하지 못했습니다.");
 			}
 		}
 	}
 
-	/**
-	 * 정렬: 파일 추가 시 실행
-	 */
-	private void sort() {
-		logger.info("sort");
-		List<Container> containers = new ArrayList<Container>();
-		Enumeration<Container> elements = model.elements();
-		while (elements.hasMoreElements()) {
-			containers.add(elements.nextElement());
-		}
-		Collections.sort(containers, new Comparator<Container>() {
-			@Override
-			public int compare(Container o1, Container o2) {
-				return o1.path.compareTo(o2.path);
-			}
-		});
-		model.clear();
-		for (Container cont : containers) {
-			model.addElement(cont);
-		}
-	}
 	/**
 	 * 파일 추가
 	 * @param files
 	 */
 	private void addFiles(File[] files) {
 		logger.info("addFiles");
-		List<String> paths = new ArrayList<String>();
-		Enumeration<Container> elements = model.elements();
-		List<Container> currConts = new ArrayList<>();
-		while (elements.hasMoreElements()) {
-			Container cont = elements.nextElement();
-			currConts.add(cont);
-			paths.add(cont.path);
+		List<ModelItem> items = new ArrayList<>();
+		List<String> paths = new ArrayList<>();
+		for (ModelItem item : lvFiles.getAllItems()) {
+			items.add(item);
+			paths.add(item.container.path);
 		}
 		if (files.length > 0) {
 			if (files[0].getAbsolutePath().replace('\\', '/').startsWith(TMP_DIR)) {
@@ -783,15 +888,14 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		int count = 0;
 		for (File file : files) {
 			try {
-				List<Container> containers = Container.fileToContainers(file);
-				for (Container cont : containers) {
+				for (Container cont : Container.fileToContainers(file)) {
 					if (paths.contains(cont.path)) {
-						int result = JOptionPane.showConfirmDialog(this, "파일 경로가 중복됩니다.\n덮어쓰시겠습니끼?\n" + cont.path, "파일 중복", JOptionPane.YES_NO_OPTION);
+						int result = confirm("파일 경로가 중복됩니다.\n덮어쓰시겠습니끼?\n" + cont.path, "파일 중복");
 						if (result == JOptionPane.YES_OPTION) {
 							// 기존 것 찾아서 삭제
-							for (Container c : currConts) {
-								if (cont.path.equals(c.path)) {
-									model.removeElement(c);
+							for (ModelItem item : items) {
+								if (cont.path.equals(item.container.path)) {
+									lvFiles.remove(item);
 								}
 							}
 						} else {
@@ -799,7 +903,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 							continue;
 						}
 					}
-					model.addElement(cont);
+					lvFiles.add(new ModelItem(cont, file.getParent() + "/" + cont.path));
 					count++;
 				}
 			} catch (Exception e) {
@@ -808,7 +912,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			}
 		}
 		if (count > 0) {
-			sort();
+			lvFiles.sort();
 			updateOutput();
 		}
 	}
@@ -818,10 +922,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	 */
 	private void deleteSelected() {
 		logger.info("deleteSelected");
-		List<Container> list = lvFiles.getSelectedValuesList();
-		for (Container cont : list) {
-			model.removeElement(cont);
-		}
+		lvFiles.removeSelected();
 		updateOutput();
 	}
 	
@@ -831,7 +932,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	private void exportSelected() {
 		String exportPath = tfExportDir.getText();
 		if (exportPath.replace('\\', '/').startsWith(System.getProperty("java.io.tmpdir").replace('\\', '/'))) {
-			JOptionPane.showMessageDialog(this, "임시 파일 경로에는 추출할 수 없습니다.");
+			alert("임시 파일 경로에는 추출할 수 없습니다.");
 			return;
 		}
 		logger.info("export to: " + exportPath);
@@ -839,27 +940,27 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		exportSelected(exportPath, true);
 	}
 	/**
-	 * 선택된 파일 추출
+	 * 선택된 파일 추출 - main에서 호출
 	 * @param exportPath: 추출할 경로
-	 * @param showSuccessMessage: 추출 성공 시 메시지 표시 여부
+	 * @param useAlert: 추출 성공 시 메시지 표시 여부
 	 */
-	private void exportSelected(String exportPath, boolean useJOptionPane) {
-		List<Container> containers = lvFiles.getSelectedValuesList();
+	private void exportSelected(String exportPath, boolean useAlert) {
+		List<Container> containers = lvFiles.getSelectedContainers();
 		if (containers.size() == 0) {
-			showMessage("선택된 파일이 없습니다.", useJOptionPane);
+			showMessage("선택된 파일이 없습니다.", useAlert);
 			return;
 		}
 		
 		List<File> files = Container.containersToFiles(containers, exportPath);
 		if (files.size() > 0) {
-			showMessage("파일을 추출했습니다.", useJOptionPane);
+			showMessage("파일을 추출했습니다.", useAlert);
 		} else {
-			showMessage("파일을 추출하지 못했습니다.", useJOptionPane);
+			showMessage("파일을 추출하지 못했습니다.", useAlert);
 		}
 	}
-	private void showMessage(String msg, boolean useJOptionPane) {
-		if (useJOptionPane) {
-			JOptionPane.showMessageDialog(this, msg);
+	private void showMessage(String msg, boolean useAlert) {
+		if (useAlert) {
+			alert(msg);
 		} else {
 			logger.info(msg);
 		}
@@ -875,7 +976,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			
 		} else if (target == btnClose) {
 			// PNG 파일 닫기
-			model.clear();
+			lvFiles.clear();
 			pngFile = null;
 			tfPngFile.setText("");
 			updateTarget(JUNK_IMAGE);
@@ -979,17 +1080,17 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				if (c == tfPngFile) {
 					// 이미지 경로로 파일 열기..에 엔터 칠 사람이 있나?
 					if (!openPng(tfPngFile.getText())) {
-						JOptionPane.showMessageDialog(this, "해석할 수 없는 이미지 경로입니다.");
+						alert("해석할 수 없는 이미지 경로입니다.");
 					}
 				} else if (c == tfWidth) {
 					try {
-						// 최소 크기 변경 이미지 재생성
+						// 최소 크기 변경 없어도 엔터면 이미지 재생성
 						Integer.parseInt(tfWidth.getText().trim());
 						updateOutput();
 					} catch (Exception ex) {
 						logger.warn("올바른 크기를 입력하세요.");
 						logger.debug(ex);
-						JOptionPane.showMessageDialog(this, "올바른 크기를 입력하세요.");
+						alert("올바른 크기를 입력하세요.");
 					}
 				}
 				break;
@@ -1003,6 +1104,10 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	@Override
 	public void keyReleased(KeyEvent e) {
 		if (e.getComponent() == tfWidth) {
+			if (e.getKeyCode() == 10) {
+				// 엔터일 경우 KeyPressed에서 이미 동작함
+				return;
+			}
 			String strWidth = tfWidth.getText().trim();
 			try {
 				// 최소 크기 변경 이미지 재생성
@@ -1011,7 +1116,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			} catch (Exception ex) {
 				logger.warn("올바른 크기를 입력하세요.");
 				logger.debug(ex);
-				JOptionPane.showMessageDialog(this, "올바른 크기를 입력하세요.");
+				alert("올바른 크기를 입력하세요.");
 				
 				char[] cs = strWidth.toCharArray();
 				strWidth = "";
@@ -1051,34 +1156,39 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
     private class FileTransferHandler extends TransferHandler {
         @Override
         protected Transferable createTransferable(JComponent c) {
-        	if (c == lvFiles) {
+        	System.out.println("createTransferable");
+			final List<File> rootFiles = new ArrayList<>();
+			
+        	if (c == lvFiles) { // 리스트의 파일 선택 드래그
+        		List<Container> containers = lvFiles.getSelectedContainers();
+        		if (containers.size() == 0) {
+        			return null;
+        		}
+        		
         		// 임시 파일 생성
-    			String dir = TMP_DIR + Calendar.getInstance().getTimeInMillis();
-    			List<File> files = Container.containersToFiles(lvFiles.getSelectedValuesList(), dir);
+    			String rootDir = TMP_DIR + Calendar.getInstance().getTimeInMillis();
+    			List<File> files = Container.containersToFiles(containers, rootDir);
     			
     			// 하위 디렉토리가 있는 경우 최상위 경로만 선택
-    			List<String> paths = new ArrayList<>();
+    			List<String> primaryNames = new ArrayList<>();
     			for (File subFile : files) {
-    				String path = subFile.getAbsolutePath().substring(dir.length() + 1);
-    				int index = path.replace('\\', '/').indexOf('/');
-    				if (index > 0) {
-    					path = path.substring(0, index);
-    				}
-    				if (!paths.contains(path)) {
-    					paths.add(path);
-    				}
-    				subFile.deleteOnExit();
+    				// 최상위 경로 찾기
+    				String primaryName = subFile.getAbsolutePath().substring(rootDir.length() + 1).replace('\\', '/');
+    				int index = primaryName.indexOf('/');
+					if (index > 0) {
+						primaryName = primaryName.substring(0, index);
+					}
+					if (!primaryNames.contains(primaryName)) {
+						primaryNames.add(primaryName);
+					}
     			}
-    			new File(dir).deleteOnExit();
     			
     			// 최상위 객체 리스트 전달
-    			List<File> rootFiles = new ArrayList<>();
-    			for (String path : paths) {
-    				rootFiles.add(new File(dir, path));
+    			for (String name : primaryNames) {
+    				rootFiles.add(new File(rootDir, name));
     			}
-    			return new FileTransferable(rootFiles);
     			
-        	} else if (c == ivOutput || c == ivTarget) {
+        	} else if (c == ivOutput || c == ivTarget) { // 이미지뷰 드래그
         		BufferedImage image = targetImage;
         		String name = "target.png";
         		if (c == ivOutput) {
@@ -1094,15 +1204,33 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
     			File file = new File(TMP_DIR + name);
     			file.deleteOnExit();
     			try {
-    				ImageIO.write(image, "PNG", file);
-    				List<File> list = new ArrayList<>();
-    				list.add(file);
-        			return new FileTransferable(list);
+    				ImageIO.write(image, "PNG", file); // 생각보다 PNG write 딜레이가 거슬림...
+    				rootFiles.add(file);
     				
     			} catch (Exception e) {
     				logger.error("임시 파일 생성 실패");
     				logger.debug(e);
     			}
+        	}
+        	
+        	if (rootFiles.size() > 0) {
+        		return new Transferable() {
+					@Override
+					public DataFlavor[] getTransferDataFlavors() {
+		        		return new DataFlavor[] { DataFlavor.javaFileListFlavor };
+					}
+					@Override
+					public boolean isDataFlavorSupported(DataFlavor flavor) {
+		        		return flavor.equals(DataFlavor.javaFileListFlavor);
+					}
+					@Override
+					public Object getTransferData(DataFlavor flavor) throws UnsupportedFlavorException, IOException {
+		        		if (!isDataFlavorSupported(flavor)) {
+		        			throw new UnsupportedFlavorException(flavor);
+		        		}
+		        		return rootFiles;
+					}
+				};
         	}
         	return null;
         }
@@ -1110,30 +1238,6 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
         @Override
         public int getSourceActions(JComponent c) {
             return MOVE;
-        }
-        
-        private class FileTransferable implements Transferable {
-        	
-        	private List<File> files;
-        	
-        	public FileTransferable(List<File> files) {
-        		this.files = files;
-        	}
-        	
-        	public DataFlavor[] getTransferDataFlavors() {
-        		return new DataFlavor[] { DataFlavor.javaFileListFlavor };
-        	}
-        	
-        	public boolean isDataFlavorSupported(DataFlavor flavor) {
-        		return flavor.equals(DataFlavor.javaFileListFlavor);
-        	}
-        	
-        	public Object getTransferData(DataFlavor flavor) throws UnsupportedFlavorException, IOException {
-        		if (!isDataFlavorSupported(flavor)) {
-        			throw new UnsupportedFlavorException(flavor);
-        		}
-        		return files;
-        	}
         }
     }
     
@@ -1306,12 +1410,13 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		 */
 		private static List<File> createFileList(BufferedReader bReader) {
 			logger.info("FileDropTarget.createFileList");
-			List<File> list = new ArrayList<File>();
+			List<File> list = new ArrayList<>();
 			try {
 				String line = null;
 				while ((line = bReader.readLine()) != null) {
 					if (line.startsWith("<")) { // Windows 웹페이지 드래그 시
 						if (line.startsWith("<!--StartFragment-->")) {
+							logger.debug("<!--StartFragment--> found");
 							int index = line.indexOf(" src=");
 							if (index > 0) {
 								// 이미지 주소 가져오기
@@ -1357,6 +1462,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 							if ("".equals(line)) {
 								continue;
 							}
+							logger.debug("Try " + line);
 							list.add(new File(new URI(line)));
 							
 						} catch (Exception e) {
@@ -1410,31 +1516,31 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 						break;
 					}
 					
-					int result = JOptionPane.showConfirmDialog(GUI.this, "이미지를 적용하시겠습니까?", "이미지 파일 열기", JOptionPane.YES_NO_OPTION);
+					int result = confirm("이미지를 적용하시겠습니까?", "이미지 파일 열기");
 					if (result == JOptionPane.NO_OPTION) {
 						return;
 					}
 					if (!setTargetImage(file.getAbsolutePath())) {
-						JOptionPane.showMessageDialog(GUI.this, "이미지를 적용할 수 없습니다.");
+						alert("이미지를 적용할 수 없습니다.");
 					}
 					
 				} else {
 					// PNG 파일 열기
 					if (!ext.equals("png")) {
 						if (c == panelPngFile) {
-							JOptionPane.showMessageDialog(GUI.this, "해석할 수 없는 파일입니다.");
+							alert("해석할 수 없는 파일입니다.");
 						}
 						break;
 					}
 					
-					if (model.size() > 0) {
-						int result = JOptionPane.showConfirmDialog(GUI.this, "현재 파일을 닫겠습니까?", "PNG 파일 열기", JOptionPane.YES_NO_OPTION);
+					if (!lvFiles.isEmpty()) {
+						int result = confirm("현재 파일을 닫겠습니까?", "PNG 파일 열기");
 						if (result == JOptionPane.NO_OPTION) {
 							return;
 						}
 					}
 					if (!openPng(file.getAbsolutePath())) {
-						JOptionPane.showMessageDialog(GUI.this, "해석할 수 없는 PNG 파일입니다.\n파일 목록에 추가합니다.");
+						alert("해석할 수 없는 PNG 파일입니다.\n파일 목록에 추가합니다.");
 						break;
 					}
 				}
@@ -1447,6 +1553,13 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		if (c == panelFilesEdit) {
 			addFiles(files.toArray(new File[files.size()]));
 		}
+	}
+	
+	private void alert(String msg) {
+		JOptionPane.showMessageDialog(this, msg);
+	}
+	private int confirm(String msg, String title) {
+		return JOptionPane.showConfirmDialog(this, msg, title, JOptionPane.YES_NO_OPTION);
 	}
 	
 	/**
@@ -1483,7 +1596,9 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		int index = filename.lastIndexOf(".");
 		if (index > 0) {
 			String ext = filename.substring(index);
-			if (".php".contentEquals(ext)) {
+			if (".php".contentEquals(ext)
+			 || ".jsp".contentEquals(ext)
+			 || ".asp".contentEquals(ext)) {
 				filename = filename.substring(0, index) + ".png";
 			}
 		} else {
@@ -1535,7 +1650,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			// 2번 인자: 추출 경로
 			if (args.length > 1) {
 				// 전체 선택
-				int[] indices = new int[gui.model.size()];
+				int[] indices = new int[gui.lvFiles.count()];
 				for (int i = 0; i < indices.length; i++) {
 					indices[i] = i;
 				}
