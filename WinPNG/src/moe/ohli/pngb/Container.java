@@ -29,8 +29,8 @@ public class Container {
 		}
 		return str;
 	}
+	private static final double RATIO = 9 / 16.0;
 	
-	public String originalPath; // 원래 파일 경로: 리스트뷰에서만 쓰임
 	public String path;   // 상대경로
 	public byte[] binary; // 파일 내용물
 	
@@ -49,7 +49,6 @@ public class Container {
 			throw new Exception("10MB를 초과합니다");
 		}
 		
-		this.originalPath = file.getAbsolutePath();
 		this.path = path;
 		this.binary = new byte[(int) file.length()];
 		
@@ -268,14 +267,6 @@ public class Container {
 	}
 	
 	/**
-	 * 리스트뷰에 출력 텍스트
-	 */
-	@Override
-	public String toString() {
-		return path + "(" + binary.length + ")" + (originalPath == null ? "" : ": " + originalPath);
-	}
-	
-	/**
 	 * 파일로 저장
 	 * @param dirPath
 	 * @return
@@ -316,7 +307,7 @@ public class Container {
 	 * @throws Exception
 	 */
 	public static List<Container> fileToContainers(File file) throws Exception {
-		List<Container> containers = new ArrayList<Container>();
+		List<Container> containers = new ArrayList<>();
 		fileToContainers(containers, "", file);
 		return containers;
 	}
@@ -358,7 +349,7 @@ public class Container {
 	 */
 	public static List<File> containersToFiles(List<Container> containers, String dirPath) {
 		logger.info("\nContainer.containersToFiles: " + dirPath);
-		List<File> files = new ArrayList<File>();
+		List<File> files = new ArrayList<>();
 		for (Container cont : containers) {
 			File file = cont.toFile(dirPath);
 			if (file != null) {
@@ -371,9 +362,10 @@ public class Container {
 	/**
 	 * 비트맵 이미지가 가질 크기를 구한다
 	 * @param containers
-	 * @return 배율
+	 * @param ratio 가로-세로 비율
+	 * @return 좌우 폭
 	 */
-	private static int getRatio(List<Container> containers) throws Exception {
+	private static int getWidthByRatio(List<Container> containers, double ratio) throws Exception {
 		// 필요한 크기 계산(부정확함)
 		int size = 0;
 		for (Container cont : containers) {
@@ -383,8 +375,7 @@ public class Container {
 			throw new Exception("20MB를 초과합니다");
 		}
 		
-		// 16:9 비율을 타겟으로 함
-		return (int) Math.round(Math.sqrt(size / 36.0)); // 36 = ((16/₂) x (9/₂))
+		return (int) Math.round(Math.sqrt(size / ratio));
 	}
 	/**
 	 * 컨테이너 목록을 이미지로 변환
@@ -405,15 +396,14 @@ public class Container {
 	public static BufferedImage toBitmap(List<Container> containers, int minWidth) throws Exception {
 		logger.info("\nContainer.toBitmap");
 		// 최종 이미지 크기 구하기
-		int ratio = getRatio(containers);
-		int width = Math.max(minWidth, 8 * ratio);
+		int width = Math.max(minWidth, getWidthByRatio(containers, RATIO));
 		int contCount = containers.size();
 		int containersHeight = 0;
 		for (Container cont : containers) {
 			containersHeight += (cont.getRGBPixelCount() + width - 1) / width;
 		}
-		logger.info("max(" + (width * 9 / 16) + ", " + containersHeight + ")");
-		int height = Math.max(width * 9 / 16, containersHeight);
+		logger.info("max(" + ((int) (width * RATIO)) + ", " + containersHeight + ")");
+		int height = Math.max((int) (width * RATIO), containersHeight);
 		logger.info("output size: " + width + " x " + height);
 		
 		// 정크 영역 랜덤 배분
@@ -432,7 +422,7 @@ public class Container {
 		
 		// 정크 영역 랜덤 채우기
 		offsetY += setJunkRGB(bmp, offsetY, width, dividers[0]);
-
+		
 		for (int i = 0; i < contCount; i++) {
 			// 컨테이너 데이터 쓰기
 			Container cont = containers.get(i);
@@ -509,7 +499,7 @@ public class Container {
 	 */
 	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, boolean twiceForced) throws Exception {
 		logger.info("\nContainer.toBitmapTwice");
-		if (!twiceForced && ((8 * getRatio(containers)) < minWidth)) {
+		if (!twiceForced && ((getWidthByRatio(containers, RATIO)) < minWidth)) {
 			logger.info("최소 폭보다 작을 경우 이중 변환할 필요 없음");
 			return toBitmap(containers, minWidth);
 		}
@@ -519,9 +509,9 @@ public class Container {
 		ImageIO.write(toBitmap(containers), "PNG", file);
 		Container cont = new Container("", file); // 파일명이 없는 컨테이너화
 		
-		List<Container> list = new ArrayList<>();
-		list.add(cont);
-		BufferedImage bmp2 = toBitmap(list, minWidth);
+		containers = new ArrayList<>();
+		containers.add(cont);
+		BufferedImage bmp2 = toBitmap(containers, minWidth);
 		
 		return bmp2;
 	}
@@ -534,7 +524,7 @@ public class Container {
 	 */
 	public static List<Container> fromBitmap(BufferedImage bmp) throws Exception {
 		logger.info("\nContainer.fromBitmap: " + bmp);
-		List<Container> containers = new ArrayList<Container>();
+		List<Container> containers = new ArrayList<>();
 		
 		int offsetY = 0;
 		int width = bmp.getWidth();
@@ -657,8 +647,10 @@ public class Container {
 	 * 
 	 * 진리표 (0~255 대신 0~7 기준 예시)
 	 * 
+	 * 
 	 * a,d에서 -> b,c 생성
 	 * 
+	 * (a+d)/2                     (8+a-d)/2
 	 * ｂ　│ａ              　│　ｃ　│ａ       
 	 * 　　│０１２３４５６７　│　　　│０１２３４５６７
 	 * ──┼────────　│　──┼────────
@@ -671,8 +663,10 @@ public class Container {
 	 * 　６│３３４４５５６６　│　　６│１１２２３３４４
 	 * 　７│３４４５５６６７　│　　７│０１１２２３３４
 	 * 
+	 * ───────────
 	 * b&c에서 d 복원 및 a 범위
 	 * 
+	 * 4 + b - c
 	 * ｄ　│ｂ　　　　　　　　│　ａ　│ｂ                                   
 	 * 　　│０１２３４５６７　│　　　│０ １ ２ ３ ４ ５ ６ ７                     
 	 * ──┼────────　│　──┼─-─-─-─-─-─-─-─                     
@@ -685,7 +679,21 @@ public class Container {
 	 * 　６│－－０１２３－－　│　　６│－ － 45 56 67 7- － －                 
 	 * 　７│－－－０１－－－　│　　７│－ － － 67 7- － － － 
 	 * 
-	 * ──────────────────────────────── 
+	 * ───────────
+	 * 패리티 연산
+	 * 
+	 * 4 + a - b - c
+	 * ｆ　│ａ                     
+	 * 　　│０１２３４５６７
+	 * ──┼────────
+	 * ｄ０│０１０１０１０１
+	 * 　１│１０１０１０１０
+	 * 　２│０１０１０１０１
+	 * 　３│１０１０１０１０
+	 * 　４│０１０１０１０１
+	 * 　５│１０１０１０１０
+	 * 　６│０１０１０１０１
+	 * 　７│１０１０１０１０
 	 *
 	 */
 	public static class WithTarget {
