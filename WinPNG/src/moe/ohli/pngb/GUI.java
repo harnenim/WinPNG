@@ -28,15 +28,15 @@ import sun.awt.image.AbstractMultiResolutionImage;
 
 @SuppressWarnings("serial")
 public class GUI extends JFrame implements ActionListener, KeyListener {
-
+	
 	private static final String TMP_DIR = System.getProperty("java.io.tmpdir").replace('\\', '/') + "WinPNG/";
 	private static final String CONFIG_FILE_PATH = TMP_DIR + "config.properties";
 	private static final BufferedImage JUNK_IMAGE = new BufferedImage(1, 1, BufferedImage.TYPE_3BYTE_BGR);
 	static {
 		JUNK_IMAGE.setRGB(0, 0, 0xFFFFFF);
 	}
-
-	private static Logger logger = new Logger(L.INFO);
+	
+	private static Logger logger = new Logger(L.DEBUG);
 	
 	private File pngFile = null;
 	private BufferedImage targetImage = null;
@@ -175,7 +175,9 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	private JPanel panelPreview = new JPanel();
 	private JLabel ivTarget = new JLabel(), jlTarget = new JLabel("입력 이미지")
 	             , ivOutput = new JLabel(), jlOutput = new JLabel("출력 이미지");
-	private JCheckBox cbUseTarget = new JCheckBox("입력 이미지 사용", false);
+	private JRadioButton rbTarget011 = new JRadioButton("사용 안 함");
+	private JRadioButton rbTarget114 = new JRadioButton("1:1:4");
+	private JRadioButton rbTarget149 = new JRadioButton("1:4:9");
 	private JTextField tfWidth = new JTextField("0");
 	private JButton btnSave = new MyButton("저장", this), btnSaveAs = new MyButton("다른 이름으로 저장", this), btnCopy = new MyButton("복사", this);
 	
@@ -245,7 +247,14 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			
 			// 기타 설정
 			try {
-				cbUseTarget.setSelected("Y".equals(props.getProperty("useTargetImage")));
+				String useTargetImage = props.getProperty("useTargetImage");
+				if ("114".equals(useTargetImage)) {
+					rbTarget114.setSelected(true);
+				} else if ("149".equals(useTargetImage)) {
+					rbTarget149.setSelected(true);
+				} else {
+					rbTarget011.setSelected(true);
+				}
 			} catch (Exception e) {
 				logger.warn("이미지 입력 설정 가져오기 실패");
 				logger.debug(e);
@@ -294,37 +303,52 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		
 		{	// 중앙 내용물
 			JPanel panelFiles = new JPanel(new BorderLayout());
-			{
+			{	// 파일 리스트 영역
 				panelFilesEdit.add(new JScrollPane(lvFiles), BorderLayout.CENTER);
 				JPanel panelFilesBtn = new JPanel(new FlowLayout(FlowLayout.LEFT));
 				panelFilesBtn.add(btnAddFile);
 				panelFilesBtn.add(btnDelete);
-				panelFilesEdit.add(panelFilesBtn, BorderLayout.SOUTH);
+				panelFilesEdit.add(panelFilesBtn , BorderLayout.SOUTH);
 				panelFiles.add(panelFilesEdit, BorderLayout.CENTER);
 			}
-			{
+			{	// 버튼 영역
 				panelExport.add(tfExportDir, BorderLayout.CENTER);
-				panelExport.add(btnExport, BorderLayout.EAST);
+				panelExport.add(btnExport  , BorderLayout.EAST);
 				panelFiles.add(panelExport, BorderLayout.SOUTH);
 			}
 			add(panelFiles, BorderLayout.CENTER);
 		}
 		{	// 우측 이미지
-			// 우측 이미지뷰
-			JPanel panelRight = new JPanel(new BorderLayout());
-			{
+			JPanel panelRight  = new JPanel(new BorderLayout());
+			JPanel panelTarget = new JPanel(new BorderLayout());
+			JPanel panelOutput = new JPanel(new BorderLayout());
+			{	// 이미지뷰 영역
 				panelPreview.setLayout(new BoxLayout(panelPreview, BoxLayout.Y_AXIS));
 				panelPreview.add(new JPanel());
-				panelPreview.add(jlTarget);
-				panelPreview.add(ivTarget);
-				panelPreview.add(cbUseTarget);
+				{	// 입력 이미지
+					JPanel panelRadio = new JPanel();
+					ButtonGroup rbGroupTarget = new ButtonGroup();
+					panelTarget.add(jlTarget, BorderLayout.NORTH);
+					panelTarget.add(ivTarget, BorderLayout.CENTER);
+					panelRadio.add(rbTarget011);
+					panelRadio.add(rbTarget114);
+					panelRadio.add(rbTarget149);
+					rbGroupTarget.add(rbTarget011);
+					rbGroupTarget.add(rbTarget114);
+					rbGroupTarget.add(rbTarget149);
+					panelTarget.add(panelRadio, BorderLayout.SOUTH);
+					panelPreview.add(panelTarget);
+				}
 				panelPreview.add(new JPanel());
-				panelPreview.add(jlOutput);
-				panelPreview.add(ivOutput);
+				{	// 출력 이미지
+					panelOutput.add(jlOutput, BorderLayout.NORTH);
+					panelOutput.add(ivOutput, BorderLayout.CENTER);
+					panelPreview.add(panelOutput);
+				}
 				panelPreview.add(new JPanel());
 				panelRight.add(panelPreview, BorderLayout.CENTER);
 			}
-			{
+			{	// 버튼 영역
 				JPanel panelSave = new JPanel(new BorderLayout());
 				JLabel jlWidth = new JLabel("　최소 폭 ");
 				panelSave.add(jlWidth, BorderLayout.WEST);
@@ -338,12 +362,10 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				panelRight.add(panelSave, BorderLayout.SOUTH);
 			}
 			
-			panelPreview.setPreferredSize(new Dimension(280, 0));
-			
 			ivTarget.setToolTipText("Ctrl+V로 이미지를 적용할 수 있습니다.");
 			ivOutput.setToolTipText("Ctrl+C로 복사할 수 있습니다.");
-			ivTarget.setPreferredSize(new Dimension(0, 158));
-			ivOutput.setPreferredSize(new Dimension(0, 158));
+			panelTarget.setMaximumSize(new Dimension(280, 200));
+			panelOutput.setMaximumSize(new Dimension(280, 180));
 			
 			updateTarget(JUNK_IMAGE);
 			updateOutput();
@@ -355,12 +377,12 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			lvFiles.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 			lvFiles.setDragEnabled(true);
 			
-			addKeyListener(this);
-			lvFiles    .addKeyListener(this);
-			tfWidth    .addKeyListener(this);
-			tfPngFile  .addKeyListener(this);
-			cbUseTarget.addKeyListener(this);
-			cbUseTarget.addActionListener(this);
+			for (Component c : new Component[] { this, lvFiles, tfWidth, tfPngFile, rbTarget011, rbTarget114, rbTarget149 }) {
+				c.addKeyListener(this);
+			}
+			for (AbstractButton c : new AbstractButton[] { rbTarget011, rbTarget114, rbTarget149 }) {
+				c.addActionListener(this);
+			}
 			
 			FileTransferHandler fth = new FileTransferHandler();
 			lvFiles .setTransferHandler(fth);
@@ -388,9 +410,15 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					Rectangle bounds = getBounds();
 					props.setProperty("LogLevel", logger.getDefaultLevel().name());
 					props.setProperty("bounds", bounds.x + "," + bounds.y + "," + bounds.width + "," + bounds.height);
-					props.setProperty("useTargetImage", cbUseTarget.isSelected() ? "Y" : "N");
 					props.setProperty("minWidth", tfWidth.getText());
 					props.setProperty("exportDir", tfExportDir.getText());
+					if (rbTarget011.isSelected()) {
+						props.setProperty("useTargetImage", "011");
+					} else if (rbTarget114.isSelected()) {
+						props.setProperty("useTargetImage", "114");
+					} else if (rbTarget149.isSelected()) {
+						props.setProperty("useTargetImage", "149");
+					}
 					
 					FileOutputStream fos = null;
 					try {
@@ -436,8 +464,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	 * @param file
 	 * @return
 	 */
-	private static int deleteDirectory(File file) {
-		System.out.println("deleteDirectory: " + file.getAbsolutePath());
+	private int deleteDirectory(File file) {
+		logger.info("deleteDirectory: " + file.getAbsolutePath());
 		int count = 0;
 		if (file.isDirectory()) {
 			// 디렉토리일 경우 하위 디렉토리/파일 먼저 삭제
@@ -464,7 +492,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		do {
 			if (lvFiles.isEmpty()) {
 				outputImage = null;
-				ivOutput.setIcon(null);
+				ivOutput.setIcon(new ImageIcon(JUNK_IMAGE.getScaledInstance(280, 158, Image.SCALE_SMOOTH)));
 				jlOutput.setText("출력 이미지");
 				break;
 			}
@@ -486,15 +514,17 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				break;
 			}
 			
-			// GUI와 별도 스레드에서 진행
+			// 별도 스레드에서 진행
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
 					List<Container> containers = lvFiles.getAllContainers();
 					Collections.shuffle(containers); // 섞어서 난수화, 불러올 때 정렬
 					try {
-						if (cbUseTarget.isSelected()) {
-							outputImage = new Container.WithTarget(targetImage, containers).toBitmap(minWidth);
+						if (rbTarget114.isSelected()) {
+							outputImage = new Container.WithTarget(targetImage, containers).toBitmap114(minWidth);
+						} else if (rbTarget149.isSelected()) {
+							outputImage = new Container.WithTarget(targetImage, containers).toBitmap149(minWidth);
 						} else {
 							outputImage = Container.toBitmapTwice(containers, minWidth);
 						}
@@ -514,7 +544,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			}).start();
 			return;
 		} while (false);
-
+		
 		// 이미지 생성 로직 안 돌면 바로 이쪽으로 옴
 		if (--updateStatus > 0) {
 			logger.info("이미지 생성 대기열 실행");
@@ -672,10 +702,9 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				File newPng = new File(path);
 				updateTarget(ImageIO.read(newPng));
 			}
-			if (cbUseTarget.isSelected()) {
+			if (rbTarget114.isSelected() || rbTarget149.isSelected()) {
 				updateOutput();
 			}
-			
 			return true;
 			
 		} catch (Exception e) {
@@ -701,7 +730,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					openBitmap(image);
 				} else {
 					updateTarget(image);
-					if (cbUseTarget.isSelected()) {
+					if (rbTarget114.isSelected() || rbTarget149.isSelected()) {
 						updateOutput();
 					}
 				}
@@ -1016,7 +1045,10 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			// 이미지 클립보드 복사
 			copyToClipboard();
 			
-		} else if (target == cbUseTarget) {
+		} else if (target == rbTarget011
+				|| target == rbTarget114
+				|| target == rbTarget149
+				) {
 			// 이미지 사용 여부 선택하면 재생성
 			updateOutput();
 		}
@@ -1156,7 +1188,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
     private class FileTransferHandler extends TransferHandler {
         @Override
         protected Transferable createTransferable(JComponent c) {
-        	System.out.println("createTransferable");
+        	logger.debug("createTransferable");
 			final List<File> rootFiles = new ArrayList<>();
 			
         	if (c == lvFiles) { // 리스트의 파일 선택 드래그
@@ -1536,6 +1568,11 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					if (!lvFiles.isEmpty()) {
 						int result = confirm("현재 파일을 닫겠습니까?", "PNG 파일 열기");
 						if (result == JOptionPane.NO_OPTION) {
+							result = confirm("파일 목록에 추가하시겠습니까?", "PNG 파일 열기");
+							if (result == JOptionPane.YES_OPTION) {
+								c = panelFilesEdit;
+								break;
+							}
 							return;
 						}
 					}
