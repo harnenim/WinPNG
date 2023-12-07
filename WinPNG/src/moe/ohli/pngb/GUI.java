@@ -173,14 +173,13 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	
 	// 우측 이미지
 	private JPanel panelPreview = new JPanel();
-	private JLabel ivTarget = new JLabel(), jlTarget = new JLabel()
-	             , ivOutput = new JLabel(), jlOutput = new JLabel()
-	             , jlWidth  = new JLabel();
+	private JLabel ivTarget = new JLabel(), jlTarget = new JLabel(), jlPw    = new JLabel()
+	             , ivOutput = new JLabel(), jlOutput = new JLabel(), jlWidth = new JLabel();
 	private JRadioButton rbTarget011 = new JRadioButton();
 	private JRadioButton rbTarget114 = new JRadioButton();
 	private JRadioButton rbTarget149 = new JRadioButton();
 	private ButtonGroup rbGroupTarget = new ButtonGroup();
-	private JTextField tfWidth = new JTextField("0");
+	private JTextField tfPw = new JTextField(""), tfWidth = new JTextField("0");
 	private JButton btnSave = new MyButton(this), btnCopy = new MyButton(this);
 	
 	private static boolean USE_JFC = false;
@@ -224,13 +223,12 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			try {
 				String logLevel = props.getProperty("LogLevel");
 				logger.setDefaultLevel(L.valueOf(logLevel));
-				logger.set(System.out, L.INFO);
 				logger.log(L.INFO, "로그 레벨: " + logLevel);
 			} catch (Exception e) {
-				logger.setDefaultLevel(L.INFO);
 				logger.log(L.ERROR, "로그 레벨 설정 가져오기 실패");
 				logger.log(L.DEBUG, e);
 			}
+			logger.setDefaultLevel(L.INFO);
 			
 			boolean isLinux = "Linux".equals(System.getProperty("os.name"));
 			
@@ -266,6 +264,12 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				}
 			} catch (Exception e) {
 				logger.warn("이미지 입력 설정 가져오기 실패");
+				logger.debug(e);
+			}
+			try {
+				tfPw.setText(props.getProperty("password"));
+			} catch (Exception e) {
+				logger.warn("비밀번호 가져오기 실패");
 				logger.debug(e);
 			}
 			try {
@@ -338,6 +342,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			rbTarget114.setText("1:1:4");
 			rbTarget149.setText("1:4:9");
 			jlOutput.setText(Strings.get("output image"));
+			jlPw.setText("   " + Strings.get("password") + " ");
 			jlWidth.setText("      " + Strings.get("min width") + " ");
 			btnSave.setText(Strings.get("save"));
 			btnCopy.setText(Strings.get("copy"));
@@ -396,8 +401,12 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				}
 				panelPreview.add(new JPanel());
 				{	// 출력 이미지
+					JPanel panelPw = new JPanel(new BorderLayout());
 					panelOutput.add(jlOutput, BorderLayout.NORTH);
 					panelOutput.add(ivOutput, BorderLayout.CENTER);
+					panelPw.add(jlPw, BorderLayout.WEST);
+					panelPw.add(tfPw, BorderLayout.CENTER);
+					panelOutput.add(panelPw, BorderLayout.SOUTH);
 					panelPreview.add(panelOutput);
 				}
 				panelPreview.add(new JPanel());
@@ -429,7 +438,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			lvFiles.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 			lvFiles.setDragEnabled(true);
 			
-			for (Component c : new Component[] { this, lvFiles, tfWidth, tfPngFile, rbTarget011, rbTarget114, rbTarget149 }) {
+			for (Component c : new Component[] { this, lvFiles, tfPw, tfWidth, tfPngFile, rbTarget011, rbTarget114, rbTarget149 }) {
 				c.addKeyListener(this);
 			}
 			for (AbstractButton c : new AbstractButton[] { rbTarget011, rbTarget114, rbTarget149 }) {
@@ -462,6 +471,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					Rectangle bounds = getBounds();
 					props.setProperty("LogLevel", logger.getDefaultLevel().name());
 					props.setProperty("bounds", bounds.x + "," + bounds.y + "," + bounds.width + "," + bounds.height);
+					props.setProperty("password", tfPw.getText());
 					props.setProperty("minWidth", tfWidth.getText());
 					props.setProperty("exportDir", tfExportDir.getText());
 					if (rbTarget011.isSelected()) {
@@ -573,12 +583,13 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					List<Container> containers = lvFiles.getAllContainers();
 					Collections.shuffle(containers); // 섞어서 난수화, 불러올 때 정렬
 					try {
+						String password = tfPw.getText();
 						if (rbTarget114.isSelected()) {
-							outputImage = new Container.WithTarget(targetImage, containers).toBitmap114(minWidth);
+							outputImage = new Container.WithTarget(targetImage, containers).toBitmap114(minWidth, password);
 						} else if (rbTarget149.isSelected()) {
-							outputImage = new Container.WithTarget(targetImage, containers).toBitmap149(minWidth);
+							outputImage = new Container.WithTarget(targetImage, containers).toBitmap149(minWidth, password);
 						} else {
-							outputImage = Container.toBitmapTwice(containers, minWidth);
+							outputImage = Container.toBitmapTwice(containers, password, minWidth);
 						}
 						ivOutput.setIcon(new ImageIcon(outputImage.getScaledInstance(280, 158, Image.SCALE_SMOOTH)));
 						jlOutput.setText(Strings.get("output image") + "(" + outputImage.getWidth() + "×" + outputImage.getHeight() + ")");
@@ -710,6 +721,11 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	private boolean openBitmap(BufferedImage bmp, File file) {
 		try {
 			Container.WithTarget parsed = Container.WithTarget.fromBitmap(bmp);
+			if (parsed == null) {
+				// 키값 가지고 재시도
+				String key = JOptionPane.showInputDialog(this, "비밀번호가 있다면 키를 입력하세요.");
+				parsed = Container.WithTarget.fromBitmap(bmp, key);
+			}
 			if (parsed == null) {
 				return false;
 			}
@@ -1182,7 +1198,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 
 	@Override
 	public void keyReleased(KeyEvent e) {
-		if (e.getComponent() == tfWidth) {
+		Component component = e.getComponent();
+		if (component == tfWidth) {
 			if (e.getKeyCode() == 10) {
 				// 엔터일 경우 KeyPressed에서 이미 동작함
 				return;
@@ -1209,6 +1226,10 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				}
 				tfWidth.setText(strWidth);
 			}
+			return;
+			
+		} else if (component == tfPw) {
+			updateOutput();
 			return;
 		}
 		switch (e.getKeyCode()) {

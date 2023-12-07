@@ -30,6 +30,7 @@ public class Strings {
 		KR.put("input image", "입력 이미지");
 		KR.put("dont use", "사용 안 함");
 		KR.put("output image", "출력 이미지");
+		KR.put("password", "비밀번호");
 		KR.put("min width", "최소 폭");
 		KR.put("save", "저장");
 		KR.put("copy", "복사");
@@ -78,6 +79,7 @@ public class Strings {
 		EN.put("input image", "Input Image");
 		EN.put("dont use", "Don't use");
 		EN.put("output image", "Output Image");
+		EN.put("password", "Password");
 		EN.put("min width", "Min-Width");
 		EN.put("save", "Save");
 		EN.put("copy", "Copy");
