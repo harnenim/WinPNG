@@ -1049,15 +1049,25 @@ public class Container {
 			return result;
 		}
 		
+		private static final int CHECKSUM_SAMPLE_COUNT = 10;
+		public static final int CAN_PROTOTYPE = 1;
+		public static final int CAN_114 = 1 << 1;
+		public static final int CAN_149 = 1 << 2;
+		public static int possibility(BufferedImage bmp) {
+			int result = 0;
+			try { if (canPrototype(bmp)) { result |= CAN_PROTOTYPE; } } catch (Exception e) { logger.debug(e); }
+			try { if (can114      (bmp)) { result |= CAN_114;       } } catch (Exception e) { logger.debug(e); }
+			try { if (can149      (bmp)) { result |= CAN_149;       } } catch (Exception e) { logger.debug(e); }
+			return result;
+		}
 		/**
-		 * 1:1:4 레거시 형식 비트맵 이미지를 해석
+		 * 1:1:4 레거시 형식 해석이 가능한지 패리티 검증
 		 * @param bmp
 		 * @return
 		 * @throws Exception
 		 */
-		@Deprecated
-		private static WithTarget fromBitmapPrototype(BufferedImage bmp, boolean tryWithout) throws Exception {
-			logger.warn("\nWithTarget.fromBitmapPrototype - 개발 도중 레거시 형식 지원");
+		private static boolean canPrototype(BufferedImage bmp) throws Exception {
+			logger.info("\nis it prototype?");
 			
 			int width = bmp.getWidth();
 			int height = bmp.getHeight();
@@ -1068,25 +1078,33 @@ public class Container {
 					// 1:1:4 결합 이미지일 경우 크기는 짝수여야 함
 					if (width % 2 > 0 || height % 2 > 0) break;
 					
-					// (2x,2y)와 (2x+1,2y+1)은 둘 다 출력물 이미지의 원본 픽셀로 같은 값이어야 함
-					if (bmp.getRGB(0, 0) != bmp.getRGB(1, 1)) break;
-					
-					// (2x+1,2y)와 (2x,2y+1)은 합쳐서 0xFFFFFF가 나와야 함
-					if ((bmp.getRGB(0, 1)&0xFFFFFF) + (bmp.getRGB(1, 0)&0xFFFFFF) != 0xFFFFFF) break;
-					
-					BufferedImage targetImage = new BufferedImage(width / 2, height / 2, BufferedImage.TYPE_3BYTE_BGR);
-					BufferedImage dataImage   = new BufferedImage(width / 2, height / 2, BufferedImage.TYPE_3BYTE_BGR);
-					
-					for (int y = 0; y < height / 2; y++) {
-						for (int x = 0; x < width / 2; x++) {
-							targetImage.setRGB(x, y, bmp.getRGB(2*x  , 2*y));
-							dataImage  .setRGB(x, y, bmp.getRGB(2*x+1, 2*y));
+					{	// 몇 블럭만 샘플로 검증해보고 진행
+						boolean checkFailed = false;
+						
+						for (int i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
+							int x = (int) (Math.random() * width ) / 2;
+							int y = (int) (Math.random() * height) / 2;
+							
+							// (2x,2y)와 (2x+1,2y+1)은 둘 다 출력물 이미지의 원본 픽셀로 같은 값이어야 함
+							if ((bmp.getRGB(2*x, 2*y  ) & 0xFFFFFF) != (bmp.getRGB(2*x+1, 2*y+1) & 0xFFFFFF)) {
+								checkFailed = true;
+								break;
+							}
+							
+							// (2x+1,2y)와 (2x,2y+1)은 합쳐서 0xFFFFFF가 나와야 함
+							if ((bmp.getRGB(2*x, 2*y+1) & 0xFFFFFF)  + (bmp.getRGB(2*x+1, 2*y  ) & 0xFFFFFF) != 0xFFFFFF) {
+								checkFailed = true;
+								break;
+							}
+						}
+						if (checkFailed) {
+							logger.info("체크섬 오류 - 레거시 WithTarget 1:1:4 형식 이미지가 아님");
+							break;
 						}
 					}
-					List<Container> containers = Container.fromBitmap(dataImage);
-					if (containers.size() > 0) {
-						return new WithTarget(targetImage, containers);
-					}
+
+					logger.info("체크섬 통과 - 레거시 WithTarget 1:1:4 형식 가능");
+					return true;
 					
 				} catch (Exception e) {
 					logger.info("이미지 해석 실패");
@@ -1094,27 +1112,16 @@ public class Container {
 				}
 			} while (false);
 			
-			// 위에서 실패했을 경우 without target 진행
-			if (tryWithout) {
-				logger.info("Without target");
-				List<Container> containers = Container.fromBitmap(bmp);
-				if (containers.size() > 0) {
-					return new WithTarget(null, containers);
-				}
-			}
-			
-			return null;
+			return false;
 		}
 		/**
-		 * 1:1:4 형식 비트맵 이미지를 해석
+		 * 1:1:4 형식 해석이 가능한지 패리티 검증
 		 * @param bmp
-		 * @param shift: 출력물 바이트 밀기
-		 * @param xors: 출력물 xor 연산 수행
 		 * @return
 		 * @throws Exception
 		 */
-		private static WithTarget fromBitmap114(BufferedImage bmp, int shift, int[] xors) throws Exception {
-			logger.info("\nWithTarget.fromBitmap 1:1:4");
+		private static boolean can114(BufferedImage bmp) throws Exception {
+			logger.info("\nis it 1:1:4?");
 			
 			int width = bmp.getWidth();
 			int height = bmp.getHeight();
@@ -1131,7 +1138,7 @@ public class Container {
 						boolean checkFailed = false;
 						int checksum, compare;
 						
-						for (int i = 0; i < 10; i++) {
+						for (int i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
 							int x = (int) (Math.random() * width ) / 2;
 							int y = (int) (Math.random() * height) / 2;
 							
@@ -1176,46 +1183,26 @@ public class Container {
 							break;
 						}
 					}
-					
-					BufferedImage targetImage = new BufferedImage(width / 2, height / 2, BufferedImage.TYPE_3BYTE_BGR);
-					BufferedImage dataImage   = new BufferedImage(width / 2, height / 2, BufferedImage.TYPE_3BYTE_BGR);
-					
-					for (int y = 0; y < height / 2; y++) {
-						for (int x = 0; x < width / 2; x++) {
-							a = bmp.getRGB(2*x  , 2*y  ) & 0xFFFFFF;
-							b = bmp.getRGB(2*x+1, 2*y  ) & 0xFFFFFF; // (a+d)/2
-							c = bmp.getRGB(2*x  , 2*y+1) & 0xFFFFFF; // (1+a-d)/2
-							// {1/2 + b - c} = {1/2 + (a+d)/2 - (1+a-d)/2} = {(1+a+d-1-a+d)/2} = d
-							d = (0x800000 + (b&0xFF0000) - (c&0xFF0000))
-							  | (0x008000 + (b&0x00FF00) - (c&0x00FF00))
-							  | (0x000080 + (b&0x0000FF) - (c&0x0000FF));
-							targetImage.setRGB(x, y, a);
-							dataImage  .setRGB(x, y, d);
-						}
-					}
-					List<Container> containers = Container.fromBitmap(dataImage, shift, xors);
-					if (containers.size() > 0) {
-						return new WithTarget(targetImage, containers);
-					}
+
+					logger.info("체크섬 통과 - 현행 WithTarget 1:1:4 형식 가능");
+					return true;
 					
 				} catch (Exception e) {
 					logger.info("이미지 해석 실패");
 					logger.debug(e);
 				}
 			} while (false);
-
-			return null;
+			
+			return false;
 		}
 		/**
-		 * 1:4:9 형식 비트맵 이미지를 해석
+		 * 1:4:9 형식 해석이 가능한지 패리티 검증
 		 * @param bmp
-		 * @param shift: 출력물 바이트 밀기
-		 * @param xors: 출력물 xor 연산 수행
 		 * @return
 		 * @throws Exception
 		 */
-		private static WithTarget fromBitmap149(BufferedImage bmp, int shift, int[] xors) throws Exception {
-			logger.info("\nWithTarget.fromBitmap 1:4:9");
+		private static boolean can149(BufferedImage bmp) throws Exception {
+			logger.info("\nis it 1:4:9?");
 			
 			int width = bmp.getWidth();
 			int height = bmp.getHeight();
@@ -1223,7 +1210,7 @@ public class Container {
 			
 			do {
 				try {
-					// 1:4:9 결합 이미지일 경우 크기는 짝수여야 함
+					// 1:4:9 결합 이미지일 경우 크기는 3의 배수여야 함
 					if (width % 3 > 0 || height % 3 > 0) break;
 					
 					int a, b1, b2, b3, b4
@@ -1237,7 +1224,7 @@ public class Container {
 						  , checksum3, compare3
 						  , checksum4, compare4;
 						
-						for (int i = 0; i < 10; i++) {
+						for (int i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
 							int x = (int) (Math.random() * width  / 3);
 							int y = (int) (Math.random() * height / 3);
 							
@@ -1314,7 +1301,135 @@ public class Container {
 							logger.info("체크섬 오류 - WithTarget 1:4:9 형식 이미지가 아님");
 							break;
 						}
+
+						logger.info("체크섬 통과 - WithTarget 1:4:9 형식 가능");
+						return true;
 					}
+					
+				} catch (Exception e) {
+					logger.info("이미지 해석 실패");
+					logger.debug(e);
+				}
+			} while (false);
+			
+			return false;
+		}
+		
+		/**
+		 * 1:1:4 레거시 형식 비트맵 이미지를 해석
+		 * @param bmp
+		 * @return
+		 * @throws Exception
+		 */
+		@Deprecated
+		private static WithTarget fromBitmapPrototype(BufferedImage bmp, boolean tryWithout) throws Exception {
+			logger.warn("\nWithTarget.fromBitmapPrototype - 개발 도중 레거시 형식 지원");
+			
+			int width = bmp.getWidth();
+			int height = bmp.getHeight();
+			logger.info("input size: " + width + " x " + height);
+			
+			do {
+				try {
+					BufferedImage targetImage = new BufferedImage(width / 2, height / 2, BufferedImage.TYPE_3BYTE_BGR);
+					BufferedImage dataImage   = new BufferedImage(width / 2, height / 2, BufferedImage.TYPE_3BYTE_BGR);
+					
+					for (int y = 0; y < height / 2; y++) {
+						for (int x = 0; x < width / 2; x++) {
+							targetImage.setRGB(x, y, bmp.getRGB(2*x  , 2*y));
+							dataImage  .setRGB(x, y, bmp.getRGB(2*x+1, 2*y));
+						}
+					}
+					List<Container> containers = Container.fromBitmap(dataImage);
+					if (containers.size() > 0) {
+						return new WithTarget(targetImage, containers);
+					}
+					
+				} catch (Exception e) {
+					logger.info("이미지 해석 실패");
+					logger.debug(e);
+				}
+			} while (false);
+			
+			// 위에서 실패했을 경우 without target 진행
+			if (tryWithout) {
+				logger.info("Without target");
+				List<Container> containers = Container.fromBitmap(bmp);
+				if (containers.size() > 0) {
+					return new WithTarget(null, containers);
+				}
+			}
+			
+			return null;
+		}
+		/**
+		 * 1:1:4 형식 비트맵 이미지를 해석
+		 * @param bmp
+		 * @param shift: 출력물 바이트 밀기
+		 * @param xors: 출력물 xor 연산 수행
+		 * @return
+		 * @throws Exception
+		 */
+		private static WithTarget fromBitmap114(BufferedImage bmp, int shift, int[] xors) throws Exception {
+			logger.info("\nWithTarget.fromBitmap 1:1:4");
+			
+			int width = bmp.getWidth();
+			int height = bmp.getHeight();
+			logger.info("input size: " + width + " x " + height);
+			
+			do {
+				try {
+					int a, b, c, d;
+					
+					BufferedImage targetImage = new BufferedImage(width / 2, height / 2, BufferedImage.TYPE_3BYTE_BGR);
+					BufferedImage dataImage   = new BufferedImage(width / 2, height / 2, BufferedImage.TYPE_3BYTE_BGR);
+					
+					for (int y = 0; y < height / 2; y++) {
+						for (int x = 0; x < width / 2; x++) {
+							a = bmp.getRGB(2*x  , 2*y  ) & 0xFFFFFF;
+							b = bmp.getRGB(2*x+1, 2*y  ) & 0xFFFFFF; // (a+d)/2
+							c = bmp.getRGB(2*x  , 2*y+1) & 0xFFFFFF; // (1+a-d)/2
+							// {1/2 + b - c} = {1/2 + (a+d)/2 - (1+a-d)/2} = {(1+a+d-1-a+d)/2} = d
+							d = (0x800000 + (b&0xFF0000) - (c&0xFF0000))
+							  | (0x008000 + (b&0x00FF00) - (c&0x00FF00))
+							  | (0x000080 + (b&0x0000FF) - (c&0x0000FF));
+							targetImage.setRGB(x, y, a);
+							dataImage  .setRGB(x, y, d);
+						}
+					}
+					List<Container> containers = Container.fromBitmap(dataImage, shift, xors);
+					if (containers.size() > 0) {
+						return new WithTarget(targetImage, containers);
+					}
+					
+				} catch (Exception e) {
+					logger.info("이미지 해석 실패");
+					logger.debug(e);
+				}
+			} while (false);
+
+			return null;
+		}
+		/**
+		 * 1:4:9 형식 비트맵 이미지를 해석
+		 * @param bmp
+		 * @param shift: 출력물 바이트 밀기
+		 * @param xors: 출력물 xor 연산 수행
+		 * @return
+		 * @throws Exception
+		 */
+		private static WithTarget fromBitmap149(BufferedImage bmp, int shift, int[] xors) throws Exception {
+			logger.info("\nWithTarget.fromBitmap 1:4:9");
+			
+			int width = bmp.getWidth();
+			int height = bmp.getHeight();
+			logger.info("input size: " + width + " x " + height);
+			
+			do {
+				try {
+					int a, b1, b2, b3, b4
+					     , c1, c2, c3, c4
+					     , d1, d2, d3, d4;
 					
 					BufferedImage targetImage = new BufferedImage(width / 3, height / 3, BufferedImage.TYPE_3BYTE_BGR);
 					BufferedImage dataImage   = new BufferedImage(width*2/3, height*2/3, BufferedImage.TYPE_3BYTE_BGR);
@@ -1370,21 +1485,30 @@ public class Container {
 		 * @throws Exception
 		 */
 		public static WithTarget fromBitmap(BufferedImage bmp) throws Exception {
-			return fromBitmap(bmp, 0, new int[0]);
+			return fromBitmap(bmp, possibility(bmp), 0, new int[0]);
 		}
 		public static WithTarget fromBitmap(BufferedImage bmp, String key) throws Exception {
-			return fromBitmap(bmp, key.length(), bytesToRGBs(key.getBytes("UTF-8")));
+			return fromBitmap(bmp, possibility(bmp), key.length(), bytesToRGBs(key.getBytes("UTF-8")));
 		}
 		public static WithTarget fromBitmap(BufferedImage bmp, int shift, int[] xors) throws Exception {
+			return fromBitmap(bmp, possibility(bmp), shift, xors);
+		}
+		public static WithTarget fromBitmap(BufferedImage bmp, int possibility) throws Exception {
+			return fromBitmap(bmp, possibility(bmp), 0, new int[0]);
+		}
+		public static WithTarget fromBitmap(BufferedImage bmp, int possibility, String key) throws Exception {
+			return fromBitmap(bmp, possibility(bmp), key.length(), bytesToRGBs(key.getBytes("UTF-8")));
+		}
+		public static WithTarget fromBitmap(BufferedImage bmp, int possibility, int shift, int[] xors) throws Exception {
 			logger.info("\nWithTarget.fromBitmap");
 			WithTarget result;
 			
 			// 1:4:9 형식으로 시도
-			if ((result = fromBitmap149(bmp, shift, xors)) != null) {
+			if (((possibility & CAN_149) > 0) && (result = fromBitmap149(bmp, shift, xors)) != null) {
 				return result;
 			}
 			// 1:1:4 형식으로 시도
-			if ((result = fromBitmap114(bmp, shift, xors)) != null) {
+			if (((possibility & CAN_114) > 0) && (result = fromBitmap114(bmp, shift, xors)) != null) {
 				return result;
 			}
 			
@@ -1394,8 +1518,11 @@ public class Container {
 				return new WithTarget(null, containers);
 			}
 			
-			logger.info("현행 방식으로 해석 실패했을 경우, 개발 도중 레거시 형식으로 재시도");
-			return fromBitmapPrototype(bmp, false);
+			if ((possibility & CAN_PROTOTYPE) > 0) {
+				logger.info("현행 방식으로 해석 실패했을 경우, 개발 도중 레거시 형식으로 재시도");
+				return fromBitmapPrototype(bmp, false);
+			}
+			return null;
 		}
 	}
 }
