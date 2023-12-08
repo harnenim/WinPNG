@@ -5,6 +5,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.UnsupportedEncodingException;
 import java.util.*;
 
 import javax.imageio.ImageIO;
@@ -336,6 +337,23 @@ public class Container {
 		}
 		return result;
 	}
+	/**
+	 * 비밀번호에서 암호화 값 구하기
+	 * ... 좀 더 복잡한 뭔가가 필요하려나
+	 * @param key
+	 * @return
+	 */
+	private static final int getShift(String key) {
+		return key.length();
+	}
+	private static final int[] getXors(String key) {
+		try {
+			return bytesToRGBs(key.getBytes("UTF-8"));
+		} catch (UnsupportedEncodingException e) {
+			logger.error(e);
+			return new int[0];
+		}
+	}
 	
 	/**
 	 * 파일로 저장
@@ -455,29 +473,35 @@ public class Container {
 	 * @throws Exception
 	 */
 	public static BufferedImage toBitmap(List<Container> containers) throws Exception {
-		return toBitmap(containers, 0, new int[0], 0, 1);
+		return toBitmap(containers, 0, RATIO, 1, 0, new int[0]);
+	}
+	public static BufferedImage toBitmap(List<Container> containers, int minWidth, double ratio, String key) throws Exception {
+		return toBitmap(containers, minWidth, ratio, 1, key);
+	}
+	public static BufferedImage toBitmap(List<Container> containers, int minWidth, double ratio, int unit, String key) throws Exception {
+		return toBitmap(containers, minWidth, ratio, unit, getShift(key), getXors(key));
 	}
 	/**
 	 * 컨테이너 목록을 이미지로 변환
 	 * @param containers: 컨테이너 목록
-	 * @param shift: 출력물 바이트 밀기
-	 * @param xors: 출력물 xor 연산 수행
 	 * @param minWidth: 최소 폭
 	 * @param unit: 크기 단위
+	 * @param shift: 출력물 바이트 밀기
+	 * @param xors: 출력물 xor 연산 수행
 	 * @return: 비트맵 이미지
 	 * @throws Exception
 	 */
-	public static BufferedImage toBitmap(List<Container> containers, int shift, int[] xors, int minWidth, int unit) throws Exception {
+	public static BufferedImage toBitmap(List<Container> containers, int minWidth, double ratio, int unit, int shift, int[] xors) throws Exception {
 		logger.info("\nContainer.toBitmap");
 		// 최종 이미지 크기 구하기
-		int width = (Math.max(minWidth, getWidthByRatio(containers, RATIO)) + unit - 1) / unit * unit;
+		int width = (Math.max(minWidth, getWidthByRatio(containers, ratio)) + unit - 1) / unit * unit;
 		int contCount = containers.size();
 		int containersHeight = 0;
 		for (Container cont : containers) {
 			containersHeight += (cont.getRGBPixelCount() + width - 1) / width;
 		}
-		logger.info("max(" + ((int) (width * RATIO)) + ", " + containersHeight + ")");
-		int height = (Math.max((int) (width * RATIO), containersHeight) + unit - 1) / unit * unit;
+		logger.info("max(" + ((int) (width * ratio)) + ", " + containersHeight + ")");
+		int height = (Math.max((int) (width * ratio), containersHeight) + unit - 1) / unit * unit;
 		logger.info("output size: " + width + " x " + height);
 		
 		// 정크 영역 랜덤 배분
@@ -527,21 +551,6 @@ public class Container {
 			return 0;
 		}
 		logger.info(pad(pixelCount, 6) + " → " + pad(pixelCount, 7) + "(" + width + " x " + pad(height, 3) + "): JUNK DATA");
-		/*
-		int[] rgbs = new int[pixelCount];
-		rgbs[shift = shift % width] = 0; // pathLength
-		rgbs[shift + 1] = (pixelCount - 2) * 3; // binaryLength
-		for (int i = shift + 2; i < pixelCount + shift; i++) {
-			rgbs[i % pixelCount] = (int) (Math.random() * Integer.MAX_VALUE);
-		}
-		if (xors.length > 0) {
-			// xor 연산 수행
-			for (int i = 0; i < pixelCount; i++) {
-				rgbs[i] = (rgbs[i] ^ xors[i % xors.length]) & 0xFFFFFF;
-			}
-		}
-		bmp.setRGB(0, offsetY, width, height, rgbs, 0, width);
-		 */
 		bmp.setRGB(0, offsetY, width, height, new Container((pixelCount - 2) * 3).toRGBs(width, shift, xors, true), 0, width);
 		return height;
 	}
@@ -549,7 +558,7 @@ public class Container {
 		path = "";
 		binary = new byte[length];
 		for (int i = 0; i < length; i++) {
-			binary[i] = (byte) (Math.random() * Byte.MAX_VALUE);
+			binary[i] = (byte) (Math.random() * 256);
 		}
 	}
 
@@ -564,63 +573,52 @@ public class Container {
 		return toBitmapTwice(containers, 0);
 	}
 	public static BufferedImage toBitmapTwice(List<Container> containers, String key) throws Exception {
-		return toBitmapTwice(containers, key, 0, 1, true);
+		return toBitmapTwice(containers, 0, key);
 	}
-	/**
-	 * 컨테이너 목록을 이미지로 이중 변환
-	 * 한 번 무손실 압축이 됐기 때문에 재변환 시 비트맵 크기가 줄어듦
-	 * @param containers: 컨테이너 목록
-	 * @param minWidth: 최소 폭
-	 * @return: 비트맵 이미지
-	 * @throws Exception
-	 */
 	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth) throws Exception {
-		return toBitmapTwice(containers, minWidth, 1);
+		return toBitmapTwice(containers, minWidth, RATIO, 1);
 	}
-	public static BufferedImage toBitmapTwice(List<Container> containers, String key, int minWidth) throws Exception {
-		return toBitmapTwice(containers, key, minWidth, 1, true);
+	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, String key) throws Exception {
+		return toBitmapTwice(containers, minWidth, RATIO, 1, true, key);
 	}
-	public static BufferedImage toBitmapTwice(List<Container> containers, int shift, int[] xors, int minWidth) throws Exception {
-		return toBitmapTwice(containers, shift, xors, minWidth, 1, true);
+	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, double ratio) throws Exception {
+		return toBitmapTwice(containers, minWidth, ratio, 1);
 	}
-	/**
-	 * 컨테이너 목록을 이미지로 이중 변환
-	 * 한 번 무손실 압축이 됐기 때문에 재변환 시 비트맵 크기가 줄어듦
-	 * @param containers: 컨테이너 목록
-	 * @param minWidth: 최소 폭
-	 * @param unit: 크기 단위
-	 * @return: 비트맵 이미지
-	 * @throws Exception
-	 */
-	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, int unit) throws Exception {
-		return toBitmapTwice(containers, 0, new int[0], minWidth, unit, true);
+	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, double ratio, String key) throws Exception {
+		return toBitmapTwice(containers, minWidth, ratio, 1, true, key);
 	}
-	public static BufferedImage toBitmapTwice(List<Container> containers, String key, int minWidth, int unit) throws Exception {
-		return toBitmapTwice(containers, key, minWidth, unit, true);
+	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, double ratio, int shift, int[] xors) throws Exception {
+		return toBitmapTwice(containers, minWidth, ratio, 1, true, shift, xors);
 	}
-	public static BufferedImage toBitmapTwice(List<Container> containers, int shift, int[] xors, int minWidth, int unit) throws Exception {
-		return toBitmapTwice(containers, shift, xors, minWidth, unit, true);
+	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, double ratio, int unit) throws Exception {
+		return toBitmapTwice(containers, minWidth, ratio, unit, true, 0, new int[0]);
 	}
-	public static BufferedImage toBitmapTwice(List<Container> containers, String key, int minWidth, int unit, boolean twiceForced) throws Exception {
-		return toBitmapTwice(containers, key.length(), bytesToRGBs(key.getBytes("UTF-8")), minWidth, unit, twiceForced);
+	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, double ratio, int unit, String key) throws Exception {
+		return toBitmapTwice(containers, minWidth, ratio, unit, true, key);
+	}
+	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, double ratio, int unit, int shift, int[] xors) throws Exception {
+		return toBitmapTwice(containers, minWidth, ratio, unit, true, shift, xors);
+	}
+	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, double ratio, int unit, boolean twiceForced, String key) throws Exception {
+		return toBitmapTwice(containers, minWidth, ratio, unit, twiceForced, getShift(key), getXors(key));
 	}
 	/**
 	 * 컨테이너 목록을 이미지로 이중 변환
 	 * 한 번 무손실 압축이 됐기 때문에 재변환 시 비트맵 크기가 줄어듦
 	 * @param containers: 컨테이너 목록
-	 * @param shift: 출력물 바이트 밀기
-	 * @param xors: 출력물 xor 연산 수행
 	 * @param minWidth: 최소 폭
 	 * @param unit: 크기 단위
 	 * @param twiceForced: 최소 폭보다 작더라도 난수화를 위해 이중 변환
+	 * @param shift: 출력물 바이트 밀기
+	 * @param xors: 출력물 xor 연산 수행
 	 * @return: 비트맵 이미지
 	 * @throws Exception
 	 */
-	public static BufferedImage toBitmapTwice(List<Container> containers, int shift, int[] xors, int minWidth, int unit, boolean twiceForced) throws Exception {
+	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, double ratio, int unit, boolean twiceForced, int shift, int[] xors) throws Exception {
 		logger.info("\nContainer.toBitmapTwice");
-		if (!twiceForced && ((getWidthByRatio(containers, RATIO)) < minWidth)) {
+		if (!twiceForced && ((getWidthByRatio(containers, ratio)) < minWidth)) {
 			logger.info("최소 폭보다 작을 경우 이중 변환할 필요 없음");
-			return toBitmap(containers, shift, xors, minWidth, unit);
+			return toBitmap(containers, minWidth, ratio, unit, shift, xors);
 		}
 		
 		File file = File.createTempFile("temp", ".png");
@@ -630,7 +628,7 @@ public class Container {
 		
 		containers = new ArrayList<>();
 		containers.add(cont);
-		BufferedImage bmp2 = toBitmap(containers, shift, xors, minWidth, unit);
+		BufferedImage bmp2 = toBitmap(containers, minWidth, ratio, unit, shift, xors);
 		
 		return bmp2;
 	}
@@ -645,7 +643,7 @@ public class Container {
 		return fromBitmap(bmp, 0, new int[0]);
 	}
 	public static List<Container> fromBitmap(BufferedImage bmp, String key) throws Exception {
-		return fromBitmap(bmp, key.length(), bytesToRGBs(key.getBytes("UTF-8")));
+		return fromBitmap(bmp, getShift(key), getXors(key));
 	}
 	public static List<Container> fromBitmap(BufferedImage bmp, int shift, int[] xors) throws Exception {
 		logger.info("\nContainer.fromBitmap: " + bmp);
@@ -842,6 +840,10 @@ public class Container {
 			this.targetImage = targetImage;
 			this.containers = containers;
 		}
+		
+		private double getRatio() {
+			return targetImage.getHeight() / (double) targetImage.getWidth();
+		}
 
 		/**
 		 * 개발 도중 레거시 변환 형식 보존
@@ -854,7 +856,7 @@ public class Container {
 		@Deprecated
 		public BufferedImage toBitmapLegacy(int minWidth) throws Exception {
 			logger.warn("\nWithTarget.toBitmapPrototype - 개발 도중 레거시 형식");
-			BufferedImage dataImage = toBitmapTwice(containers, minWidth / 2);
+			BufferedImage dataImage = toBitmapTwice(containers, minWidth / 2, getRatio());
 			int w = dataImage.getWidth(), h = dataImage.getHeight();
 			
 			// 이미지를 데이터와 같은 크기로 조절
@@ -918,11 +920,11 @@ public class Container {
 			return toBitmap114(minWidth, 0, new int[0]);
 		}
 		public BufferedImage toBitmap114(int minWidth, String key) throws Exception {
-			return toBitmap114(minWidth, key.length(), bytesToRGBs(key.getBytes("UTF-8")));
+			return toBitmap114(minWidth, getShift(key), getXors(key));
 		}
 		public BufferedImage toBitmap114(int minWidth, int shift, int[] xors) throws Exception {
 			logger.info("\nWithTarget.toBitmap");
-			BufferedImage dataImage = toBitmapTwice(containers, shift, xors, minWidth / 2);
+			BufferedImage dataImage = toBitmapTwice(containers, minWidth / 2, getRatio(), shift, xors);
 			int w = dataImage.getWidth(), h = dataImage.getHeight();
 			
 			// 이미지를 데이터와 같은 크기로 조절
@@ -979,11 +981,11 @@ public class Container {
 			return toBitmap149(minWidth, 0, new int[0]);
 		}
 		public BufferedImage toBitmap149(int minWidth, String key) throws Exception {
-			return toBitmap149(minWidth, key.length(), bytesToRGBs(key.getBytes("UTF-8")));
+			return toBitmap149(minWidth, getShift(key), getXors(key));
 		}
 		public BufferedImage toBitmap149(int minWidth, int shift, int[] xors) throws Exception {
 			logger.info("\nWithTarget.toBitmap");
-			BufferedImage dataImage = toBitmapTwice(containers, shift, xors, (minWidth + 2) / 3 * 2, 2);
+			BufferedImage dataImage = toBitmapTwice(containers, (minWidth + 2) / 3 * 2, getRatio(), 2, shift, xors);
 			int w = dataImage.getWidth() / 2, h = dataImage.getHeight() / 2;
 			
 			// 이미지를 데이터의 절반 크기로 조절
@@ -1473,10 +1475,10 @@ public class Container {
 		 * @throws Exception
 		 */
 		public static WithTarget fromBitmap(BufferedImage bmp) throws Exception {
-			return fromBitmap(bmp, possibility(bmp), 0, new int[0]);
+			return fromBitmap(bmp, possibility(bmp));
 		}
 		public static WithTarget fromBitmap(BufferedImage bmp, String key) throws Exception {
-			return fromBitmap(bmp, possibility(bmp), key.length(), bytesToRGBs(key.getBytes("UTF-8")));
+			return fromBitmap(bmp, possibility(bmp), key);
 		}
 		public static WithTarget fromBitmap(BufferedImage bmp, int shift, int[] xors) throws Exception {
 			return fromBitmap(bmp, possibility(bmp), shift, xors);
@@ -1485,7 +1487,7 @@ public class Container {
 			return fromBitmap(bmp, possibility(bmp), 0, new int[0]);
 		}
 		public static WithTarget fromBitmap(BufferedImage bmp, int possibility, String key) throws Exception {
-			return fromBitmap(bmp, possibility(bmp), key.length(), bytesToRGBs(key.getBytes("UTF-8")));
+			return fromBitmap(bmp, possibility(bmp), getShift(key), getXors(key));
 		}
 		public static WithTarget fromBitmap(BufferedImage bmp, int possibility, int shift, int[] xors) throws Exception {
 			logger.info("\nWithTarget.fromBitmap");

@@ -21,6 +21,7 @@ public class Strings {
 		KR.put("close", "닫기");
 		
 		KR.put("add", "추가");
+		KR.put("select all", "전체 선택");
 		KR.put("delete", "삭제");
 		KR.put("export placeholder", "목록에서 파일 선택 후 탐색기로 드래그, 혹은 파일을 추출할 경로 입력");
 		KR.put("export", "추출");
@@ -29,8 +30,9 @@ public class Strings {
 		KR.put("output tooltip", "Ctrl+C로 복사할 수 있습니다.");
 		KR.put("input image", "입력 이미지");
 		KR.put("dont use", "사용 안 함");
+		KR.put("ratio", "비율");
 		KR.put("output image", "출력 이미지");
-		KR.put("password", "비밀번호");
+		KR.put("use password", "비밀번호 걸기");
 		KR.put("min width", "최소 폭");
 		KR.put("save", "저장");
 		KR.put("copy", "복사");
@@ -70,6 +72,7 @@ public class Strings {
 		EN.put("close", "Close");
 		
 		EN.put("add", "Add");
+		EN.put("select all", "Select All");
 		EN.put("delete", "Delete");
 		EN.put("export placeholder", "Select file(s) and drag to explorer, or input export path.");
 		EN.put("export", "Export");
@@ -78,8 +81,9 @@ public class Strings {
 		EN.put("output tooltip", "You can copy image by Ctrl+C.");
 		EN.put("input image", "Input Image");
 		EN.put("dont use", "Don't use");
+		EN.put("ratio", "Ratio");
 		EN.put("output image", "Output Image");
-		EN.put("password", "Password");
+		EN.put("use password", "Use password");
 		EN.put("min width", "Min-Width");
 		EN.put("save", "Save");
 		EN.put("copy", "Copy");
@@ -102,7 +106,7 @@ public class Strings {
 		
 		EN.put("cant export to temp dir", "You can't export the file(s) to the temp directory.");
 		EN.put("file not selected", "File(s) not selected.");
-		EN.put("file exported", "File exported.");
+		EN.put("file exported", "File(s) exported.");
 		EN.put("cant export file", "Can't export the file(s).");
 		EN.put("cant parse path", "Can't parse the file of the path.");
 
