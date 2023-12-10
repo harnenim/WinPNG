@@ -331,7 +331,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			btnAddFile.setText(Strings.get("add"));
 			btnSelectAll.setText(Strings.get("select all"));
 			btnDelete .setText(Strings.get("delete"));
-			if (exportDir.length() > 0) {
+			if (exportDir != null && exportDir.length() > 0) {
 				tfExportDir.setText(exportDir);
 			} else {
 				tfExportDir.setText(Strings.get("export placeholder"));
