@@ -40,7 +40,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		}
 	}
 	
-	private static Logger logger = new Logger(L.DEBUG);
+	private static Logger logger = new Logger(L.DEBUG); // 로그 파일 로깅 수준 기본값 디버그
 	
 	private File pngFile = null;
 	private BufferedImage targetImage = null;
@@ -147,7 +147,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	}
     
     /**
-     * 기본 스타일 적용된 버튼
+     * 기본 스타일 및 리스너 적용된 버튼
      * 
      * @author harne_
      *
@@ -176,7 +176,9 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	private JButton btnExport = new MyButton(this);
 	
 	// 우측 이미지
-	private JPanel panelPreview = new JPanel(), panelRatio = new JPanel();
+	private JPanel panelRight  = new JPanel(new BorderLayout()), panelPreview = new JPanel()
+	             , panelTarget = new JPanel(new BorderLayout()), panelRatio   = new JPanel()
+	             , panelOutput = new JPanel(new BorderLayout());
 	private JLabel ivTarget = new JLabel(), jlTarget = new JLabel(), jlRatio = new JLabel()
 	             , ivOutput = new JLabel(), jlOutput = new JLabel(), jlPw = new JLabel(), jlWidth = new JLabel();
 	private JRadioButton rbTarget011 = new JRadioButton();
@@ -218,23 +220,38 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				System.out.println("로그 파일: " + logPath);
 				File logFile = new File(logPath);
 				try {
-					logger.add(new PrintStream(logFile));
+					logger.set(new PrintStream(logFile)); // 로그 파일 로깅 수준은 설정값에 따름
 				} catch (FileNotFoundException e) {
 					System.out.println("로그 파일 설정 실패");
 					e.printStackTrace();
 				}
 			}
+			/*
+			{	// 이런 식으로 단계별 로그를 동시에 만들 수 있음
+				File logDir = new File(TMP_DIR + "log");
+				logDir.mkdirs();
+				String logPath = TMP_DIR + "log/" + Calendar.getInstance().getTimeInMillis();
+				File logFileDebug = new File(logPath + "_debug.log");
+				File logFileInfo  = new File(logPath + "_info.log");
+				File logFileError = new File(logPath + "_error.log");
+				try {
+					logger.set(new PrintStream(logFileDebug), L.DEBUG);
+					logger.set(new PrintStream(logFileInfo ), L.INFO );
+					logger.set(new PrintStream(logFileError), L.ERROR);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+			*/
 			try {
 				String logLevel = props.getProperty("LogLevel");
-				logger.setDefaultLevel(L.valueOf(logLevel));
+				logger.setDefaultLevel(L.valueOf(logLevel)); // 로그 파일 로깅 수준은 설정값에 따름
 				logger.log(L.INFO, "로그 레벨: " + logLevel);
 			} catch (Exception e) {
 				logger.log(L.ERROR, "로그 레벨 설정 가져오기 실패");
-				logger.log(L.DEBUG, e);
+				logger.log(L.DEBUG, e); // 기본 로깅 수준은 DEBUG
 			}
-			logger.setDefaultLevel(L.INFO);
-			
-			boolean isLinux = "Linux".equals(System.getProperty("os.name"));
+			logger.set(System.out, L.INFO); // 로그 파일과 별개로 콘솔에는 INFO로 찍음
 			
 			// 창 위치
 			try {
@@ -289,7 +306,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				logger.debug(e);
 			}
 			
-			if (isLinux) {
+			if ("Linux".equals(System.getProperty("os.name"))) {
 				if (isAndroid = confirm("Is this Android?", "OS Check")) {
 					// Android JRE 실행을 가정
 					Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
@@ -300,8 +317,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					// 다운로드 폴더 내 WinPNG를 기본 추출 폴더로 설정
 					exportDir = "/storage/emulated/0/Download/WinPNG";
 					
-					// OS 자체 파일 선택기 사용 불가
-					USE_JFC = true;
+					// OS 자체 파일 선택기 사용 불가능하므로
+					USE_JFC = true; // ... 어차피 권한 없어서 파일 못 가져옴
 				}
 			} else {
 				// 시스템 언어 가져오기
@@ -310,15 +327,6 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					Strings.setLanguage(Strings.Language.KR);
 				}
 			}
-		}
-		
-		// 2023년 사용 제한
-		if (Calendar.getInstance().get(Calendar.YEAR) != 2023) {
-			setVisible(true);
-			setEnabled(true);
-			alert("ㅋㅋ?ㅎㅎ!");
-			dispose();
-			return;
 		}
 		
 		{	// 문자열 설정
@@ -352,100 +360,99 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			btnCopy.setText(Strings.get("copy"));
 		}
 		
-		setLayout(new BorderLayout());
-		
-		{	// 상단 PNG 파일 읽기
-			tfPngFile.setBackground(Color.WHITE);
-			panelPngFile.add(tfPngFile, BorderLayout.CENTER);
+		{	// 레이아웃 구성
+			setLayout(new BorderLayout());
 			
-			JPanel panelPngBtn = new JPanel(new GridLayout(1, 2));
-			panelPngBtn.add(btnOpen);
-			panelPngBtn.add(btnClose);
-			panelPngFile.add(panelPngBtn, BorderLayout.EAST);
-			
-			add(panelPngFile, BorderLayout.NORTH);
-		}
-		
-		{	// 중앙 내용물
-			JPanel panelFiles = new JPanel(new BorderLayout());
-			{	// 파일 리스트 영역
-				panelFilesEdit.add(new JScrollPane(lvFiles), BorderLayout.CENTER);
-				JPanel panelFilesBtn = new JPanel(new FlowLayout(FlowLayout.LEFT));
-				panelFilesBtn.add(btnAddFile);
-				panelFilesBtn.add(btnSelectAll);
-				panelFilesBtn.add(btnDelete);
-				panelFilesEdit.add(panelFilesBtn , BorderLayout.SOUTH);
-				panelFiles.add(panelFilesEdit, BorderLayout.CENTER);
-			}
-			{	// 버튼 영역
-				panelExport.add(tfExportDir, BorderLayout.CENTER);
-				panelExport.add(btnExport  , BorderLayout.EAST);
-				panelFiles.add(panelExport, BorderLayout.SOUTH);
-			}
-			add(panelFiles, BorderLayout.CENTER);
-		}
-		{	// 우측 이미지
-			JPanel panelRight  = new JPanel(new BorderLayout());
-			JPanel panelTarget = new JPanel(new BorderLayout());
-			JPanel panelOutput = new JPanel(new BorderLayout());
-			{	// 이미지뷰 영역
-				panelPreview.setLayout(new BoxLayout(panelPreview, BoxLayout.Y_AXIS));
-				panelPreview.add(new JPanel());
-				{	// 입력 이미지
-					JPanel panelRadio = new JPanel();
-					panelTarget.add(jlTarget, BorderLayout.NORTH);
-					panelTarget.add(ivTarget, BorderLayout.CENTER);
-					panelRadio.add(rbTarget011);
-					panelRadio.add(rbTarget114);
-					panelRadio.add(rbTarget149);
-					rbGroupTarget.add(rbTarget011);
-					rbGroupTarget.add(rbTarget114);
-					rbGroupTarget.add(rbTarget149);
-					panelTarget.add(panelRadio, BorderLayout.SOUTH);
-					panelPreview.add(panelTarget);
-				}
-				{	// 출력 비율
-					panelRatio.add(jlRatio);
-					panelRatio.add(tfRatioW);
-					panelRatio.add(new JLabel(":"));
-					panelRatio.add(tfRatioH);
-					tfRatioW.setColumns(4);
-					tfRatioH.setColumns(4);
-					panelPreview.add(panelRatio);
-				}
-				panelPreview.add(new JPanel());
-				{	// 출력 이미지
-					JPanel panelPw = new JPanel(new BorderLayout());
-					panelOutput.add(jlOutput, BorderLayout.NORTH);
-					panelOutput.add(ivOutput, BorderLayout.CENTER);
-					panelPw.add(jlPw, BorderLayout.WEST);
-					panelPw.add(tfPw, BorderLayout.CENTER);
-					panelOutput.add(panelPw, BorderLayout.SOUTH);
-					panelPreview.add(panelOutput);
-				}
-				panelPreview.add(new JPanel());
-				panelRight.add(panelPreview, BorderLayout.CENTER);
-			}
-			{	// 버튼 영역
-				JPanel panelSave = new JPanel(new BorderLayout());
-				panelSave.add(jlWidth, BorderLayout.WEST);
-				panelSave.add(tfWidth, BorderLayout.CENTER);
+			{	// 상단 PNG 파일 읽기
+				tfPngFile.setBackground(Color.WHITE);
+				panelPngFile.add(tfPngFile, BorderLayout.CENTER);
 				
-				JPanel panelSaveBtn = new JPanel(new GridLayout(1, 2));
-				panelSaveBtn.add(btnCopy);
-				panelSaveBtn.add(btnSave);
-				panelSave.add(panelSaveBtn, BorderLayout.EAST);
+				JPanel panelPngBtn = new JPanel(new GridLayout(1, 2));
+				panelPngBtn.add(btnOpen);
+				panelPngBtn.add(btnClose);
+				panelPngFile.add(panelPngBtn, BorderLayout.EAST);
 				
-				panelRight.add(panelSave, BorderLayout.SOUTH);
+				add(panelPngFile, BorderLayout.NORTH);
 			}
 			
-			panelTarget.setMaximumSize(new Dimension(280, 200));
-			panelOutput.setMaximumSize(new Dimension(280, 180));
-			
-			updateTarget(JUNK_IMAGE);
-			updateOutput();
-			
-			add(panelRight, BorderLayout.EAST);
+			{	// 중앙 내용물
+				JPanel panelFiles = new JPanel(new BorderLayout());
+				{	// 파일 리스트 영역
+					panelFilesEdit.add(new JScrollPane(lvFiles), BorderLayout.CENTER);
+					JPanel panelFilesBtn = new JPanel(new FlowLayout(FlowLayout.LEFT));
+					panelFilesBtn.add(btnAddFile);
+					panelFilesBtn.add(btnSelectAll);
+					panelFilesBtn.add(btnDelete);
+					panelFilesEdit.add(panelFilesBtn , BorderLayout.SOUTH);
+					panelFiles.add(panelFilesEdit, BorderLayout.CENTER);
+				}
+				{	// 버튼 영역
+					panelExport.add(tfExportDir, BorderLayout.CENTER);
+					panelExport.add(btnExport  , BorderLayout.EAST);
+					panelFiles.add(panelExport, BorderLayout.SOUTH);
+				}
+				add(panelFiles, BorderLayout.CENTER);
+			}
+			{	// 우측 이미지
+				{	// 이미지뷰 영역
+					panelPreview.setLayout(new BoxLayout(panelPreview, BoxLayout.Y_AXIS));
+					panelPreview.add(new JPanel());
+					{	// 입력 이미지
+						JPanel panelRadio = new JPanel();
+						panelTarget.add(jlTarget, BorderLayout.NORTH);
+						panelTarget.add(ivTarget, BorderLayout.CENTER);
+						panelRadio.add(rbTarget011);
+						panelRadio.add(rbTarget114);
+						panelRadio.add(rbTarget149);
+						rbGroupTarget.add(rbTarget011);
+						rbGroupTarget.add(rbTarget114);
+						rbGroupTarget.add(rbTarget149);
+						panelTarget.add(panelRadio, BorderLayout.SOUTH);
+						panelPreview.add(panelTarget);
+					}
+					{	// 출력 비율
+						panelRatio.add(jlRatio);
+						panelRatio.add(tfRatioW);
+						panelRatio.add(new JLabel(":"));
+						panelRatio.add(tfRatioH);
+						tfRatioW.setColumns(4);
+						tfRatioH.setColumns(4);
+						panelPreview.add(panelRatio);
+					}
+					panelPreview.add(new JPanel());
+					{	// 출력 이미지
+						JPanel panelPw = new JPanel(new BorderLayout());
+						panelOutput.add(jlOutput, BorderLayout.NORTH);
+						panelOutput.add(ivOutput, BorderLayout.CENTER);
+						panelPw.add(jlPw, BorderLayout.WEST);
+						panelPw.add(tfPw, BorderLayout.CENTER);
+						panelOutput.add(panelPw, BorderLayout.SOUTH);
+						panelPreview.add(panelOutput);
+					}
+					panelPreview.add(new JPanel());
+					panelRight.add(panelPreview, BorderLayout.CENTER);
+				}
+				{	// 버튼 영역
+					JPanel panelSave = new JPanel(new BorderLayout());
+					panelSave.add(jlWidth, BorderLayout.WEST);
+					panelSave.add(tfWidth, BorderLayout.CENTER);
+					
+					JPanel panelSaveBtn = new JPanel(new GridLayout(1, 2));
+					panelSaveBtn.add(btnCopy);
+					panelSaveBtn.add(btnSave);
+					panelSave.add(panelSaveBtn, BorderLayout.EAST);
+					
+					panelRight.add(panelSave, BorderLayout.SOUTH);
+				}
+				
+				panelTarget.setMaximumSize(new Dimension(280, 200));
+				panelOutput.setMaximumSize(new Dimension(280, 180));
+				
+				updateTarget(JUNK_IMAGE);
+				updateOutput();
+				
+				add(panelRight, BorderLayout.EAST);
+			}
 		}
 		
 		{	// 이벤트 설정
@@ -472,9 +479,10 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			panelFilesEdit.setDropTarget(new FileDropTarget(this, panelFilesEdit));
 			panelExport   .setDropTarget(new FileDropTarget(this, panelExport   ));
 			tfExportDir   .setDropTarget(new FileDropTarget(this, panelExport   ));
-			panelPreview  .setDropTarget(new FileDropTarget(this, panelPreview  ));
-			ivTarget      .setDropTarget(new FileDropTarget(this, panelPreview  ));
-			ivOutput      .setDropTarget(new FileDropTarget(this, panelPreview  ));
+			panelTarget   .setDropTarget(new FileDropTarget(this, panelTarget   ));
+			ivTarget      .setDropTarget(new FileDropTarget(this, panelTarget   ));
+			panelOutput   .setDropTarget(new FileDropTarget(this, panelFilesEdit));
+			ivOutput      .setDropTarget(new FileDropTarget(this, panelFilesEdit));
 			
 			// 종료 이벤트 시 설정 저장
 			addWindowListener(new WindowAdapter() {
@@ -530,7 +538,11 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			fcPng.setFileSelectionMode(JFileChooser.FILES_ONLY);
 			fcPng.setMultiSelectionEnabled(false);
 		}
-
+		
+		// 아이콘 가져오기
+		setIconImage(new ImageIcon(getClass().getResource("icon.png")).getImage());
+		
+		// 창 띄우기
 		setVisible(true);
 		setEnabled(true);
 	}
@@ -1682,7 +1694,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				if (index < 1) break; // 확장자 못 찾으면 무시
 				String ext = name.substring(index + 1, name.length()).toLowerCase();
 				
-				if (c == panelPreview) {
+				if (c == panelTarget) {
 					// 이미지 파일 열기
 					if (!ext.equals("png")
 					 && !ext.equals("bmp")
@@ -1699,14 +1711,14 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 						return;
 					}
 					if (!setTargetImage(file.getAbsolutePath())) {
-						alert("이미지를 적용할 수 없습니다.");
+						alert(Strings.get("cant set image"));
 					}
 					
 				} else {
 					// PNG 파일 열기
 					if (!ext.equals("png")) {
 						if (c == panelPngFile) {
-							alert("해석할 수 없는 파일입니다.");
+							alert(Strings.get("cant parse file"));
 						}
 						break;
 					}
@@ -1816,6 +1828,12 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		Container.setLogger(logger);
 		
 		GUI gui = new GUI();
+		
+		// 2023년 사용 제한
+		if (Calendar.getInstance().get(Calendar.YEAR) != 2023) {
+			gui.alert("ㅋㅋ?ㅎㅎ!");
+			return;
+		}
 		
 		// 3번 인자: 비밀번호, 있으면 바로 종료
 		boolean disposeAfterExport = (args.length > 2);

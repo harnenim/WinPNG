@@ -61,6 +61,8 @@ public class Strings {
 
 		KR.put("open image", "이미지 파일 열기");
 		KR.put("confirm set image", "이미지를 적용하시겠습니까?");
+		KR.put("cant set image", "이미지를 적용할 수 없습니다.");
+		KR.put("cant parse file", "해석할 수 없는 파일입니다.");
 		KR.put("confirm close file", "현재 파일을 닫겠습니까?");
 		KR.put("confirm add file", "파일 목록에 추가하시겠습니까?");
 		KR.put("cant parse png and add to list", "해석할 수 없는 PNG 파일입니다.\n파일 목록에 추가합니다.");
@@ -112,6 +114,8 @@ public class Strings {
 
 		EN.put("open image", "Open image file");
 		EN.put("confirm set image", "Do you set the target image?");
+		KR.put("cant set image", "Can't set the image.");
+		KR.put("cant parse file", "Can't parse the file.");
 		EN.put("confirm close file", "Do you want close the opened file?");
 		EN.put("confirm add file", "Do you want add the file(s) to the list?");
 		EN.put("cant parse png and add to list", "Can't parse the PNG file.\nThe file will add to the list.");

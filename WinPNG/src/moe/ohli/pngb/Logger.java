@@ -10,6 +10,12 @@ import java.util.List;
  *
  */
 public class Logger {
+	/**
+	 * 로그 레벨
+	 * 
+	 * @author harne_
+	 *
+	 */
 	public enum L {
 		ALL(0), DEBUG(1), INFO(2), WARN(3), ERROR(4), FATAL(5);
 		private final int value;
@@ -48,38 +54,77 @@ public class Logger {
 	private List<PrintStreamWithLevel> outs = new ArrayList<>();
 	private int defaultLevel = L.INFO.value;
 	
+	/**
+	 * 콘솔에 기본 레벨에 따라 로깅하도록 생성
+	 */
 	public Logger() {
-		add(System.out);
+		set(System.out);
 	}
+	/**
+	 * 콘솔에 기본 레벨에 따라 로깅하도록 생성
+	 * @param level: 기본 레벨
+	 */
 	public Logger(L level) {
 		this.defaultLevel = level.value;
-		add(System.out);
+		set(System.out);
 	}
 	
-	public boolean add(PrintStream out) {
-		return outs.add(new PrintStreamWithLevel(out, -1));
+	/**
+	 * 해당 스트림에 기본 레벨에 따라 로깅하도록 설정
+	 * @param out
+	 * @return
+	 */
+	public boolean set(PrintStream out) {
+		return set(out, -1); // 음수면 기본 레벨을 따라감
 	}
+	/**
+	 * 해당 스트림에 해당 레벨에 따라 로깅하도록 설정
+	 * @param out
+	 * @return
+	 */
 	public boolean set(PrintStream out, L level) {
+		return set(out, level.value);
+	}
+	private boolean set(PrintStream out, int level) {
 		for (PrintStreamWithLevel pswl : outs) {
-			if (pswl.out == out) {
-				pswl.level = level.value;
+			if (pswl.out == out) { // 기존에 있었으면 레벨 변경
+				pswl.level = level;
 				return true;
 			}
 		}
-		return outs.add(new PrintStreamWithLevel(out, level.value));
+		// 없었으면 추가
+		return outs.add(new PrintStreamWithLevel(out, level));
 	}
+	/**
+	 * 기본 레벨 설정
+	 * @param level
+	 */
 	public void setDefaultLevel(L level) {
 		defaultLevel = level.value;
 	}
+	/**
+	 * 기본 레벨 확인
+	 * @return
+	 */
 	public L getDefaultLevel() {
 		return L.fromInt(defaultLevel);
 	}
-
+	
+	/**
+	 * 특정 레벨로 메시지 로깅
+	 * @param level
+	 * @param msg
+	 */
 	public void log(L level, String msg) {
 		for (PrintStreamWithLevel out : outs) {
 			out.println(level, msg);
 		}
 	}
+	/**
+	 * 특정 레벨로 예외 로깅
+	 * @param level
+	 * @param e
+	 */
 	public void log(L level, Exception e) {
 		for (PrintStreamWithLevel out : outs) {
 			out.printStackTrace(level, e);

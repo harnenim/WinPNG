@@ -25,8 +25,14 @@ public class Container {
 		return pad("" + v, len);
 	}
 	private static String pad(String str, int len) {
+		return pad(str, len, ' ');
+	}
+	private static String pad0(String str, int len) {
+		return pad(str, len, '0');
+	}
+	private static String pad(String str, int len, char pad) {
 		while (str.length() < len) {
-			str = " " + str;
+			str = pad + str;
 		}
 		return str;
 	}
@@ -97,13 +103,20 @@ public class Container {
 	public Container(int[] rgbs) throws Exception {
 		this(rgbs, 0, new int[0]);
 	}
+	/**
+	 * 이미지 픽셀 RGB 값을 주어진 값에 따라 변환하여 생성
+	 * @param rgbs
+	 * @param shift
+	 * @param xors
+	 * @throws Exception
+	 */
 	public Container(int[] rgbs, int shift, int[] xors) throws Exception {
-		logger.debug("pathLength  : " + pad(Integer.toHexString(rgbs[ shift    % rgbs.length]), 8));
-		logger.debug("binaryLength: " + pad(Integer.toHexString(rgbs[(shift+1) % rgbs.length]), 8));
+		logger.debug("pathLength  : " + pad0(Integer.toHexString(rgbs[ shift    % rgbs.length]), 8));
+		logger.debug("binaryLength: " + pad0(Integer.toHexString(rgbs[(shift+1) % rgbs.length]), 8));
 		// xor 연산 수행
 		if (xors.length > 0) {
-			logger.debug("xors0       : " + pad(Integer.toHexString(xors[ shift    % xors.length]), 8));
-			logger.debug("xors1       : " + pad(Integer.toHexString(xors[(shift+1) % xors.length]), 8));
+			logger.debug("xors0       : " + pad0(Integer.toHexString(xors[ shift    % xors.length]), 8));
+			logger.debug("xors1       : " + pad0(Integer.toHexString(xors[(shift+1) % xors.length]), 8));
 			for (int i = 0; i < rgbs.length; i++) {
 				rgbs[i] ^= xors[i % xors.length];
 			}
@@ -191,7 +204,7 @@ public class Container {
 	/**
 	 * 특정 폭에 맞춰 직사각형을 구성할 RGB 픽셀 배열 반환
 	 * @param width
-	 * @param shift: 출력물 바이트 밀기
+	 * @param shift: 출력물 픽셀 밀기
 	 * @param xors: 출력물 xor 연산 수행
 	 * @return
 	 */
@@ -339,12 +352,11 @@ public class Container {
 	}
 	/**
 	 * 비밀번호에서 암호화 값 구하기
-	 * ... 좀 더 복잡한 뭔가가 필요하려나
 	 * @param key
 	 * @return
 	 */
 	private static final int getShift(String key) {
-		return key.length();
+		return fibonacci(key.length());
 	}
 	private static final int[] getXors(String key) {
 		try {
@@ -352,6 +364,18 @@ public class Container {
 		} catch (UnsupportedEncodingException e) {
 			logger.error(e);
 			return new int[0];
+		}
+	}
+	private static int fibonacci(int no) {
+		return fibonacci(0, 1, no - 1);
+	}
+	private static int fibonacci(int before, int current, int left) {
+		if (left < 0) {
+			return before;
+		} else if (left == 0) {
+			return current;
+		} else {
+			return fibonacci(current, before + current, left - 1);
 		}
 	}
 	
@@ -391,7 +415,6 @@ public class Container {
 	/**
 	 * 파일/디렉토리를 컨테이너 목록으로 변환
 	 * @param file: 파일/디렉토리
-	 * @param allows: 허용된 확장자(개발X)
 	 * @return 컨테이너 목록
 	 * @throws Exception
 	 */
@@ -475,18 +498,49 @@ public class Container {
 	public static BufferedImage toBitmap(List<Container> containers) throws Exception {
 		return toBitmap(containers, 0, RATIO, 1, 0, new int[0]);
 	}
+	/**
+	 * 컨테이너 목록을 최소 폭과 비율에 맞춘 크기의 이미지로 변환
+	 * @param containers: 컨테이너 목록
+	 * @param minWidth: 최소 폭
+	 * @param ratio: 가로/세로 비율
+	 * @return: 비트맵 이미지
+	 * @throws Exception
+	 */
+	public static BufferedImage toBitmap(List<Container> containers, int minWidth, double ratio) throws Exception {
+		return toBitmap(containers, minWidth, ratio, 1, 0, new int[0]);
+	}
+	/**
+	 * 컨테이너 목록을 최소 폭과 비율에 맞춘 크기의 이미지로 변환
+	 * @param containers: 컨테이너 목록
+	 * @param minWidth: 최소 폭
+	 * @param ratio: 가로/세로 비율
+	 * @param key
+	 * @return: 비트맵 이미지
+	 * @throws Exception
+	 */
 	public static BufferedImage toBitmap(List<Container> containers, int minWidth, double ratio, String key) throws Exception {
 		return toBitmap(containers, minWidth, ratio, 1, key);
 	}
+	/**
+	 * 컨테이너 목록을 최소 폭과 비율에 맞춘 크기의 이미지로 변환
+	 * @param containers: 컨테이너 목록
+	 * @param minWidth: 최소 폭
+	 * @param ratio: 가로/세로 비율
+	 * @param unit: 크기 단위
+	 * @param key
+	 * @return
+	 * @throws Exception
+	 */
 	public static BufferedImage toBitmap(List<Container> containers, int minWidth, double ratio, int unit, String key) throws Exception {
 		return toBitmap(containers, minWidth, ratio, unit, getShift(key), getXors(key));
 	}
 	/**
-	 * 컨테이너 목록을 이미지로 변환
+	 * 컨테이너 목록을 최소 폭과 비율에 맞춘 크기의 이미지로 변환
 	 * @param containers: 컨테이너 목록
 	 * @param minWidth: 최소 폭
+	 * @param ratio: 가로/세로 비율
 	 * @param unit: 크기 단위
-	 * @param shift: 출력물 바이트 밀기
+	 * @param shift: 출력물 픽셀 밀기
 	 * @param xors: 출력물 xor 연산 수행
 	 * @return: 비트맵 이미지
 	 * @throws Exception
@@ -561,10 +615,10 @@ public class Container {
 			binary[i] = (byte) (Math.random() * 256);
 		}
 	}
-
+	
 	/**
 	 * 컨테이너 목록을 이미지로 이중 변환
-	 * 한 번 무손실 압축이 됐기 때문에 재변환 시 비트맵 크기가 줄어듦
+	 * 한 번 무손실 압축이 됐기 때문에 재변환 시 비트맵 크기가 줄어듦 (용량 이득 X)
 	 * @param containers: 컨테이너 목록
 	 * @return: 비트맵 이미지
 	 * @throws Exception
@@ -572,44 +626,145 @@ public class Container {
 	public static BufferedImage toBitmapTwice(List<Container> containers) throws Exception {
 		return toBitmapTwice(containers, 0);
 	}
+	/**
+	 * 컨테이너 목록을 이미지로 이중 변환
+	 * 한 번 무손실 압축이 됐기 때문에 재변환 시 비트맵 크기가 줄어듦 (용량 이득 X)
+	 * @param containers: 컨테이너 목록
+	 * @param key: 암호화 키
+	 * @return: 비트맵 이미지
+	 * @throws Exception
+	 */
 	public static BufferedImage toBitmapTwice(List<Container> containers, String key) throws Exception {
 		return toBitmapTwice(containers, 0, key);
 	}
+	/**
+	 * 컨테이너 목록을 이미지로 이중 변환
+	 * 한 번 무손실 압축이 됐기 때문에 재변환 시 비트맵 크기가 줄어듦 (용량 이득 X)
+	 * @param containers: 컨테이너 목록
+	 * @param minWidth: 최소 폭
+	 * @return: 비트맵 이미지
+	 * @throws Exception
+	 */
 	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth) throws Exception {
 		return toBitmapTwice(containers, minWidth, RATIO, 1);
 	}
+	/**
+	 * 컨테이너 목록을 이미지로 이중 변환
+	 * 한 번 무손실 압축이 됐기 때문에 재변환 시 비트맵 크기가 줄어듦 (용량 이득 X)
+	 * @param containers: 컨테이너 목록
+	 * @param minWidth: 최소 폭
+	 * @param key: 암호화 키
+	 * @return: 비트맵 이미지
+	 * @throws Exception
+	 */
 	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, String key) throws Exception {
 		return toBitmapTwice(containers, minWidth, RATIO, 1, true, key);
 	}
+	/**
+	 * 컨테이너 목록을 이미지로 이중 변환
+	 * 한 번 무손실 압축이 됐기 때문에 재변환 시 비트맵 크기가 줄어듦 (용량 이득 X)
+	 * @param containers: 컨테이너 목록
+	 * @param minWidth: 최소 폭
+	 * @param ratio: 가로/세로 비율
+	 * @return: 비트맵 이미지
+	 * @throws Exception
+	 */
 	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, double ratio) throws Exception {
 		return toBitmapTwice(containers, minWidth, ratio, 1);
 	}
+	/**
+	 * 컨테이너 목록을 이미지로 이중 변환
+	 * 한 번 무손실 압축이 됐기 때문에 재변환 시 비트맵 크기가 줄어듦 (용량 이득 X)
+	 * @param containers: 컨테이너 목록
+	 * @param minWidth: 최소 폭
+	 * @param ratio: 가로/세로 비율
+	 * @param key: 암호화 키
+	 * @return: 비트맵 이미지
+	 * @throws Exception
+	 */
 	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, double ratio, String key) throws Exception {
 		return toBitmapTwice(containers, minWidth, ratio, 1, true, key);
 	}
+	/**
+	 * 컨테이너 목록을 이미지로 이중 변환
+	 * 한 번 무손실 압축이 됐기 때문에 재변환 시 비트맵 크기가 줄어듦 (용량 이득 X)
+	 * @param containers: 컨테이너 목록
+	 * @param minWidth: 최소 폭
+	 * @param ratio: 가로/세로 비율
+	 * @param shift: 출력물 픽셀 밀기
+	 * @param xors: 출력물 xor 연산 수행
+	 * @return: 비트맵 이미지
+	 * @throws Exception
+	 */
 	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, double ratio, int shift, int[] xors) throws Exception {
 		return toBitmapTwice(containers, minWidth, ratio, 1, true, shift, xors);
 	}
+	/**
+	 * 컨테이너 목록을 이미지로 이중 변환
+	 * 한 번 무손실 압축이 됐기 때문에 재변환 시 비트맵 크기가 줄어듦 (용량 이득 X)
+	 * @param containers: 컨테이너 목록
+	 * @param minWidth: 최소 폭
+	 * @param ratio: 가로/세로 비율
+	 * @param unit: 크기 단위
+	 * @return: 비트맵 이미지
+	 * @throws Exception
+	 */
 	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, double ratio, int unit) throws Exception {
 		return toBitmapTwice(containers, minWidth, ratio, unit, true, 0, new int[0]);
 	}
+	/**
+	 * 컨테이너 목록을 이미지로 이중 변환
+	 * 한 번 무손실 압축이 됐기 때문에 재변환 시 비트맵 크기가 줄어듦 (용량 이득 X)
+	 * @param containers: 컨테이너 목록
+	 * @param minWidth: 최소 폭
+	 * @param ratio: 가로/세로 비율
+	 * @param unit: 크기 단위
+	 * @param key: 암호화 키
+	 * @return: 비트맵 이미지
+	 * @throws Exception
+	 */
 	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, double ratio, int unit, String key) throws Exception {
 		return toBitmapTwice(containers, minWidth, ratio, unit, true, key);
 	}
+	/**
+	 * 컨테이너 목록을 이미지로 이중 변환
+	 * 한 번 무손실 압축이 됐기 때문에 재변환 시 비트맵 크기가 줄어듦 (용량 이득 X)
+	 * @param containers: 컨테이너 목록
+	 * @param minWidth: 최소 폭
+	 * @param ratio: 가로/세로 비율
+	 * @param unit: 크기 단위
+	 * @param shift: 출력물 픽셀 밀기
+	 * @param xors: 출력물 xor 연산 수행
+	 * @return: 비트맵 이미지
+	 * @throws Exception
+	 */
 	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, double ratio, int unit, int shift, int[] xors) throws Exception {
 		return toBitmapTwice(containers, minWidth, ratio, unit, true, shift, xors);
 	}
+	/**
+	 * 컨테이너 목록을 이미지로 이중 변환
+	 * 한 번 무손실 압축이 됐기 때문에 재변환 시 비트맵 크기가 줄어듦 (용량 이득 X)
+	 * @param containers: 컨테이너 목록
+	 * @param minWidth: 최소 폭
+	 * @param ratio: 가로/세로 비율
+	 * @param unit: 크기 단위
+	 * @param twiceForced: 최소 폭보다 작더라도 난수화를 위해 이중 변환
+	 * @param key: 암호화 키
+	 * @return: 비트맵 이미지
+	 * @throws Exception
+	 */
 	public static BufferedImage toBitmapTwice(List<Container> containers, int minWidth, double ratio, int unit, boolean twiceForced, String key) throws Exception {
 		return toBitmapTwice(containers, minWidth, ratio, unit, twiceForced, getShift(key), getXors(key));
 	}
 	/**
 	 * 컨테이너 목록을 이미지로 이중 변환
-	 * 한 번 무손실 압축이 됐기 때문에 재변환 시 비트맵 크기가 줄어듦
+	 * 한 번 무손실 압축이 됐기 때문에 재변환 시 비트맵 크기가 줄어듦 (용량 이득 X)
 	 * @param containers: 컨테이너 목록
 	 * @param minWidth: 최소 폭
+	 * @param ratio: 가로/세로 비율
 	 * @param unit: 크기 단위
 	 * @param twiceForced: 최소 폭보다 작더라도 난수화를 위해 이중 변환
-	 * @param shift: 출력물 바이트 밀기
+	 * @param shift: 출력물 픽셀 밀기
 	 * @param xors: 출력물 xor 연산 수행
 	 * @return: 비트맵 이미지
 	 * @throws Exception
@@ -642,9 +797,24 @@ public class Container {
 	public static List<Container> fromBitmap(BufferedImage bmp) throws Exception {
 		return fromBitmap(bmp, 0, new int[0]);
 	}
+	/**
+	 * 비트맵 이미지를 컨테이너 목록으로 변환
+	 * @param bmp
+	 * @param key: 암호화 키
+	 * @return 컨테이너 목록
+	 * @throws Exception
+	 */
 	public static List<Container> fromBitmap(BufferedImage bmp, String key) throws Exception {
 		return fromBitmap(bmp, getShift(key), getXors(key));
 	}
+	/**
+	 * 비트맵 이미지를 컨테이너 목록으로 변환
+	 * @param bmp
+	 * @param shift: 출력물 픽셀 밀기
+	 * @param xors: 출력물 xor 연산 수행
+	 * @return 컨테이너 목록
+	 * @throws Exception
+	 */
 	public static List<Container> fromBitmap(BufferedImage bmp, int shift, int[] xors) throws Exception {
 		logger.info("\nContainer.fromBitmap: " + bmp);
 		List<Container> containers = new ArrayList<>();
@@ -664,11 +834,11 @@ public class Container {
 					logger.debug("xors.length: " + xors.length);
 					int pathLength   = 0xFFFFFF & bmp.getRGB( shift    % width, offsetY);
 					int binaryLength = 0xFFFFFF & bmp.getRGB((shift+1) % width, offsetY);
-					logger.debug("pathLength  : " + pad(Integer.toHexString(pathLength  ), 8));
-					logger.debug("binaryLength: " + pad(Integer.toHexString(binaryLength), 8));
+					logger.debug("pathLength  : " + pad0(Integer.toHexString(pathLength  ), 8));
+					logger.debug("binaryLength: " + pad0(Integer.toHexString(binaryLength), 8));
 					if (xors.length > 0) {
-						logger.debug("xors0       : " + pad(Integer.toHexString(xors[ shift    % xors.length]), 8));
-						logger.debug("xors1       : " + pad(Integer.toHexString(xors[(shift+1) % xors.length]), 8));
+						logger.debug("xors0       : " + pad0(Integer.toHexString(xors[ shift    % xors.length]), 8));
+						logger.debug("xors1       : " + pad0(Integer.toHexString(xors[(shift+1) % xors.length]), 8));
 						pathLength   = (pathLength   ^ xors[ shift    % xors.length]) & 0xFFFFFF;
 						binaryLength = (binaryLength ^ xors[(shift+1) % xors.length]) & 0xFFFFFF;
 					}
@@ -919,9 +1089,26 @@ public class Container {
 		public BufferedImage toBitmap114(int minWidth) throws Exception {
 			return toBitmap114(minWidth, 0, new int[0]);
 		}
+		/**
+		 * 이미지1:컨테이너1:결과물4 이미지로 변환
+		 * 
+		 * @param minWidth: 최소 폭
+		 * @param key: 암호화 키
+		 * @return 비트맵 이미지
+		 * @throws Exception
+		 */
 		public BufferedImage toBitmap114(int minWidth, String key) throws Exception {
 			return toBitmap114(minWidth, getShift(key), getXors(key));
 		}
+		/**
+		 * 이미지1:컨테이너1:결과물4 이미지로 변환
+		 * 
+		 * @param minWidth: 최소 폭
+		 * @param shift: 출력물 픽셀 밀기
+		 * @param xors: 출력물 xor 연산 수행
+		 * @return 비트맵 이미지
+		 * @throws Exception
+		 */
 		public BufferedImage toBitmap114(int minWidth, int shift, int[] xors) throws Exception {
 			logger.info("\nWithTarget.toBitmap");
 			BufferedImage dataImage = toBitmapTwice(containers, minWidth / 2, getRatio(), shift, xors);
@@ -980,9 +1167,26 @@ public class Container {
 		public BufferedImage toBitmap149(int minWidth) throws Exception {
 			return toBitmap149(minWidth, 0, new int[0]);
 		}
+		/**
+		 * 이미지1:컨테이너4:결과물9 이미지로 변환
+		 * 
+		 * @param minWidth: 최소 폭
+		 * @param key: 암호화 키
+		 * @return 비트맵 이미지
+		 * @throws Exception
+		 */
 		public BufferedImage toBitmap149(int minWidth, String key) throws Exception {
 			return toBitmap149(minWidth, getShift(key), getXors(key));
 		}
+		/**
+		 * 이미지1:컨테이너4:결과물9 이미지로 변환
+		 * 
+		 * @param minWidth: 최소 폭
+		 * @param shift: 출력물 픽셀 밀기
+		 * @param xors: 출력물 xor 연산 수행
+		 * @return 비트맵 이미지
+		 * @throws Exception
+		 */
 		public BufferedImage toBitmap149(int minWidth, int shift, int[] xors) throws Exception {
 			logger.info("\nWithTarget.toBitmap");
 			BufferedImage dataImage = toBitmapTwice(containers, (minWidth + 2) / 3 * 2, getRatio(), 2, shift, xors);
@@ -1051,10 +1255,15 @@ public class Container {
 			return result;
 		}
 		
-		private static final int CHECKSUM_SAMPLE_COUNT = 10;
+		private static final int CHECKSUM_SAMPLE_COUNT = 10; // 패리티 검증 체크섬 샘플 개수
 		public static final int CAN_PROTOTYPE = 1;
 		public static final int CAN_114 = 1 << 1;
 		public static final int CAN_149 = 1 << 2;
+		/**
+		 * 패리티 검증으로 해석 가능한 알고리즘 확인
+		 * @param bmp
+		 * @return 가능한 알고리즘
+		 */
 		public static int possibility(BufferedImage bmp) {
 			int result = 0;
 			try { if (canPrototype(bmp)) { result |= CAN_PROTOTYPE; } } catch (Exception e) { logger.debug(e); }
@@ -1165,15 +1374,15 @@ public class Container {
 					         + (0x000080 + (a&0x0000FF) - (b&0x0000FF) - (c&0x0000FF));
 					
 					logger.debug("sample(" + pad(x, 4) + ", " + pad(y, 4) + "):"
-							+ " { " + pad(Integer.toHexString(a), 6)
-							+ " / " + pad(Integer.toHexString(b), 6)
-							+ " / " + pad(Integer.toHexString(c), 6)
-							+ " / " + pad(Integer.toHexString(d), 6)
-							+ " } -> checksum: " + pad(Integer.toHexString(checksum), 6));
+							+ " { " + pad0(Integer.toHexString(a), 6)
+							+ " / " + pad0(Integer.toHexString(b), 6)
+							+ " / " + pad0(Integer.toHexString(c), 6)
+							+ " / " + pad0(Integer.toHexString(d), 6)
+							+ " } -> checksum: " + pad0(Integer.toHexString(checksum), 6));
 					
 					compare = (((a&0x010101)+(d&0x010101))&0x010101); // 정수연산 한계로 a+d가 홀수일 땐 1이 나옴
 					if (checksum != compare) {
-						logger.debug("is not " + pad(Integer.toHexString(compare), 6));
+						logger.debug("is not " + pad0(Integer.toHexString(compare), 6));
 						checkFailed = true;
 						break;
 					}
@@ -1265,24 +1474,24 @@ public class Container {
 					          + (0x000080 + (a&0x0000FF) - (b4&0x0000FF) - (c4&0x0000FF));
 					
 					logger.debug("sample(" + pad(x, 4) + ", " + pad(y, 4) + "):"
-							+ " { " + pad(Integer.toHexString(a ), 6)
-							+ " / " + pad(Integer.toHexString(b1), 6)
-							+ " , " + pad(Integer.toHexString(c1), 6)
-							+ " , " + pad(Integer.toHexString(d1), 6)
-							+ " / " + pad(Integer.toHexString(b2), 6)
-							+ " , " + pad(Integer.toHexString(c2), 6)
-							+ " , " + pad(Integer.toHexString(d2), 6)
-							+ " / " + pad(Integer.toHexString(b3), 6)
-							+ " , " + pad(Integer.toHexString(c3), 6)
-							+ " , " + pad(Integer.toHexString(d3), 6)
-							+ " / " + pad(Integer.toHexString(b4), 6)
-							+ " , " + pad(Integer.toHexString(c4), 6)
-							+ " , " + pad(Integer.toHexString(d4), 6)
+							+ " { " + pad0(Integer.toHexString(a ), 6)
+							+ " / " + pad0(Integer.toHexString(b1), 6)
+							+ " , " + pad0(Integer.toHexString(c1), 6)
+							+ " , " + pad0(Integer.toHexString(d1), 6)
+							+ " / " + pad0(Integer.toHexString(b2), 6)
+							+ " , " + pad0(Integer.toHexString(c2), 6)
+							+ " , " + pad0(Integer.toHexString(d2), 6)
+							+ " / " + pad0(Integer.toHexString(b3), 6)
+							+ " , " + pad0(Integer.toHexString(c3), 6)
+							+ " , " + pad0(Integer.toHexString(d3), 6)
+							+ " / " + pad0(Integer.toHexString(b4), 6)
+							+ " , " + pad0(Integer.toHexString(c4), 6)
+							+ " , " + pad0(Integer.toHexString(d4), 6)
 							+ " } -> checksum:"
-							+ " { " + pad(Integer.toHexString(checksum1), 6)
-							+ " , " + pad(Integer.toHexString(checksum2), 6)
-							+ " , " + pad(Integer.toHexString(checksum3), 6)
-							+ " , " + pad(Integer.toHexString(checksum4), 6)
+							+ " { " + pad0(Integer.toHexString(checksum1), 6)
+							+ " , " + pad0(Integer.toHexString(checksum2), 6)
+							+ " , " + pad0(Integer.toHexString(checksum3), 6)
+							+ " , " + pad0(Integer.toHexString(checksum4), 6)
 							+ " }");
 					
 					// 정수연산 한계로 a+d가 홀수일 땐 1이 나옴
@@ -1290,10 +1499,10 @@ public class Container {
 					compare2 = (((a&0x010101)+(d2&0x010101))&0x010101);
 					compare3 = (((a&0x010101)+(d3&0x010101))&0x010101);
 					compare4 = (((a&0x010101)+(d4&0x010101))&0x010101);
-					if (checksum1 != compare1) { logger.debug("is not " + pad(Integer.toHexString(compare1), 6)); checkFailed = true; break; }
-					if (checksum2 != compare2) { logger.debug("is not " + pad(Integer.toHexString(compare2), 6)); checkFailed = true; break; }
-					if (checksum3 != compare3) { logger.debug("is not " + pad(Integer.toHexString(compare3), 6)); checkFailed = true; break; }
-					if (checksum4 != compare4) { logger.debug("is not " + pad(Integer.toHexString(compare4), 6)); checkFailed = true; break; }
+					if (checksum1 != compare1) { logger.debug("is not " + pad0(Integer.toHexString(compare1), 6)); checkFailed = true; break; }
+					if (checksum2 != compare2) { logger.debug("is not " + pad0(Integer.toHexString(compare2), 6)); checkFailed = true; break; }
+					if (checksum3 != compare3) { logger.debug("is not " + pad0(Integer.toHexString(compare3), 6)); checkFailed = true; break; }
+					if (checksum4 != compare4) { logger.debug("is not " + pad0(Integer.toHexString(compare4), 6)); checkFailed = true; break; }
 				}
 				if (checkFailed) {
 					logger.info("체크섬 오류 - WithTarget 1:4:9 형식 이미지가 아님");
@@ -1359,7 +1568,7 @@ public class Container {
 		/**
 		 * 1:1:4 형식 비트맵 이미지를 해석
 		 * @param bmp
-		 * @param shift: 출력물 바이트 밀기
+		 * @param shift: 출력물 픽셀 밀기
 		 * @param xors: 출력물 xor 연산 수행
 		 * @return
 		 * @throws Exception
@@ -1405,7 +1614,7 @@ public class Container {
 		/**
 		 * 1:4:9 형식 비트맵 이미지를 해석
 		 * @param bmp
-		 * @param shift: 출력물 바이트 밀기
+		 * @param shift: 출력물 픽셀 밀기
 		 * @param xors: 출력물 xor 연산 수행
 		 * @return
 		 * @throws Exception
@@ -1477,18 +1686,57 @@ public class Container {
 		public static WithTarget fromBitmap(BufferedImage bmp) throws Exception {
 			return fromBitmap(bmp, possibility(bmp));
 		}
+		/**
+		 * 비트맵 이미지를 키값에 따라 변환 후, 현존하는 알고리즘으로 차례로 해석 시도
+		 * @param bmp
+		 * @param key
+		 * @return
+		 * @throws Exception
+		 */
 		public static WithTarget fromBitmap(BufferedImage bmp, String key) throws Exception {
 			return fromBitmap(bmp, possibility(bmp), key);
 		}
+		/**
+		 * 비트맵 이미지를 주어진 값에 따라 변환 후, 현존하는 알고리즘으로 차례로 해석 시도
+		 * @param bmp
+		 * @param shift
+		 * @param xors
+		 * @return
+		 * @throws Exception
+		 */
 		public static WithTarget fromBitmap(BufferedImage bmp, int shift, int[] xors) throws Exception {
 			return fromBitmap(bmp, possibility(bmp), shift, xors);
 		}
+		/**
+		 * 비트맵 이미지를 주어진 알고리즘으로 차례로 해석 시도
+		 * @param bmp
+		 * @param possibility
+		 * @return
+		 * @throws Exception
+		 */
 		public static WithTarget fromBitmap(BufferedImage bmp, int possibility) throws Exception {
 			return fromBitmap(bmp, possibility(bmp), 0, new int[0]);
 		}
+		/**
+		 * 비트맵 이미지를 키값에 따라 변환 후, 주어진 알고리즘으로 차례로 해석 시도
+		 * @param bmp
+		 * @param possibility
+		 * @param key
+		 * @return
+		 * @throws Exception
+		 */
 		public static WithTarget fromBitmap(BufferedImage bmp, int possibility, String key) throws Exception {
 			return fromBitmap(bmp, possibility(bmp), getShift(key), getXors(key));
 		}
+		/**
+		 * 비트맵 이미지를 주어진 값에 따라 변환 후, 주어진 알고리즘으로 차례로 해석 시도
+		 * @param bmp
+		 * @param possibility
+		 * @param shift
+		 * @param xors
+		 * @return
+		 * @throws Exception
+		 */
 		public static WithTarget fromBitmap(BufferedImage bmp, int possibility, int shift, int[] xors) throws Exception {
 			logger.info("\nWithTarget.fromBitmap");
 			WithTarget result;
