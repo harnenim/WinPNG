@@ -360,7 +360,20 @@ public class Container {
 	}
 	private static final int[] getXors(String key) {
 		try {
-			return bytesToRGBs(key.getBytes("UTF-8"));
+			byte[] bytes = key.getBytes("UTF-8");
+			for (int i = 0; i < bytes.length; i++) {
+				bytes[i] = (byte)
+						( (((bytes[i] & 0b10000000) >> 7) & 0b00000001)
+						| (((bytes[i] & 0b01000000) >> 5) & 0b00000010)
+						| (((bytes[i] & 0b00100000) >> 3) & 0b00000100)
+						| (((bytes[i] & 0b00010000) >> 1) & 0b00001000)
+						| (((bytes[i] & 0b00001000) << 1) & 0b00010000)
+						| (((bytes[i] & 0b00000100) << 3) & 0b00100000)
+						| (((bytes[i] & 0b00000010) << 5) & 0b01000000)
+						| (((bytes[i] & 0b00000001) << 7) & 0b10000000)
+						);
+			}
+			return bytesToRGBs(bytes);
 		} catch (UnsupportedEncodingException e) {
 			logger.error(e);
 			return new int[0];
@@ -496,7 +509,10 @@ public class Container {
 	 * @throws Exception
 	 */
 	public static BufferedImage toBitmap(List<Container> containers) throws Exception {
-		return toBitmap(containers, 0, RATIO, 1, 0, new int[0]);
+		return toBitmap(containers, true);
+	}
+	private static BufferedImage toBitmap(List<Container> containers, boolean randomJunk) throws Exception {
+		return toBitmap(containers, 0, RATIO, 1, 0, new int[0], randomJunk);
 	}
 	/**
 	 * 컨테이너 목록을 최소 폭과 비율에 맞춘 크기의 이미지로 변환
@@ -507,7 +523,10 @@ public class Container {
 	 * @throws Exception
 	 */
 	public static BufferedImage toBitmap(List<Container> containers, int minWidth, double ratio) throws Exception {
-		return toBitmap(containers, minWidth, ratio, 1, 0, new int[0]);
+		return toBitmap(containers, minWidth, ratio, true);
+	}
+	private static BufferedImage toBitmap(List<Container> containers, int minWidth, double ratio, boolean randomJunk) throws Exception {
+		return toBitmap(containers, minWidth, ratio, 1, 0, new int[0], randomJunk);
 	}
 	/**
 	 * 컨테이너 목록을 최소 폭과 비율에 맞춘 크기의 이미지로 변환
@@ -519,7 +538,10 @@ public class Container {
 	 * @throws Exception
 	 */
 	public static BufferedImage toBitmap(List<Container> containers, int minWidth, double ratio, String key) throws Exception {
-		return toBitmap(containers, minWidth, ratio, 1, key);
+		return toBitmap(containers, minWidth, ratio, key, true);
+	}
+	private static BufferedImage toBitmap(List<Container> containers, int minWidth, double ratio, String key, boolean randomJunk) throws Exception {
+		return toBitmap(containers, minWidth, ratio, 1, key, randomJunk);
 	}
 	/**
 	 * 컨테이너 목록을 최소 폭과 비율에 맞춘 크기의 이미지로 변환
@@ -532,7 +554,10 @@ public class Container {
 	 * @throws Exception
 	 */
 	public static BufferedImage toBitmap(List<Container> containers, int minWidth, double ratio, int unit, String key) throws Exception {
-		return toBitmap(containers, minWidth, ratio, unit, getShift(key), getXors(key));
+		return toBitmap(containers, minWidth, ratio, key, true);
+	}
+	private static BufferedImage toBitmap(List<Container> containers, int minWidth, double ratio, int unit, String key, boolean randomJunk) throws Exception {
+		return toBitmap(containers, minWidth, ratio, unit, getShift(key), getXors(key), randomJunk);
 	}
 	/**
 	 * 컨테이너 목록을 최소 폭과 비율에 맞춘 크기의 이미지로 변환
@@ -546,25 +571,59 @@ public class Container {
 	 * @throws Exception
 	 */
 	public static BufferedImage toBitmap(List<Container> containers, int minWidth, double ratio, int unit, int shift, int[] xors) throws Exception {
+		return toBitmap(containers, minWidth, ratio, unit, shift, xors, true);
+	}
+	private static BufferedImage toBitmap(List<Container> containers, int minWidth, double ratio, int unit, int shift, int[] xors, boolean randomJunk) throws Exception {
 		logger.info("\nContainer.toBitmap");
 		// 최종 이미지 크기 구하기
-		int width = (Math.max(minWidth, getWidthByRatio(containers, ratio)) + unit - 1) / unit * unit;
 		int contCount = containers.size();
+		
+		// 간이로 구한 폭
+		int width = (Math.max(minWidth, getWidthByRatio(containers, ratio)) + unit - 1) / unit * unit;
 		int containersHeight = 0;
 		for (Container cont : containers) {
 			containersHeight += (cont.getRGBPixelCount() + width - 1) / width;
 		}
-		logger.info("max(" + ((int) (width * ratio)) + ", " + containersHeight + ")");
-		int height = (Math.max((int) (width * ratio), containersHeight) + unit - 1) / unit * unit;
-		logger.info("output size: " + width + " x " + height);
+		// 간이로 구한 높이 - 실제 높이는 각 컨테이너별 정크 영역 때문에 커지게 됨
+		int height = Math.max((int) Math.round(width * ratio / unit) * unit, (containersHeight + unit - 1) / unit * unit);
+		logger.info("check output size: " + width + " x " + height + " = " + (width * height));
+		
+		// 최대한 목표 비율에 가가운 값 찾기
+		double lastRatio = (double) height / width;
+		for (int width0 = width; lastRatio > ratio; width0 += unit) {
+			int width1 = width0 + unit;
+			int containersHeight1 = 0;
+			for (Container cont : containers) {
+				containersHeight1 += (cont.getRGBPixelCount() + width1 - 1) / width1;
+			}
+			int height1 = Math.max((int) Math.round(width1 * ratio / unit) * unit, (containersHeight1 + unit - 1) / unit * unit);
+			logger.info("check output size: " + width1 + " x " + height1 + " = " + (width1 * height1));
+			double ratio1 = (double) height1 / width1;
+			
+			// 면적이 작아졌으면 해당 값 선택
+			if (width1 * height1 < width * height) {
+				width = width1;
+				height = height1;
+				containersHeight = containersHeight1;
+			}
+			lastRatio = ratio1;
+		}
+		logger.info("final output size: " + width + " x " + height);
 		
 		// 정크 영역 랜덤 배분
+		// 위에서 높이를 타이트하게 구해서 사실상 배분이 이뤄질 게 없음...
 		int[] dividers = new int[contCount + 1];
 		{
 			int junkHeight = height - containersHeight;
 			logger.info("junkHeight: " + junkHeight);
-			for (int i = 0; i < contCount; i++) {
-				dividers[i] = (int) (junkHeight * Math.random());
+			if (randomJunk) {
+				for (int i = 0; i < contCount; i++) {
+					dividers[i] = (int) (junkHeight * Math.random());
+				}
+			} else {
+				for (int i = 0; i < contCount; i++) {
+					dividers[i] = 0;
+				}
 			}
 			dividers[contCount] = junkHeight;
 		}
@@ -573,12 +632,12 @@ public class Container {
 		int offsetY = 0;
 		
 		// 정크 영역 랜덤 채우기
-		offsetY += setJunkRGB(bmp, shift, xors, offsetY, width, dividers[0]);
+		offsetY += setJunkRGB(bmp, shift, xors, offsetY, width, dividers[0], randomJunk);
 		
 		for (int i = 0; i < contCount; i++) {
 			// 컨테이너 데이터 쓰기
 			Container cont = containers.get(i);
-			int[] rgbs = cont.toRGBs(width, shift, xors, true);
+			int[] rgbs = cont.toRGBs(width, shift, xors, randomJunk);
 			int contPixelCount = cont.getRGBPixelCount();
 			int contHeight = rgbs.length / width;
 			logger.info(pad(contPixelCount, 6) + " → " + pad(rgbs.length, 7) + "(" + width + " x " + pad(contHeight, 3) + "): " + cont.path);
@@ -586,7 +645,7 @@ public class Container {
 			offsetY += contHeight;
 
 			// 정크 영역 랜덤 채우기
-			offsetY += setJunkRGB(bmp, shift, xors, offsetY, width, dividers[i+1] - dividers[i]);
+			offsetY += setJunkRGB(bmp, shift, xors, offsetY, width, dividers[i+1] - dividers[i], randomJunk);
 		}
 		
 		return bmp;
@@ -599,20 +658,22 @@ public class Container {
 	 * @param height
 	 * @return
 	 */
-	private static int setJunkRGB(BufferedImage bmp, int shift, int[] xors, int offsetY, int width, int height) {
+	private static int setJunkRGB(BufferedImage bmp, int shift, int[] xors, int offsetY, int width, int height, boolean randomJunk) {
 		int pixelCount = width * height;
 		if (height == 0) {
 			return 0;
 		}
 		logger.info(pad(pixelCount, 6) + " → " + pad(pixelCount, 7) + "(" + width + " x " + pad(height, 3) + "): JUNK DATA");
-		bmp.setRGB(0, offsetY, width, height, new Container((pixelCount - 2) * 3).toRGBs(width, shift, xors, true), 0, width);
+		bmp.setRGB(0, offsetY, width, height, new Container((pixelCount - 2) * 3, randomJunk).toRGBs(width, shift, xors, randomJunk), 0, width);
 		return height;
 	}
-	private Container(int length) {
+	private Container(int length, boolean randomJunk) {
 		path = "";
 		binary = new byte[length];
-		for (int i = 0; i < length; i++) {
-			binary[i] = (byte) (Math.random() * 256);
+		if (randomJunk) {
+			for (int i = 0; i < length; i++) {
+				binary[i] = (byte) (Math.random() * 256);
+			}
 		}
 	}
 	
@@ -778,7 +839,9 @@ public class Container {
 		
 		File file = File.createTempFile("temp", ".png");
 		file.deleteOnExit();
-		ImageIO.write(toBitmap(containers), "PNG", file);
+		// 1차 변환은 정크 영역 랜덤 없어야 용량 최적화
+		// 비율은 일단 폭이 좁을수록 정크 영역이 줄어들 텐데...
+		ImageIO.write(toBitmap(containers, 0, 8, false), "PNG", file);
 		Container cont = new Container("", file); // 파일명이 없는 컨테이너화
 		
 		containers = new ArrayList<>();
@@ -1061,6 +1124,52 @@ public class Container {
 			
 			return result;
 		}
+		
+		// b = (a+d)/₂
+		private static int getB(int a, int d) {
+			//     (                a           +  d                        ) / 2
+			return ( ((            (a&0xFF0000) + (d&0xFF0000)) & 0x1FE0000)
+			       | ((            (a&0x00FF00) + (d&0x00FF00)) & 0x001FE00)
+			       | ((            (a&0x0000FF) + (d&0x0000FF)) & 0x00001FE)) >> 1;
+		}
+		// c = (1+a-d)/₂
+		private static int getC(int a, int d) {
+			//     (     1       +  a           +  d                        ) / 2
+			return ( ((0x1000000 + (a&0xFF0000) - (d&0xFF0000)) & 0x1FE0000)
+			       | ((0x0010000 + (a&0x00FF00) - (d&0x00FF00)) & 0x001FE00)
+			       | ((0x0000100 + (a&0x0000FF) - (d&0x0000FF)) & 0x00001FE)) >> 1;
+		}
+		// {½ + b - c} = {½ + (a+d)/₂ - (1+a-d)/₂} = {(1+a+d-1-a+d)/₂} = d
+		private static int getD(int b, int c) {
+			//      1/2      +  b           -  c
+			return (0x800000 + (b&0xFF0000) - (c&0xFF0000))
+			     | (0x008000 + (b&0x00FF00) - (c&0x00FF00))
+			     | (0x000080 + (b&0x0000FF) - (c&0x0000FF));
+			
+		}
+		// {½ + a - b - c} = {½ + 2a/₂ - (a+d)/₂ - (1+a-d)/₂} = {(1+2a-a-d-1-a+d)/₂} = 0
+		private static boolean isValid(int a, int b, int c, int d) {
+			//              1/2      +  a           -  b           -  c
+			int checksum = (0x800000 + (a&0xFF0000) - (b&0xFF0000) - (c&0xFF0000))
+			             + (0x008000 + (a&0x00FF00) - (b&0x00FF00) - (c&0x00FF00))
+			             + (0x000080 + (a&0x0000FF) - (b&0x0000FF) - (c&0x0000FF));
+
+			logger.debug("{ " + pad0(Integer.toHexString(a), 6)
+			          + " / " + pad0(Integer.toHexString(b), 6)
+			          + " / " + pad0(Integer.toHexString(c), 6)
+			          + " / " + pad0(Integer.toHexString(d), 6)
+			          + " } -> checksum: " + pad0(Integer.toHexString(checksum), 6));
+			
+			int compare = (((a&0x010101)+(d&0x010101))&0x010101); // 정수연산 한계로 a+d가 홀수일 땐 1이 나옴
+			
+			if (checksum == compare) {
+				return true;
+			} else {
+				logger.debug("is not " + pad0(Integer.toHexString(compare), 6));
+				return false;
+			}
+		}
+		
 		/**
 		 * 이미지+컨테이너를 이미지로 변환
 		 * @return 이미지
@@ -1110,7 +1219,7 @@ public class Container {
 		 * @throws Exception
 		 */
 		public BufferedImage toBitmap114(int minWidth, int shift, int[] xors) throws Exception {
-			logger.info("\nWithTarget.toBitmap");
+			logger.info("\nWithTarget.toBitmap114");
 			BufferedImage dataImage = toBitmapTwice(containers, minWidth / 2, getRatio(), shift, xors);
 			int w = dataImage.getWidth(), h = dataImage.getHeight();
 			
@@ -1145,12 +1254,8 @@ public class Container {
 					d = 0xFFFFFF & dataImage.getRGB(x, y);
 					
 					result.setRGB(2*x  , 2*y  , a);
-					result.setRGB(2*x+1, 2*y  , ( ((            (a&0xFF0000) + (d&0xFF0000)) & 0x1FE0000)
-					                            | ((            (a&0x00FF00) + (d&0x00FF00)) & 0x001FE00)
-					                            | ((            (a&0x0000FF) + (d&0x0000FF)) & 0x00001FE)) >> 1);
-					result.setRGB(2*x  , 2*y+1, ( ((0x1000000 + (a&0xFF0000) - (d&0xFF0000)) & 0x1FE0000)
-					                            | ((0x0010000 + (a&0x00FF00) - (d&0x00FF00)) & 0x001FE00)
-					                            | ((0x0000100 + (a&0x0000FF) - (d&0x0000FF)) & 0x00001FE)) >> 1);
+					result.setRGB(2*x+1, 2*y  , getB(a, d));
+					result.setRGB(2*x  , 2*y+1, getC(a, d));
 					result.setRGB(2*x+1, 2*y+1, a);
 				}
 			}
@@ -1188,7 +1293,7 @@ public class Container {
 		 * @throws Exception
 		 */
 		public BufferedImage toBitmap149(int minWidth, int shift, int[] xors) throws Exception {
-			logger.info("\nWithTarget.toBitmap");
+			logger.info("\nWithTarget.toBitmap149");
 			BufferedImage dataImage = toBitmapTwice(containers, (minWidth + 2) / 3 * 2, getRatio(), 2, shift, xors);
 			int w = dataImage.getWidth() / 2, h = dataImage.getHeight() / 2;
 			
@@ -1221,34 +1326,95 @@ public class Container {
 					d4 = 0xFFFFFF & dataImage.getRGB(2*x  , 2*y+1);
 					
 					result.setRGB(3*x+1, 3*y+1, a);
+					result.setRGB(3*x  , 3*y  , getB(a, d1));
+					result.setRGB(3*x+1, 3*y  , getC(a, d1));
+					result.setRGB(3*x+2, 3*y  , getB(a, d2));
+					result.setRGB(3*x+2, 3*y+1, getC(a, d2));
+					result.setRGB(3*x+2, 3*y+2, getB(a, d3));
+					result.setRGB(3*x+1, 3*y+2, getC(a, d3));
+					result.setRGB(3*x  , 3*y+2, getB(a, d4));
+					result.setRGB(3*x  , 3*y+1, getC(a, d4));
+				}
+			}
+			
+			return result;
+		}
+		/**
+		 * 이미지2:컨테이너3:결과물8 이미지로 변환
+		 * 
+		 * @param minWidth: 최소 폭
+		 * @return 비트맵 이미지
+		 * @throws Exception
+		 */
+		public BufferedImage toBitmap238(int minWidth) throws Exception {
+			return toBitmap238(minWidth, 0, new int[0]);
+		}
+		/**
+		 * 이미지2:컨테이너3:결과물8 이미지로 변환
+		 * 
+		 * @param minWidth: 최소 폭
+		 * @param key: 암호화 키
+		 * @return 비트맵 이미지
+		 * @throws Exception
+		 */
+		public BufferedImage toBitmap238(int minWidth, String key) throws Exception {
+			return toBitmap238(minWidth, getShift(key), getXors(key));
+		}
+		/**
+		 * 이미지2:컨테이너3:결과물8 이미지로 변환
+		 * 
+		 * @param minWidth: 최소 폭
+		 * @param shift: 출력물 픽셀 밀기
+		 * @param xors: 출력물 xor 연산 수행
+		 * @return 비트맵 이미지
+		 * @throws Exception
+		 */
+		public BufferedImage toBitmap238(int minWidth, int shift, int[] xors) throws Exception {
+			logger.info("\nWithTarget.toBitmap238");
+			BufferedImage dataImage = toBitmapTwice(containers, (minWidth + 1) / 2, getRatio() * 3 / 2, 3, shift, xors);
+			int w = dataImage.getWidth(), h = dataImage.getHeight() / 3;
+			
+			// 이미지를 결과물의 절반 크기로 조절
+			BufferedImage resizedTargetImage = new BufferedImage(w, h * 2, BufferedImage.TYPE_3BYTE_BGR);
+			Graphics graphics = resizedTargetImage.getGraphics();
+			graphics.drawImage(targetImage.getScaledInstance(w, h * 2, BufferedImage.TYPE_3BYTE_BGR), 0, 0, null);
+			graphics.dispose();
+			
+			/*
+			 * a: resizedTargetImage
+			 * d: dataImage
+			 * 
+			 * 출력: b1 a1
+			 *       c1 b2
+			 *       a2 c2
+			 *       b3 c3
+			 * 
+			 * 8픽셀 합계: 2.5(a1+a2) + 1.5 -> 평균 내면 a 값에 따라 3/16~13/16 값을 갖게 됨
+			 * 
+			 */
+			
+			BufferedImage result = new BufferedImage(w*2, h*4, BufferedImage.TYPE_3BYTE_BGR);
+			int a1, a2, a3, d1, d2, d3;
+			
+			for (int y = 0; y < h; y++) {
+				for (int x = 0; x < w; x++) {
+					a1 = 0xFFFFFF & resizedTargetImage.getRGB(x, 2*y  );
+					a2 = 0xFFFFFF & resizedTargetImage.getRGB(x, 2*y+1);
+					a3 = ((((a1&0xFF0000) + (a2&0xFF0000)) >> 1) & 0xFF0000)
+					   | ((((a1&0x00FF00) + (a2&0x00FF00)) >> 1) & 0x00FF00)
+					   | ((((a1&0x0000FF) + (a2&0x0000FF)) >> 1) & 0x0000FF);
+					d1 = 0xFFFFFF & dataImage.getRGB(x, 3*y  );
+					d2 = 0xFFFFFF & dataImage.getRGB(x, 3*y+1);
+					d3 = 0xFFFFFF & dataImage.getRGB(x, 3*y+2);
 					
-					result.setRGB(3*x  , 3*y  , ( ((            (a&0xFF0000) + (d1&0xFF0000)) & 0x1FE0000)
-					                            | ((            (a&0x00FF00) + (d1&0x00FF00)) & 0x001FE00)
-					                            | ((            (a&0x0000FF) + (d1&0x0000FF)) & 0x00001FE)) >> 1);
-					result.setRGB(3*x+1, 3*y  , ( ((0x1000000 + (a&0xFF0000) - (d1&0xFF0000)) & 0x1FE0000)
-					                            | ((0x0010000 + (a&0x00FF00) - (d1&0x00FF00)) & 0x001FE00)
-					                            | ((0x0000100 + (a&0x0000FF) - (d1&0x0000FF)) & 0x00001FE)) >> 1);
-					
-					result.setRGB(3*x+2, 3*y  , ( ((            (a&0xFF0000) + (d2&0xFF0000)) & 0x1FE0000)
-					                            | ((            (a&0x00FF00) + (d2&0x00FF00)) & 0x001FE00)
-					                            | ((            (a&0x0000FF) + (d2&0x0000FF)) & 0x00001FE)) >> 1);
-					result.setRGB(3*x+2, 3*y+1, ( ((0x1000000 + (a&0xFF0000) - (d2&0xFF0000)) & 0x1FE0000)
-					                            | ((0x0010000 + (a&0x00FF00) - (d2&0x00FF00)) & 0x001FE00)
-					                            | ((0x0000100 + (a&0x0000FF) - (d2&0x0000FF)) & 0x00001FE)) >> 1);
-					
-					result.setRGB(3*x+2, 3*y+2, ( ((            (a&0xFF0000) + (d3&0xFF0000)) & 0x1FE0000)
-					                            | ((            (a&0x00FF00) + (d3&0x00FF00)) & 0x001FE00)
-					                            | ((            (a&0x0000FF) + (d3&0x0000FF)) & 0x00001FE)) >> 1);
-					result.setRGB(3*x+1, 3*y+2, ( ((0x1000000 + (a&0xFF0000) - (d3&0xFF0000)) & 0x1FE0000)
-					                            | ((0x0010000 + (a&0x00FF00) - (d3&0x00FF00)) & 0x001FE00)
-					                            | ((0x0000100 + (a&0x0000FF) - (d3&0x0000FF)) & 0x00001FE)) >> 1);
-					
-					result.setRGB(3*x  , 3*y+2, ( ((            (a&0xFF0000) + (d4&0xFF0000)) & 0x1FE0000)
-					                            | ((            (a&0x00FF00) + (d4&0x00FF00)) & 0x001FE00)
-					                            | ((            (a&0x0000FF) + (d4&0x0000FF)) & 0x00001FE)) >> 1);
-					result.setRGB(3*x  , 3*y+1, ( ((0x1000000 + (a&0xFF0000) - (d4&0xFF0000)) & 0x1FE0000)
-					                            | ((0x0010000 + (a&0x00FF00) - (d4&0x00FF00)) & 0x001FE00)
-					                            | ((0x0000100 + (a&0x0000FF) - (d4&0x0000FF)) & 0x00001FE)) >> 1);
+					result.setRGB(2*x+1, 4*y  , a1);
+					result.setRGB(2*x  , 4*y+2, a2);
+					result.setRGB(2*x  , 4*y  , getB(a1, d1));
+					result.setRGB(2*x  , 4*y+1, getC(a1, d1));
+					result.setRGB(2*x+1, 4*y+1, getB(a3, d2));
+					result.setRGB(2*x+1, 4*y+2, getC(a3, d2));
+					result.setRGB(2*x  , 4*y+3, getB(a2, d3));
+					result.setRGB(2*x+1, 4*y+3, getC(a2, d3));
 				}
 			}
 			
@@ -1259,6 +1425,7 @@ public class Container {
 		public static final int CAN_PROTOTYPE = 1;
 		public static final int CAN_114 = 1 << 1;
 		public static final int CAN_149 = 1 << 2;
+		public static final int CAN_238 = 1 << 3;
 		/**
 		 * 패리티 검증으로 해석 가능한 알고리즘 확인
 		 * @param bmp
@@ -1269,6 +1436,7 @@ public class Container {
 			try { if (canPrototype(bmp)) { result |= CAN_PROTOTYPE; } } catch (Exception e) { logger.debug(e); }
 			try { if (can114      (bmp)) { result |= CAN_114;       } } catch (Exception e) { logger.debug(e); }
 			try { if (can149      (bmp)) { result |= CAN_149;       } } catch (Exception e) { logger.debug(e); }
+			try { if (can238      (bmp)) { result |= CAN_238;       } } catch (Exception e) { logger.debug(e); }
 			return result;
 		}
 		/**
@@ -1345,15 +1513,15 @@ public class Container {
 				int a, b, c, d;
 				
 				boolean checkFailed = false;
-				int checksum, compare;
 				
 				for (int i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
 					int x = (int) (Math.random() * width ) / 2;
 					int y = (int) (Math.random() * height) / 2;
+					logger.debug("sample(" + pad(x, 4) + ", " + pad(y, 4) + ")");
 					
 					// (2x,2y)와 (2x+1,2y+1)은 둘 다 출력물 이미지의 원본 픽셀로 같은 값이어야 함
-					a = bmp.getRGB(2*x  , 2*y  ) & 0xFFFFFF;
-					d = bmp.getRGB(2*x+1, 2*y+1) & 0xFFFFFF;
+					a = bmp.getRGB(2*x  , 2*y  );
+					d = bmp.getRGB(2*x+1, 2*y+1);
 					if (a != d) {
 						logger.info("a != d");
 						checkFailed = true;
@@ -1361,28 +1529,10 @@ public class Container {
 					}
 					
 					// 패리티 검증
-					b = bmp.getRGB(2*x+1, 2*y  ) & 0xFFFFFF; // (a+d)/₂
-					c = bmp.getRGB(2*x  , 2*y+1) & 0xFFFFFF; // (1+a-d)/₂
-					// {½     + b - c} = {½        + (a+d)/₂ - (1+a-d)/₂} = {(1   +a+d-1-a+d)/₂} = d
-					d        = (0x800000                + (b&0xFF0000) - (c&0xFF0000))
-					         | (0x008000                + (b&0x00FF00) - (c&0x00FF00))
-					         | (0x000080                + (b&0x0000FF) - (c&0x0000FF));
+					b = bmp.getRGB(2*x+1, 2*y  );
+					c = bmp.getRGB(2*x  , 2*y+1);
 					
-					// {½ + a - b - c} = {½ + 2a/₂ - (a+d)/₂ - (1+a-d)/₂} = {(1+2a-a-d-1-a+d)/₂} = 0
-					checksum = (0x800000 + (a&0xFF0000) - (b&0xFF0000) - (c&0xFF0000))
-					         + (0x008000 + (a&0x00FF00) - (b&0x00FF00) - (c&0x00FF00))
-					         + (0x000080 + (a&0x0000FF) - (b&0x0000FF) - (c&0x0000FF));
-					
-					logger.debug("sample(" + pad(x, 4) + ", " + pad(y, 4) + "):"
-							+ " { " + pad0(Integer.toHexString(a), 6)
-							+ " / " + pad0(Integer.toHexString(b), 6)
-							+ " / " + pad0(Integer.toHexString(c), 6)
-							+ " / " + pad0(Integer.toHexString(d), 6)
-							+ " } -> checksum: " + pad0(Integer.toHexString(checksum), 6));
-					
-					compare = (((a&0x010101)+(d&0x010101))&0x010101); // 정수연산 한계로 a+d가 홀수일 땐 1이 나옴
-					if (checksum != compare) {
-						logger.debug("is not " + pad0(Integer.toHexString(compare), 6));
+					if (!isValid(a, b, c, getD(b, c))) {
 						checkFailed = true;
 						break;
 					}
@@ -1421,88 +1571,32 @@ public class Container {
 					return false;
 				}
 				
-				int a, b1, b2, b3, b4
-				     , c1, c2, c3, c4
-				     , d1, d2, d3, d4;
+				int b1, c1, b2
+				  , c4, a , c2
+				  , b4, c3, b3;
 				
 				boolean checkFailed = false;
-				int checksum1, compare1
-				  , checksum2, compare2
-				  , checksum3, compare3
-				  , checksum4, compare4;
 				
 				for (int i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
 					int x = (int) (Math.random() * width  / 3);
 					int y = (int) (Math.random() * height / 3);
+					logger.debug("sample(" + pad(x, 4) + ", " + pad(y, 4) + "):");
 					
-					a  = bmp.getRGB(3*x+1, 3*y+1) & 0xFFFFFF;
-					b1 = bmp.getRGB(3*x  , 3*y  ) & 0xFFFFFF; // (a+d)/₂
-					c1 = bmp.getRGB(3*x+1, 3*y  ) & 0xFFFFFF; // (1+a-d)/₂
-					b2 = bmp.getRGB(3*x+2, 3*y  ) & 0xFFFFFF;
-					c2 = bmp.getRGB(3*x+2, 3*y+1) & 0xFFFFFF;
-					b3 = bmp.getRGB(3*x+2, 3*y+2) & 0xFFFFFF;
-					c3 = bmp.getRGB(3*x+1, 3*y+2) & 0xFFFFFF;
-					b4 = bmp.getRGB(3*x  , 3*y+2) & 0xFFFFFF;
-					c4 = bmp.getRGB(3*x  , 3*y+1) & 0xFFFFFF;
-					// {½ + b - c} = {½ + (a+d)/₂ - (1+a-d)/₂} = {(1+a+d-1-a+d)/₂} = d
-					d1 = (0x800000 + (b1&0xFF0000) - (c1&0xFF0000))
-					   | (0x008000 + (b1&0x00FF00) - (c1&0x00FF00))
-					   | (0x000080 + (b1&0x0000FF) - (c1&0x0000FF));
-					d2 = (0x800000 + (b2&0xFF0000) - (c2&0xFF0000))
-					   | (0x008000 + (b2&0x00FF00) - (c2&0x00FF00))
-					   | (0x000080 + (b2&0x0000FF) - (c2&0x0000FF));
-					d3 = (0x800000 + (b3&0xFF0000) - (c3&0xFF0000))
-					   | (0x008000 + (b3&0x00FF00) - (c3&0x00FF00))
-					   | (0x000080 + (b3&0x0000FF) - (c3&0x0000FF));
-					d4 = (0x800000 + (b4&0xFF0000) - (c4&0xFF0000))
-					   | (0x008000 + (b4&0x00FF00) - (c4&0x00FF00))
-					   | (0x000080 + (b4&0x0000FF) - (c4&0x0000FF));
-
+					a  = bmp.getRGB(3*x+1, 3*y+1);
+					b1 = bmp.getRGB(3*x  , 3*y  );
+					c1 = bmp.getRGB(3*x+1, 3*y  );
+					b2 = bmp.getRGB(3*x+2, 3*y  );
+					c2 = bmp.getRGB(3*x+2, 3*y+1);
+					b3 = bmp.getRGB(3*x+2, 3*y+2);
+					c3 = bmp.getRGB(3*x+1, 3*y+2);
+					b4 = bmp.getRGB(3*x  , 3*y+2);
+					c4 = bmp.getRGB(3*x  , 3*y+1);
+					
 					// 패리티 검증
-					// {½ + a - b - c} = {½ + 2a/₂ - (a+d)/₂ - (1+a-d)/₂} = {(1+2a-a-d-1-a+d)/₂} = 0
-					checksum1 = (0x800000 + (a&0xFF0000) - (b1&0xFF0000) - (c1&0xFF0000))
-					          + (0x008000 + (a&0x00FF00) - (b1&0x00FF00) - (c1&0x00FF00))
-					          + (0x000080 + (a&0x0000FF) - (b1&0x0000FF) - (c1&0x0000FF));
-					checksum2 = (0x800000 + (a&0xFF0000) - (b2&0xFF0000) - (c2&0xFF0000))
-					          + (0x008000 + (a&0x00FF00) - (b2&0x00FF00) - (c2&0x00FF00))
-					          + (0x000080 + (a&0x0000FF) - (b2&0x0000FF) - (c2&0x0000FF));
-					checksum3 = (0x800000 + (a&0xFF0000) - (b3&0xFF0000) - (c3&0xFF0000))
-					          + (0x008000 + (a&0x00FF00) - (b3&0x00FF00) - (c3&0x00FF00))
-					          + (0x000080 + (a&0x0000FF) - (b3&0x0000FF) - (c3&0x0000FF));
-					checksum4 = (0x800000 + (a&0xFF0000) - (b4&0xFF0000) - (c4&0xFF0000))
-					          + (0x008000 + (a&0x00FF00) - (b4&0x00FF00) - (c4&0x00FF00))
-					          + (0x000080 + (a&0x0000FF) - (b4&0x0000FF) - (c4&0x0000FF));
-					
-					logger.debug("sample(" + pad(x, 4) + ", " + pad(y, 4) + "):"
-							+ " { " + pad0(Integer.toHexString(a ), 6)
-							+ " / " + pad0(Integer.toHexString(b1), 6)
-							+ " , " + pad0(Integer.toHexString(c1), 6)
-							+ " , " + pad0(Integer.toHexString(d1), 6)
-							+ " / " + pad0(Integer.toHexString(b2), 6)
-							+ " , " + pad0(Integer.toHexString(c2), 6)
-							+ " , " + pad0(Integer.toHexString(d2), 6)
-							+ " / " + pad0(Integer.toHexString(b3), 6)
-							+ " , " + pad0(Integer.toHexString(c3), 6)
-							+ " , " + pad0(Integer.toHexString(d3), 6)
-							+ " / " + pad0(Integer.toHexString(b4), 6)
-							+ " , " + pad0(Integer.toHexString(c4), 6)
-							+ " , " + pad0(Integer.toHexString(d4), 6)
-							+ " } -> checksum:"
-							+ " { " + pad0(Integer.toHexString(checksum1), 6)
-							+ " , " + pad0(Integer.toHexString(checksum2), 6)
-							+ " , " + pad0(Integer.toHexString(checksum3), 6)
-							+ " , " + pad0(Integer.toHexString(checksum4), 6)
-							+ " }");
-					
-					// 정수연산 한계로 a+d가 홀수일 땐 1이 나옴
-					compare1 = (((a&0x010101)+(d1&0x010101))&0x010101);
-					compare2 = (((a&0x010101)+(d2&0x010101))&0x010101);
-					compare3 = (((a&0x010101)+(d3&0x010101))&0x010101);
-					compare4 = (((a&0x010101)+(d4&0x010101))&0x010101);
-					if (checksum1 != compare1) { logger.debug("is not " + pad0(Integer.toHexString(compare1), 6)); checkFailed = true; break; }
-					if (checksum2 != compare2) { logger.debug("is not " + pad0(Integer.toHexString(compare2), 6)); checkFailed = true; break; }
-					if (checksum3 != compare3) { logger.debug("is not " + pad0(Integer.toHexString(compare3), 6)); checkFailed = true; break; }
-					if (checksum4 != compare4) { logger.debug("is not " + pad0(Integer.toHexString(compare4), 6)); checkFailed = true; break; }
+					if (!isValid(a, b1, c1, getD(b1, c1))) { checkFailed = true; break; }
+					if (!isValid(a, b2, c2, getD(b2, c2))) { checkFailed = true; break; }
+					if (!isValid(a, b3, c3, getD(b3, c3))) { checkFailed = true; break; }
+					if (!isValid(a, b4, c4, getD(b4, c4))) { checkFailed = true; break; }
 				}
 				if (checkFailed) {
 					logger.info("체크섬 오류 - WithTarget 1:4:9 형식 이미지가 아님");
@@ -1510,6 +1604,69 @@ public class Container {
 				}
 				
 				logger.info("체크섬 통과 - WithTarget 1:4:9 형식 가능");
+				return true;
+				
+			} catch (Exception e) {
+				logger.info("이미지 해석 실패");
+				logger.debug(e);
+			}
+			
+			return false;
+		}
+		/**
+		 * 2:3:8 형식 해석이 가능한지 패리티 검증
+		 * @param bmp
+		 * @return
+		 * @throws Exception
+		 */
+		private static boolean can238(BufferedImage bmp) throws Exception {
+			logger.info("\nis it 2:3:8?");
+			
+			int width = bmp.getWidth();
+			int height = bmp.getHeight();
+			logger.info("input size: " + width + " x " + height);
+			
+			try {
+				// 2:3:8 결합 이미지일 경우 크기는 6x4의 배수여야 함
+				if (width % 6 > 0 || height % 4 > 0) {
+					return false;
+				}
+				
+				int b1, a1
+				  , c1, b2
+				  , a2, c2
+				  , b3, c3, a3;
+				
+				boolean checkFailed = false;
+				
+				for (int i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
+					int x = (int) (Math.random() * width  / 2);
+					int y = (int) (Math.random() * height / 4);
+					logger.debug("sample(" + pad(x, 4) + ", " + pad(y, 4) + "):");
+					
+					a1 = bmp.getRGB(2*x+1, 4*y  );
+					a2 = bmp.getRGB(2*x  , 4*y+2);
+					b1 = bmp.getRGB(2*x  , 4*y  );
+					c1 = bmp.getRGB(2*x  , 4*y+1);
+					b2 = bmp.getRGB(2*x+1, 4*y+1);
+					c2 = bmp.getRGB(2*x+1, 4*y+2);
+					b3 = bmp.getRGB(2*x  , 4*y+3);
+					c3 = bmp.getRGB(2*x+1, 4*y+3);
+					a3 = ((((a1&0xFF0000) + (a2&0xFF0000)) >> 1) & 0xFF0000)
+					   | ((((a1&0x00FF00) + (a2&0x00FF00)) >> 1) & 0x00FF00)
+					   | ((((a1&0x0000FF) + (a2&0x0000FF)) >> 1) & 0x0000FF);
+					
+					// 패리티 검증
+					if (!isValid(a1, b1, c1, getD(b1, c1))) { checkFailed = true; break; }
+					if (!isValid(a3, b2, c2, getD(b2, c2))) { checkFailed = true; break; }
+					if (!isValid(a2, b3, c3, getD(b3, c3))) { checkFailed = true; break; }
+				}
+				if (checkFailed) {
+					logger.info("체크섬 오류 - WithTarget 2:3:8 형식 이미지가 아님");
+					return false;
+				}
+				
+				logger.info("체크섬 통과 - WithTarget 2:3:8 형식 가능");
 				return true;
 				
 			} catch (Exception e) {
@@ -1527,7 +1684,7 @@ public class Container {
 		 * @throws Exception
 		 */
 		@Deprecated
-		private static WithTarget fromBitmapPrototype(BufferedImage bmp, boolean tryWithout) throws Exception {
+		private static WithTarget fromBitmapPrototype(BufferedImage bmp, boolean tryWithout) {
 			logger.warn("\nWithTarget.fromBitmapPrototype - 개발 도중 레거시 형식 지원");
 			
 			int width = bmp.getWidth();
@@ -1557,9 +1714,14 @@ public class Container {
 			// 위에서 실패했을 경우 without target 진행
 			if (tryWithout) {
 				logger.info("Without target");
-				List<Container> containers = Container.fromBitmap(bmp);
-				if (containers.size() > 0) {
-					return new WithTarget(null, containers);
+				try {
+					List<Container> containers = Container.fromBitmap(bmp);
+					if (containers.size() > 0) {
+						return new WithTarget(null, containers);
+					}
+				} catch (Exception e) {
+					logger.info("이미지 해석 실패");
+					logger.debug(e);
 				}
 			}
 			
@@ -1573,7 +1735,7 @@ public class Container {
 		 * @return
 		 * @throws Exception
 		 */
-		private static WithTarget fromBitmap114(BufferedImage bmp, int shift, int[] xors) throws Exception {
+		private static WithTarget fromBitmap114(BufferedImage bmp, int shift, int[] xors) {
 			logger.info("\nWithTarget.fromBitmap 1:1:4");
 			
 			int width = bmp.getWidth();
@@ -1581,22 +1743,19 @@ public class Container {
 			logger.info("input size: " + width + " x " + height);
 			
 			try {
-				int a, b, c, d;
+				int a, b, c;
 				
 				BufferedImage targetImage = new BufferedImage(width / 2, height / 2, BufferedImage.TYPE_3BYTE_BGR);
 				BufferedImage dataImage   = new BufferedImage(width / 2, height / 2, BufferedImage.TYPE_3BYTE_BGR);
 				
 				for (int y = 0; y < height / 2; y++) {
 					for (int x = 0; x < width / 2; x++) {
-						a = bmp.getRGB(2*x  , 2*y  ) & 0xFFFFFF;
-						b = bmp.getRGB(2*x+1, 2*y  ) & 0xFFFFFF; // (a+d)/2
-						c = bmp.getRGB(2*x  , 2*y+1) & 0xFFFFFF; // (1+a-d)/2
-						// {1/2 + b - c} = {1/2 + (a+d)/2 - (1+a-d)/2} = {(1+a+d-1-a+d)/2} = d
-						d = (0x800000 + (b&0xFF0000) - (c&0xFF0000))
-						  | (0x008000 + (b&0x00FF00) - (c&0x00FF00))
-						  | (0x000080 + (b&0x0000FF) - (c&0x0000FF));
+						a = bmp.getRGB(2*x  , 2*y  );
+						b = bmp.getRGB(2*x+1, 2*y  );
+						c = bmp.getRGB(2*x  , 2*y+1);
+						
 						targetImage.setRGB(x, y, a);
-						dataImage  .setRGB(x, y, d);
+						dataImage  .setRGB(x, y, getD(b, c));
 					}
 				}
 				List<Container> containers = Container.fromBitmap(dataImage, shift, xors);
@@ -1619,7 +1778,7 @@ public class Container {
 		 * @return
 		 * @throws Exception
 		 */
-		private static WithTarget fromBitmap149(BufferedImage bmp, int shift, int[] xors) throws Exception {
+		private static WithTarget fromBitmap149(BufferedImage bmp, int shift, int[] xors) {
 			logger.info("\nWithTarget.fromBitmap 1:4:9");
 			
 			int width = bmp.getWidth();
@@ -1627,42 +1786,84 @@ public class Container {
 			logger.info("input size: " + width + " x " + height);
 			
 			try {
-				int a, b1, b2, b3, b4
-				     , c1, c2, c3, c4
-				     , d1, d2, d3, d4;
+				int b1, c1, b2
+				  , c4, a , c2
+				  , b4, c3, b3;
 				
 				BufferedImage targetImage = new BufferedImage(width / 3, height / 3, BufferedImage.TYPE_3BYTE_BGR);
 				BufferedImage dataImage   = new BufferedImage(width*2/3, height*2/3, BufferedImage.TYPE_3BYTE_BGR);
 				
 				for (int y = 0; y < height / 3; y++) {
 					for (int x = 0; x < width / 3; x++) {
-						a  = bmp.getRGB(3*x+1, 3*y+1) & 0xFFFFFF;
-						b1 = bmp.getRGB(3*x  , 3*y  ) & 0xFFFFFF;
-						c1 = bmp.getRGB(3*x+1, 3*y  ) & 0xFFFFFF;
-						b2 = bmp.getRGB(3*x+2, 3*y  ) & 0xFFFFFF;
-						c2 = bmp.getRGB(3*x+2, 3*y+1) & 0xFFFFFF;
-						b3 = bmp.getRGB(3*x+2, 3*y+2) & 0xFFFFFF;
-						c3 = bmp.getRGB(3*x+1, 3*y+2) & 0xFFFFFF;
-						b4 = bmp.getRGB(3*x  , 3*y+2) & 0xFFFFFF;
-						c4 = bmp.getRGB(3*x  , 3*y+1) & 0xFFFFFF;
-						d1 = (0x800000 + (b1&0xFF0000) - (c1&0xFF0000))
-						   | (0x008000 + (b1&0x00FF00) - (c1&0x00FF00))
-						   | (0x000080 + (b1&0x0000FF) - (c1&0x0000FF));
-						d2 = (0x800000 + (b2&0xFF0000) - (c2&0xFF0000))
-						   | (0x008000 + (b2&0x00FF00) - (c2&0x00FF00))
-						   | (0x000080 + (b2&0x0000FF) - (c2&0x0000FF));
-						d3 = (0x800000 + (b3&0xFF0000) - (c3&0xFF0000))
-						   | (0x008000 + (b3&0x00FF00) - (c3&0x00FF00))
-						   | (0x000080 + (b3&0x0000FF) - (c3&0x0000FF));
-						d4 = (0x800000 + (b4&0xFF0000) - (c4&0xFF0000))
-						   | (0x008000 + (b4&0x00FF00) - (c4&0x00FF00))
-						   | (0x000080 + (b4&0x0000FF) - (c4&0x0000FF));
-
+						a  = bmp.getRGB(3*x+1, 3*y+1);
+						b1 = bmp.getRGB(3*x  , 3*y  );
+						c1 = bmp.getRGB(3*x+1, 3*y  );
+						b2 = bmp.getRGB(3*x+2, 3*y  );
+						c2 = bmp.getRGB(3*x+2, 3*y+1);
+						b3 = bmp.getRGB(3*x+2, 3*y+2);
+						c3 = bmp.getRGB(3*x+1, 3*y+2);
+						b4 = bmp.getRGB(3*x  , 3*y+2);
+						c4 = bmp.getRGB(3*x  , 3*y+1);
+						
 						targetImage.setRGB(x, y, a);
-						dataImage.setRGB(2*x  , 2*y  , d1);
-						dataImage.setRGB(2*x+1, 2*y  , d2);
-						dataImage.setRGB(2*x+1, 2*y+1, d3);
-						dataImage.setRGB(2*x  , 2*y+1, d4);
+						dataImage.setRGB(2*x  , 2*y  , getD(b1, c1));
+						dataImage.setRGB(2*x+1, 2*y  , getD(b2, c2));
+						dataImage.setRGB(2*x+1, 2*y+1, getD(b3, c3));
+						dataImage.setRGB(2*x  , 2*y+1, getD(b4, c4));
+					}
+				}
+				List<Container> containers = Container.fromBitmap(dataImage, shift, xors);
+				if (containers.size() > 0) {
+					return new WithTarget(targetImage, containers);
+				}
+				
+			} catch (Exception e) {
+				logger.info("이미지 해석 실패");
+				logger.debug(e);
+			}
+			
+			return null;
+		}
+		/**
+		 * 2:3:8 형식 비트맵 이미지를 해석
+		 * @param bmp
+		 * @param shift: 출력물 픽셀 밀기
+		 * @param xors: 출력물 xor 연산 수행
+		 * @return
+		 * @throws Exception
+		 */
+		private static WithTarget fromBitmap238(BufferedImage bmp, int shift, int[] xors) {
+			logger.info("\nWithTarget.fromBitmap 2:3:8");
+			
+			int width = bmp.getWidth();
+			int height = bmp.getHeight();
+			logger.info("input size: " + width + " x " + height);
+			
+			try {
+				int b1, a1
+				  , c1, b2
+				  , a2, c2
+				  , b3, c3;
+				
+				BufferedImage targetImage = new BufferedImage(width / 2, height / 2, BufferedImage.TYPE_3BYTE_BGR);
+				BufferedImage dataImage   = new BufferedImage(width / 2, height*3/4, BufferedImage.TYPE_3BYTE_BGR);
+				
+				for (int y = 0; y < height / 4; y++) {
+					for (int x = 0; x < width / 2; x++) {
+						a1 = bmp.getRGB(2*x+1, 4*y  );
+						a2 = bmp.getRGB(2*x  , 4*y+2);
+						b1 = bmp.getRGB(2*x  , 4*y  );
+						c1 = bmp.getRGB(2*x  , 4*y+1);
+						b2 = bmp.getRGB(2*x+1, 4*y+1);
+						c2 = bmp.getRGB(2*x+1, 4*y+2);
+						b3 = bmp.getRGB(2*x  , 4*y+3);
+						c3 = bmp.getRGB(2*x+1, 4*y+3);
+						
+						targetImage.setRGB(x, 2*y  , a1);
+						targetImage.setRGB(x, 2*y+1, a2);
+						dataImage.setRGB(x, 3*y  , getD(b1, c1));
+						dataImage.setRGB(x, 3*y+1, getD(b2, c2));
+						dataImage.setRGB(x, 3*y+2, getD(b3, c3));
 					}
 				}
 				List<Container> containers = Container.fromBitmap(dataImage, shift, xors);
@@ -1683,7 +1884,7 @@ public class Container {
 		 * @return
 		 * @throws Exception
 		 */
-		public static WithTarget fromBitmap(BufferedImage bmp) throws Exception {
+		public static WithTarget fromBitmap(BufferedImage bmp) {
 			return fromBitmap(bmp, possibility(bmp));
 		}
 		/**
@@ -1693,7 +1894,7 @@ public class Container {
 		 * @return
 		 * @throws Exception
 		 */
-		public static WithTarget fromBitmap(BufferedImage bmp, String key) throws Exception {
+		public static WithTarget fromBitmap(BufferedImage bmp, String key) {
 			return fromBitmap(bmp, possibility(bmp), key);
 		}
 		/**
@@ -1704,7 +1905,7 @@ public class Container {
 		 * @return
 		 * @throws Exception
 		 */
-		public static WithTarget fromBitmap(BufferedImage bmp, int shift, int[] xors) throws Exception {
+		public static WithTarget fromBitmap(BufferedImage bmp, int shift, int[] xors) {
 			return fromBitmap(bmp, possibility(bmp), shift, xors);
 		}
 		/**
@@ -1714,7 +1915,7 @@ public class Container {
 		 * @return
 		 * @throws Exception
 		 */
-		public static WithTarget fromBitmap(BufferedImage bmp, int possibility) throws Exception {
+		public static WithTarget fromBitmap(BufferedImage bmp, int possibility) {
 			return fromBitmap(bmp, possibility(bmp), 0, new int[0]);
 		}
 		/**
@@ -1725,7 +1926,7 @@ public class Container {
 		 * @return
 		 * @throws Exception
 		 */
-		public static WithTarget fromBitmap(BufferedImage bmp, int possibility, String key) throws Exception {
+		public static WithTarget fromBitmap(BufferedImage bmp, int possibility, String key) {
 			return fromBitmap(bmp, possibility(bmp), getShift(key), getXors(key));
 		}
 		/**
@@ -1737,23 +1938,31 @@ public class Container {
 		 * @return
 		 * @throws Exception
 		 */
-		public static WithTarget fromBitmap(BufferedImage bmp, int possibility, int shift, int[] xors) throws Exception {
+		public static WithTarget fromBitmap(BufferedImage bmp, int possibility, int shift, int[] xors) {
 			logger.info("\nWithTarget.fromBitmap");
 			WithTarget result;
 			
-			// 1:4:9 형식으로 시도
-			if (((possibility & CAN_149) > 0) && (result = fromBitmap149(bmp, shift, xors)) != null) {
-				return result;
-			}
 			// 1:1:4 형식으로 시도
 			if (((possibility & CAN_114) > 0) && (result = fromBitmap114(bmp, shift, xors)) != null) {
 				return result;
 			}
+			// 1:4:9 형식으로 시도
+			if (((possibility & CAN_149) > 0) && (result = fromBitmap149(bmp, shift, xors)) != null) {
+				return result;
+			}
+			// 2:3:8 형식으로 시도
+			if (((possibility & CAN_238) > 0) && (result = fromBitmap238(bmp, shift, xors)) != null) {
+				return result;
+			}
 			
 			logger.info("Without target 해석 시도");
-			List<Container> containers = Container.fromBitmap(bmp, shift, xors);
-			if (containers.size() > 0) {
-				return new WithTarget(null, containers);
+			try {
+				List<Container> containers = Container.fromBitmap(bmp, shift, xors);
+				if (containers.size() > 0) {
+					return new WithTarget(null, containers);
+				}
+			} catch (Exception e) {
+				logger.error(e);
 			}
 			
 			if ((possibility & CAN_PROTOTYPE) > 0) {

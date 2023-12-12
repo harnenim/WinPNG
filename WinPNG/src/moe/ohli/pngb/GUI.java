@@ -181,9 +181,10 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	             , panelOutput = new JPanel(new BorderLayout());
 	private JLabel ivTarget = new JLabel(), jlTarget = new JLabel(), jlRatio = new JLabel()
 	             , ivOutput = new JLabel(), jlOutput = new JLabel(), jlPw = new JLabel(), jlWidth = new JLabel();
-	private JRadioButton rbTarget011 = new JRadioButton();
 	private JRadioButton rbTarget114 = new JRadioButton();
+	private JRadioButton rbTarget238 = new JRadioButton();
 	private JRadioButton rbTarget149 = new JRadioButton();
+	private JRadioButton rbTarget011 = new JRadioButton();
 	private ButtonGroup rbGroupTarget = new ButtonGroup();
 	private JTextField tfRatioW = new JTextField("16"), tfRatioH = new JTextField("9"), tfPw = new JTextField(""), tfWidth = new JTextField("0");
 	private JButton btnSave = new MyButton(this), btnCopy = new MyButton(this);
@@ -280,6 +281,10 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					rbTarget114.setSelected(true);
 					tfRatioW.setEditable(false);
 					tfRatioH.setEditable(false);
+				} else if ("238".equals(useTargetImage)) {
+					rbTarget238.setSelected(true);
+					tfRatioW.setEditable(false);
+					tfRatioH.setEditable(false);
 				} else if ("149".equals(useTargetImage)) {
 					rbTarget149.setSelected(true);
 					tfRatioW.setEditable(false);
@@ -349,9 +354,10 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			ivTarget.setToolTipText(Strings.get("target tooltip"));
 			ivOutput.setToolTipText(Strings.get("output tooltip"));
 			jlTarget.setText(Strings.get("input image"));
-			rbTarget011.setText(Strings.get("dont use"));
 			rbTarget114.setText("1:1:4");
+			rbTarget238.setText("2:3:8");
 			rbTarget149.setText("1:4:9");
+			rbTarget011.setText(Strings.get("dont use"));
 			jlRatio.setText(Strings.get("ratio") + ": ");
 			jlOutput.setText(Strings.get("output image"));
 			jlPw.setText("   " + Strings.get("use password") + " ");
@@ -401,12 +407,14 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 						JPanel panelRadio = new JPanel();
 						panelTarget.add(jlTarget, BorderLayout.NORTH);
 						panelTarget.add(ivTarget, BorderLayout.CENTER);
-						panelRadio.add(rbTarget011);
 						panelRadio.add(rbTarget114);
+						panelRadio.add(rbTarget238);
 						panelRadio.add(rbTarget149);
-						rbGroupTarget.add(rbTarget011);
+						panelRadio.add(rbTarget011);
 						rbGroupTarget.add(rbTarget114);
+						rbGroupTarget.add(rbTarget238);
 						rbGroupTarget.add(rbTarget149);
+						rbGroupTarget.add(rbTarget011);
 						panelTarget.add(panelRadio, BorderLayout.SOUTH);
 						panelPreview.add(panelTarget);
 					}
@@ -459,10 +467,10 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			lvFiles.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 			lvFiles.setDragEnabled(true);
 			
-			for (Component c : new Component[] { this, lvFiles, tfRatioW, tfRatioH, tfPw, tfWidth, tfPngFile, rbTarget011, rbTarget114, rbTarget149 }) {
+			for (Component c : new Component[] { this, lvFiles, tfRatioW, tfRatioH, tfPw, tfWidth, tfPngFile, rbTarget114, rbTarget238, rbTarget149, rbTarget011 }) {
 				c.addKeyListener(this);
 			}
-			for (AbstractButton c : new AbstractButton[] { rbTarget011, rbTarget114, rbTarget149 }) {
+			for (AbstractButton c : new AbstractButton[] { rbTarget114, rbTarget238, rbTarget149, rbTarget011 }) {
 				c.addActionListener(this);
 			}
 			
@@ -481,8 +489,6 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			tfExportDir   .setDropTarget(new FileDropTarget(this, panelExport   ));
 			panelTarget   .setDropTarget(new FileDropTarget(this, panelTarget   ));
 			ivTarget      .setDropTarget(new FileDropTarget(this, panelTarget   ));
-			panelOutput   .setDropTarget(new FileDropTarget(this, panelFilesEdit));
-			ivOutput      .setDropTarget(new FileDropTarget(this, panelFilesEdit));
 			
 			// 종료 이벤트 시 설정 저장
 			addWindowListener(new WindowAdapter() {
@@ -495,12 +501,14 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					props.setProperty("bounds", bounds.x + "," + bounds.y + "," + bounds.width + "," + bounds.height);
 					props.setProperty("minWidth", tfWidth.getText());
 					props.setProperty("exportDir", tfExportDir.getText());
-					if (rbTarget011.isSelected()) {
-						props.setProperty("useTargetImage", "011");
-					} else if (rbTarget114.isSelected()) {
+					if (rbTarget114.isSelected()) {
 						props.setProperty("useTargetImage", "114");
+					} else if (rbTarget238.isSelected()) {
+						props.setProperty("useTargetImage", "238");
 					} else if (rbTarget149.isSelected()) {
 						props.setProperty("useTargetImage", "149");
+					} else if (rbTarget011.isSelected()) {
+						props.setProperty("useTargetImage", "011");
 					}
 					
 					FileOutputStream fos = null;
@@ -606,16 +614,19 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				@Override
 				public void run() {
 					List<Container> containers = lvFiles.getAllContainers();
-					Collections.shuffle(containers); // 섞어서 난수화, 불러올 때 정렬
 					try {
 						String password = tfPw.getText();
 						if (rbTarget114.isSelected()) {
 							outputImage = new Container.WithTarget(targetImage, containers).toBitmap114(minWidth, password);
+						} else if (rbTarget238.isSelected()) {
+							outputImage = new Container.WithTarget(targetImage, containers).toBitmap238(minWidth, password);
 						} else if (rbTarget149.isSelected()) {
 							outputImage = new Container.WithTarget(targetImage, containers).toBitmap149(minWidth, password);
 						} else {
 							int w = Integer.parseInt(tfRatioW.getText().trim());
 							int h = Integer.parseInt(tfRatioH.getText().trim());
+							// 이미지와 결합하지 않을 경우 섞어서 난수화
+							Collections.shuffle(containers);
 							outputImage = Container.toBitmapTwice(containers, minWidth, (h / (double) w), password);
 						}
 						ivOutput.setIcon(new ImageIcon(outputImage.getScaledInstance(280, 158, Image.SCALE_SMOOTH)));
@@ -812,7 +823,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				File newPng = new File(path);
 				updateTarget(ImageIO.read(newPng));
 			}
-			if (rbTarget114.isSelected() || rbTarget149.isSelected()) {
+			if (rbTarget114.isSelected() || rbTarget238.isSelected() || rbTarget149.isSelected()) {
 				updateOutput();
 			}
 			return true;
@@ -840,7 +851,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					openBitmap(image);
 				} else {
 					updateTarget(image);
-					if (rbTarget114.isSelected() || rbTarget149.isSelected()) {
+					if (rbTarget114.isSelected() || rbTarget238.isSelected() || rbTarget149.isSelected()) {
 						updateOutput();
 					}
 				}
@@ -1165,9 +1176,10 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			// 이미지 클립보드 복사
 			copyToClipboard();
 			
-		} else if (target == rbTarget011
-				|| target == rbTarget114
+		} else if (target == rbTarget114
+				|| target == rbTarget238
 				|| target == rbTarget149
+				|| target == rbTarget011
 				) {
 			if (target == rbTarget011) {
 				// 비율 입력 활성화
@@ -1411,7 +1423,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 
         @Override
         public int getSourceActions(JComponent c) {
-            return MOVE;
+            return COPY_OR_MOVE;
         }
     }
     
