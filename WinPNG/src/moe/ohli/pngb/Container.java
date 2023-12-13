@@ -1,6 +1,7 @@
 package moe.ohli.pngb;
 
 import java.awt.Graphics;
+import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
@@ -1037,7 +1038,7 @@ public class Container {
 	 * b&c에서 d 복원 및 a 범위
 	 * 
 	 * 4 + b - c
-	 * ｄ　│ｂ　　　　　　　　│　ａ　│ｂ                     
+	 * ｄ　│ｂ　　　　　　　　│　ａ　│ｂ
 	 * 　　│０１２３４５６７　│　　　│０ １ ２ ３ ４ ５ ６ ７
 	 * ──┼────────　│　──┼─-─-─-─-─-─-─-─
 	 * ｃ０│－－－７－－－－　│　ｃ０│－ － － -0 － － － －
@@ -1067,12 +1068,22 @@ public class Container {
 	 *
 	 */
 	public static class WithTarget {
+		public static final int TYPE_114 = 1;
+		public static final int TYPE_149 = 2;
+		public static final int TYPE_238 = 3;
+		
 		public BufferedImage targetImage; // 출력물을 꾸며줄 이미지
 		public List<Container> containers; // 컨테이너 목록
+		public int type = TYPE_114;
 
 		public WithTarget(BufferedImage targetImage, List<Container> containers) {
 			this.targetImage = targetImage;
 			this.containers = containers;
+		}
+		public WithTarget(BufferedImage targetImage, List<Container> containers, int type) {
+			this.targetImage = targetImage;
+			this.containers = containers;
+			this.type = type;
 		}
 		
 		private double getRatio() {
@@ -1096,7 +1107,7 @@ public class Container {
 			// 이미지를 데이터와 같은 크기로 조절
 			BufferedImage resizedTargetImage = new BufferedImage(w, h, BufferedImage.TYPE_3BYTE_BGR);
 			Graphics graphics = resizedTargetImage.getGraphics();
-			graphics.drawImage(targetImage.getScaledInstance(w, h, BufferedImage.TYPE_3BYTE_BGR), 0, 0, null);
+			graphics.drawImage(targetImage.getScaledInstance(w, h, Image.SCALE_SMOOTH), 0, 0, null);
 			graphics.dispose();
 			
 			/*
@@ -1187,6 +1198,12 @@ public class Container {
 		 * @throws Exception
 		 */
 		public BufferedImage toBitmap(int minWidth) throws Exception {
+			switch (type) {
+			case TYPE_149:
+				return toBitmap149(minWidth);
+			case TYPE_238:
+				return toBitmap238(minWidth);
+			}
 			return toBitmap114(minWidth);
 		}
 		/**
@@ -1227,7 +1244,7 @@ public class Container {
 			// 이미지를 데이터와 같은 크기로 조절
 			BufferedImage resizedTargetImage = new BufferedImage(w, h, BufferedImage.TYPE_3BYTE_BGR);
 			Graphics graphics = resizedTargetImage.getGraphics();
-			graphics.drawImage(targetImage.getScaledInstance(w, h, BufferedImage.TYPE_3BYTE_BGR), 0, 0, null);
+			graphics.drawImage(targetImage.getScaledInstance(w, h, Image.SCALE_SMOOTH), 0, 0, null);
 			graphics.dispose();
 			
 			/*
@@ -1301,7 +1318,7 @@ public class Container {
 			// 이미지를 데이터의 절반 크기로 조절
 			BufferedImage resizedTargetImage = new BufferedImage(w, h, BufferedImage.TYPE_3BYTE_BGR);
 			Graphics graphics = resizedTargetImage.getGraphics();
-			graphics.drawImage(targetImage.getScaledInstance(w, h, BufferedImage.TYPE_3BYTE_BGR), 0, 0, null);
+			graphics.drawImage(targetImage.getScaledInstance(w, h, Image.SCALE_SMOOTH), 0, 0, null);
 			graphics.dispose();
 			
 			/*
@@ -1378,7 +1395,7 @@ public class Container {
 			// 이미지를 결과물의 절반 크기로 조절
 			BufferedImage resizedTargetImage = new BufferedImage(w, h * 2, BufferedImage.TYPE_3BYTE_BGR);
 			Graphics graphics = resizedTargetImage.getGraphics();
-			graphics.drawImage(targetImage.getScaledInstance(w, h * 2, BufferedImage.TYPE_3BYTE_BGR), 0, 0, null);
+			graphics.drawImage(targetImage.getScaledInstance(w, h * 2, Image.SCALE_SMOOTH), 0, 0, null);
 			graphics.dispose();
 			
 			/*
@@ -1424,9 +1441,9 @@ public class Container {
 		
 		private static final int CHECKSUM_SAMPLE_COUNT = 10; // 패리티 검증 체크섬 샘플 개수
 		public static final int CAN_PROTOTYPE = 1;
-		public static final int CAN_114 = 1 << 1;
-		public static final int CAN_149 = 1 << 2;
-		public static final int CAN_238 = 1 << 3;
+		public static final int CAN_114 = 1 << TYPE_114;
+		public static final int CAN_149 = 1 << TYPE_149;
+		public static final int CAN_238 = 1 << TYPE_238;
 		/**
 		 * 패리티 검증으로 해석 가능한 알고리즘 확인
 		 * @param bmp
@@ -1704,7 +1721,7 @@ public class Container {
 				}
 				List<Container> containers = Container.fromBitmap(dataImage);
 				if (containers.size() > 0) {
-					return new WithTarget(targetImage, containers);
+					return new WithTarget(targetImage, containers, TYPE_114);
 				}
 				
 			} catch (Exception e) {
@@ -1718,7 +1735,7 @@ public class Container {
 				try {
 					List<Container> containers = Container.fromBitmap(bmp);
 					if (containers.size() > 0) {
-						return new WithTarget(null, containers);
+						return new WithTarget(null, containers, 0);
 					}
 				} catch (Exception e) {
 					logger.info("이미지 해석 실패");
@@ -1761,7 +1778,7 @@ public class Container {
 				}
 				List<Container> containers = Container.fromBitmap(dataImage, shift, xors);
 				if (containers.size() > 0) {
-					return new WithTarget(targetImage, containers);
+					return new WithTarget(targetImage, containers, TYPE_114);
 				}
 				
 			} catch (Exception e) {
@@ -1815,7 +1832,7 @@ public class Container {
 				}
 				List<Container> containers = Container.fromBitmap(dataImage, shift, xors);
 				if (containers.size() > 0) {
-					return new WithTarget(targetImage, containers);
+					return new WithTarget(targetImage, containers, TYPE_149);
 				}
 				
 			} catch (Exception e) {
@@ -1869,7 +1886,7 @@ public class Container {
 				}
 				List<Container> containers = Container.fromBitmap(dataImage, shift, xors);
 				if (containers.size() > 0) {
-					return new WithTarget(targetImage, containers);
+					return new WithTarget(targetImage, containers, TYPE_238);
 				}
 				
 			} catch (Exception e) {
@@ -1960,7 +1977,7 @@ public class Container {
 			try {
 				List<Container> containers = Container.fromBitmap(bmp, shift, xors);
 				if (containers.size() > 0) {
-					return new WithTarget(null, containers);
+					return new WithTarget(null, containers, 0);
 				}
 			} catch (Exception e) {
 				logger.error(e);
