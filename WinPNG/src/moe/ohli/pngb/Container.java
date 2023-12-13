@@ -346,12 +346,12 @@ public class Container {
 			result[i] = 0;
 		}
 		for (int i = 0; i < bytes.length; i++) {
-			result[i / 3] |= ((((int) bytes[i]) & 0xFF) << (((2 - bytes[i]) % 4) * 8)) & 0xFFFFFF;
+			result[i / 3] |= ((((int) bytes[i]) & 0xFF) << ((2 - (i % 3)) * 8)) & 0xFFFFFF;
 		}
 		return result;
 	}
 	/**
-	 * 비밀번호에서 암호화 값 구하기
+	 * 비밀번호 키에서 암호화 값 구하기
 	 * @param key
 	 * @return
 	 */
@@ -362,18 +362,19 @@ public class Container {
 		try {
 			byte[] bytes = key.getBytes("UTF-8");
 			for (int i = 0; i < bytes.length; i++) {
-				bytes[i] = (byte)
-						( (((bytes[i] & 0b10000000) >> 7) & 0b00000001)
-						| (((bytes[i] & 0b01000000) >> 5) & 0b00000010)
-						| (((bytes[i] & 0b00100000) >> 3) & 0b00000100)
-						| (((bytes[i] & 0b00010000) >> 1) & 0b00001000)
-						| (((bytes[i] & 0b00001000) << 1) & 0b00010000)
-						| (((bytes[i] & 0b00000100) << 3) & 0b00100000)
-						| (((bytes[i] & 0b00000010) << 5) & 0b01000000)
-						| (((bytes[i] & 0b00000001) << 7) & 0b10000000)
+				bytes[i] = (byte)               // 75361420
+						( ((bytes[i] << (7-0)) & 0b10000000)
+						| ((bytes[i] << (5-1)) & 0b01000000)
+						| ((bytes[i] << (3-2)) & 0b00100000)
+						| ((bytes[i] << (6-3)) & 0b00010000)
+						| ((bytes[i] << (1-4)) & 0b00001000)
+						| ((bytes[i] << (4-5)) & 0b00000100)
+						| ((bytes[i] << (2-6)) & 0b00000010)
+						| ((bytes[i] << (0-7)) & 0b00000001)
 						);
 			}
 			return bytesToRGBs(bytes);
+			
 		} catch (UnsupportedEncodingException e) {
 			logger.error(e);
 			return new int[0];
