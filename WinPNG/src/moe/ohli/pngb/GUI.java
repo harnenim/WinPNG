@@ -92,7 +92,6 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			super(new DefaultListModel<>());
 			this.model = (DefaultListModel<ModelItem>) getModel();
 		}
-		public int     count  ()              { return model.size   (); }
 		public boolean isEmpty()              { return model.isEmpty(); }
 		public void    clear  ()              {        model.clear  (); }
 		public void    add   (ModelItem item) {        model.addElement   (item); }
@@ -126,23 +125,33 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			}
 			return containers;
 		}
-		public void addContainers(List<Container> containers) {
+		public void setContainers(List<Container> containers) {
+			clear();
 			for (Container cont : containers) {
 				add(new ModelItem(cont, null));
 			}
+			sort();
 		}
-		private void sort() {
+		public void sort() {
 			List<ModelItem> items = getAllItems();
-			Collections.sort(items, new Comparator<ModelItem>() {
-				@Override
-				public int compare(ModelItem o1, ModelItem o2) {
-					return o1.container.path.compareTo(o2.container.path);
-				}
-			});
+			Collections.sort(items, COMP);
 			clear();
 			for (ModelItem item : items) {
 				add(item);
 			}
+		}
+		private static final Comparator<ModelItem> COMP = new Comparator<ModelItem>() {
+			@Override
+			public int compare(ModelItem item1, ModelItem item2) {
+				return item1.container.path.compareTo(item2.container.path);
+			}
+		};
+		public void selectAll() {
+			int[] indices = new int[model.size()];
+			for (int i = 0; i < indices.length; i++) {
+				indices[i] = i;
+			}
+			setSelectedIndices(indices);
 		}
 	}
     
@@ -235,7 +244,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				logDir.mkdirs();
 				String logPath = TMP_DIR + "log/" + Calendar.getInstance().getTimeInMillis();
 				File logFileDebug = new File(logPath + "_debug.log");
-				File logFileInfo  = new File(logPath + "_info.log");
+				File logFileInfo  = new File(logPath + "_info_.log");
 				File logFileError = new File(logPath + "_error.log");
 				try {
 					logger.set(new PrintStream(logFileDebug), L.DEBUG);
@@ -813,9 +822,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				tfPngFile.setText(pngFile.getAbsolutePath());
 			}
 			
-			lvFiles.clear();
-			lvFiles.addContainers(parsed.containers);
-			lvFiles.sort();
+			lvFiles.setContainers(parsed.containers);
+			
 			updateTarget(parsed.targetImage == null ? JUNK_IMAGE : parsed.targetImage);
 			updateOutput();
 			
@@ -861,7 +869,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	
 	/**
 	 * 클립보드에서 붙여넣기
-	 * @param tr
+	 * @param c: 붙여넣기 동작할 컴포넌트
 	 * @return 성공여부
 	 */
 	@SuppressWarnings("unchecked")
@@ -1091,17 +1099,6 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	}
 	
 	/**
-	 * 전체 선택
-	 */
-	private void selectAll() {
-		int[] indices = new int[lvFiles.count()];
-		for (int i = 0; i < indices.length; i++) {
-			indices[i] = i;
-		}
-		lvFiles.setSelectedIndices(indices);
-	}
-	
-	/**
 	 * 선택된 파일 삭제
 	 */
 	private void deleteSelected() {
@@ -1183,7 +1180,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			
 		} else if (target == btnSelectAll) {
 			// 전체 선택
-			selectAll();
+			lvFiles.selectAll();
 			
 		} else if (target == btnDelete) {
 			// 선택된 파일 삭제
@@ -1891,7 +1888,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			// 2번 인자: 추출 경로
 			if (args.length > 1) {
 				// 전체 선택
-				gui.selectAll();
+				gui.lvFiles.selectAll();
 				
 				if (disposeAfterExport) {
 					// 추출 후 메시지 없이 종료
