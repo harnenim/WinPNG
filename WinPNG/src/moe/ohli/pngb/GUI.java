@@ -6,6 +6,7 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FileDialog;
 import java.awt.FlowLayout;
+import java.awt.Graphics;
 import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.Rectangle;
@@ -33,11 +34,10 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	private static final String CONFIG_FILE_PATH = TMP_DIR + "config.properties";
 	private static final BufferedImage JUNK_IMAGE = new BufferedImage(16, 9, BufferedImage.TYPE_3BYTE_BGR);
 	static {
-		for (int y = 0; y < 9; y++) {
-			for (int x = 0; x < 16; x++) {
-				JUNK_IMAGE.setRGB(x, y, 0xFFFFFF);
-			}
-		}
+		Graphics graphics = JUNK_IMAGE.getGraphics();
+		graphics.setColor(Color.WHITE);
+		graphics.fillRect(0, 0, 16, 9);
+		graphics.dispose();
 	}
 	
 	private static Logger logger = new Logger(L.DEBUG); // 로그 파일 로깅 수준 기본값 디버그
@@ -188,6 +188,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	private ButtonGroup rbGroupTarget = new ButtonGroup();
 	private JTextField tfRatioW = new JTextField("16"), tfRatioH = new JTextField("9"), tfPw = new JTextField(""), tfWidth = new JTextField("0");
 	private JButton btnSave = new MyButton(this), btnCopy = new MyButton(this);
+
+	private static final int IMAGE_VIEW_WIDTH = 280, IMAGE_VIEW_HEIGHT = 158;
 	
 	private static boolean USE_JFC = false;
 	
@@ -272,7 +274,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				int height = Math.min(600, screenSize.height);
 				setBounds((screenSize.width - width) / 2, (screenSize.height - height) / 2, width, height);
 			}
-			setMinimumSize(new Dimension(600, 540));
+			setMinimumSize(new Dimension(600, 550));
 			
 			// 기타 설정
 			try {
@@ -453,8 +455,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					panelRight.add(panelSave, BorderLayout.SOUTH);
 				}
 				
-				panelTarget.setMaximumSize(new Dimension(280, 200));
-				panelOutput.setMaximumSize(new Dimension(280, 180));
+				panelTarget.setMaximumSize(new Dimension(IMAGE_VIEW_WIDTH, IMAGE_VIEW_HEIGHT + 40));
+				panelOutput.setMaximumSize(new Dimension(IMAGE_VIEW_WIDTH, IMAGE_VIEW_HEIGHT + 20));
 				
 				updateTarget(JUNK_IMAGE);
 				updateOutput();
@@ -573,6 +575,28 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		return count;
 	}
 	
+	private static ImageIcon makeImageIcon(BufferedImage image) {
+		// 비율을 유지한 채로 조절한 크기를 구함
+		int w = IMAGE_VIEW_WIDTH, h = IMAGE_VIEW_HEIGHT;
+		double ratioW = (double) w / image.getWidth();
+		double ratioH = (double) h / image.getHeight();
+		if (ratioW < ratioH) {
+			h = (int) Math.round(ratioW * image.getHeight());
+		} else {
+			w = (int) Math.round(ratioH * image.getWidth());
+		}
+		
+		// 뷰 사이즈에 맞춰서 여백이 있는 이미지를 생성
+		BufferedImage resized = new BufferedImage(IMAGE_VIEW_WIDTH, IMAGE_VIEW_HEIGHT, BufferedImage.TYPE_3BYTE_BGR);
+		Graphics graphics = resized.getGraphics();
+		graphics.setColor(Color.LIGHT_GRAY);
+		graphics.fillRect(0, 0, IMAGE_VIEW_WIDTH, IMAGE_VIEW_HEIGHT);
+		graphics.drawImage(image.getScaledInstance(w, h, Image.SCALE_SMOOTH), (IMAGE_VIEW_WIDTH - w) / 2, (IMAGE_VIEW_HEIGHT - h) / 2, null);
+		graphics.dispose();
+		
+		return new ImageIcon(resized);
+	}
+	
 	/**
 	 * 출력물 재생성
 	 * @return 성공여부
@@ -587,7 +611,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		do {
 			if (lvFiles.isEmpty()) {
 				outputImage = null;
-				ivOutput.setIcon(new ImageIcon(JUNK_IMAGE.getScaledInstance(280, 158, Image.SCALE_SMOOTH)));
+				ivOutput.setIcon(makeImageIcon(JUNK_IMAGE));
 				jlOutput.setText(Strings.get("output image"));
 				break;
 			}
@@ -629,7 +653,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 							Collections.shuffle(containers);
 							outputImage = Container.toBitmapTwice(containers, minWidth, (h / (double) w), password);
 						}
-						ivOutput.setIcon(new ImageIcon(outputImage.getScaledInstance(280, 158, Image.SCALE_SMOOTH)));
+						ivOutput.setIcon(makeImageIcon(outputImage));
 						jlOutput.setText(Strings.get("output image") + "(" + outputImage.getWidth() + "×" + outputImage.getHeight() + ")");
 						
 					} catch (Exception e) {
@@ -660,7 +684,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	 */
 	private void updateTarget(BufferedImage image) {
 		logger.info("updateTarget");
-		ivTarget.setIcon(new ImageIcon((targetImage = image).getScaledInstance(280, 158, Image.SCALE_SMOOTH)));
+		ivTarget.setIcon(makeImageIcon(targetImage = image));
 		if (image != null) {
 			jlTarget.setText(Strings.get("input image") + "(" + image.getWidth() + "×" + image.getHeight() + ")");
 			if (!rbTarget011.isSelected()) {
