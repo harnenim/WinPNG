@@ -226,20 +226,23 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			// 로그 설정
 			if (!"N".equals(props.getProperty("LogToFile"))) {
 				props.setProperty("LogToFile", "Y");
-				File logFile = null;
-				if (isAndroid) {
-					logFile = new File("/storage/emulated/0/Download/WinPNG/WinPNG_log.txt");
-					
-				} else {
-					File logDir = new File(TMP_DIR + "log");
-					logDir.mkdirs();
-					
-					String logPath = TMP_DIR + "log/" + Calendar.getInstance().getTimeInMillis() + ".log";
-					System.out.println("로그 파일: " + logPath);
-					logFile = new File(logPath);
-				}
 				try {
-					logger.set(new PrintStream(logFile)); // 로그 파일 로깅 수준은 설정값에 따름
+					if (isAndroid) {
+						File logFile = new File("/storage/emulated/0/Download/WinPNG/WinPNG_log.txt");
+						logger.set(new PrintStream(logFile)); // 로그 파일 로깅 수준은 설정값에 따름
+						
+					} else {
+						String logPath = TMP_DIR + "log";
+						File logDir = new File(logPath);
+						logDir.mkdirs();
+						System.out.println("로그 파일 위치: " + logPath);
+
+						File logFile = new File(logPath + "/" + Calendar.getInstance().getTimeInMillis() + ".log");
+						logger.set(new PrintStream(logFile)); // 로그 파일 로깅 수준은 설정값에 따름
+						
+						logFile = new File(logPath + "/" + Calendar.getInstance().getTimeInMillis() + ".info.log");
+						logger.set(new PrintStream(logFile), Logger.L.INFO); // INFO 로그 파일도 남김
+					}
 				} catch (FileNotFoundException e) {
 					System.out.println("로그 파일 설정 실패");
 					e.printStackTrace();
@@ -1533,7 +1536,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 
         @Override
         public int getSourceActions(JComponent c) {
-            return COPY_OR_MOVE;
+            return MOVE;
         }
     }
     
@@ -1554,7 +1557,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		@Override
 		public void mousePressed(MouseEvent e) {
 			logger.debug("ImageDragAdaptor.mousePressed");
-			fth.exportAsDrag(c, e, TransferHandler.COPY_OR_MOVE);
+			fth.exportAsDrag(c, e, TransferHandler.MOVE);
 		}
 		@Override
 		public void mouseMoved(MouseEvent e) {
