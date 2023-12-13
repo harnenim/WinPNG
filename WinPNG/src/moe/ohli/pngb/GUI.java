@@ -518,6 +518,29 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			panelTarget   .setDropTarget(new FileDropTarget(this, panelTarget   ));
 			ivTarget      .setDropTarget(new FileDropTarget(this, panelTarget   ));
 			
+			// 클릭으로 이미지 붙여넣기
+			MouseAdapter mouseRightAdapter = new MouseAdapter() {
+				@Override
+				public void mouseClicked(MouseEvent evt) {
+					Component c = evt.getComponent();
+					if (c == tfPngFile || evt.getButton() == MouseEvent.BUTTON3) {
+						try {
+							Transferable tr = Toolkit.getDefaultToolkit().getSystemClipboard().getContents(null);
+							if (tr.isDataFlavorSupported(DataFlavor.imageFlavor)) {
+								if (confirm(Strings.get("클립보드의 이미지를 가져올까요?"), Strings.get("이미지 붙여넣기"))) {
+									pasteFromClipboard(tr, c, true);
+								}
+							}
+						} catch (Exception e) {
+							logger.error(e);
+						}
+					}
+				}
+			};
+			tfPngFile  .addMouseListener(mouseRightAdapter);
+			panelTarget.addMouseListener(mouseRightAdapter);
+			ivTarget   .addMouseListener(mouseRightAdapter);
+			
 			// 종료 이벤트 시 설정 저장
 			addWindowListener(new WindowAdapter() {
 				@Override
@@ -916,9 +939,13 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	 * @param c: 붙여넣기 동작할 컴포넌트
 	 * @return 성공여부
 	 */
+	private boolean pasteFromClipboard(Component c) {
+		return pasteFromClipboard(Toolkit.getDefaultToolkit().getSystemClipboard().getContents(null), c, false);
+	}
 	@SuppressWarnings("unchecked")
-	private boolean pasteFromClipboard(Transferable tr, Component c) {
+	private boolean pasteFromClipboard(Transferable tr, Component c, boolean isMouse) {
 		logger.info("pasteTargetImage");
+		
 		if (tr.isDataFlavorSupported(DataFlavor.imageFlavor)) {
 			logger.info("이미지일 경우 -> 출력물에 활용할 이미지로 붙여넣기");
 			try {
@@ -946,7 +973,25 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				logger.debug(e);
 			}
 		} else if (tr.isDataFlavorSupported(DataFlavor.stringFlavor)) {
-			if (c == tfPngFile || c == tfExportDir) {
+			if (c == tfExportDir) {
+				return false;
+			}
+			if (c == tfPngFile) {
+				if (isMouse) { // Ctrl+V가 아닌 우클릭이었을 때
+					logger.info("텍스트일 경우: 해당 경로 이미지 불러오기");
+					try {
+						String path = (String) tr.getTransferData(DataFlavor.stringFlavor);
+						tfPngFile.setText(path);
+						if (openPng(path)) {
+							return true;
+						} else {
+							alert(Strings.get("해석할 수 없는 이미지 경로입니다."));
+						}
+						
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
 				return false;
 			}
 			logger.info("텍스트일 경우: 출력물에 활용할 이미지 경로 붙여넣기");
@@ -1315,7 +1360,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 						e.consume();
 					}
 					// Ctrl+V: 이미지 붙여넣기
-					pasteFromClipboard(Toolkit.getDefaultToolkit().getSystemClipboard().getContents(null), e.getComponent());
+					pasteFromClipboard(e.getComponent());
 				}
 				break;
 			}
