@@ -359,34 +359,34 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		
 		{	// 문자열 설정
 			if (!isAndroid) {
-				tfPngFile.setText(Strings.get("open placeholder"));
+				tfPngFile.setText(Strings.get("이미지 파일을 드래그해서 열 수 있습니다."));
 			}
-			btnOpen .setText(Strings.get("open"));
-			btnClose.setText(Strings.get("close"));
+			btnOpen .setText(Strings.get("열기"));
+			btnClose.setText(Strings.get("닫기"));
 			
-			btnAddFile.setText(Strings.get("add"));
-			btnSelectAll.setText(Strings.get("select all"));
-			btnDelete .setText(Strings.get("delete"));
+			btnAddFile.setText(Strings.get("추가"));
+			btnSelectAll.setText(Strings.get("전체 선택"));
+			btnDelete .setText(Strings.get("삭제"));
 			if (exportDir != null && exportDir.length() > 0) {
 				tfExportDir.setText(exportDir);
 			} else {
-				tfExportDir.setText(Strings.get("export placeholder"));
+				tfExportDir.setText(Strings.get("목록에서 파일 선택 후 탐색기로 드래그, 혹은 파일을 추출할 경로 입력"));
 			}
-			btnExport.setText(Strings.get("export"));
+			btnExport.setText(Strings.get("추출"));
 			
-			ivTarget.setToolTipText(Strings.get("target tooltip"));
-			ivOutput.setToolTipText(Strings.get("output tooltip"));
-			jlTarget.setText(Strings.get("input image"));
+			ivTarget.setToolTipText(Strings.get("Ctrl+V로 이미지를 적용할 수 있습니다."));
+			ivOutput.setToolTipText(Strings.get("Ctrl+C로 복사할 수 있습니다."));
+			jlTarget.setText(Strings.get("입력 이미지"));
 			rbTarget114.setText("1:1:4");
 			rbTarget238.setText("2:3:8");
 			rbTarget149.setText("1:4:9");
-			rbTarget011.setText(Strings.get("dont use"));
-			jlRatio.setText(Strings.get("ratio") + ": ");
-			jlOutput.setText(Strings.get("output image"));
-			jlPw.setText("   " + Strings.get("use password") + " ");
-			jlWidth.setText("      " + Strings.get("min width") + " ");
-			btnSave.setText(Strings.get("save"));
-			btnCopy.setText(Strings.get("copy"));
+			rbTarget011.setText(Strings.get("사용 안 함"));
+			jlRatio.setText(Strings.get("비율") + ": ");
+			jlOutput.setText(Strings.get("출력 이미지"));
+			jlPw.setText("   " + Strings.get("비밀번호 걸기") + " ");
+			jlWidth.setText("      " + Strings.get("최소 폭") + " ");
+			btnSave.setText(Strings.get("저장"));
+			btnCopy.setText(Strings.get("복사"));
 		}
 		
 		{	// 레이아웃 구성
@@ -565,7 +565,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		}
 
 		if (USE_JFC) {
-			fcPng.setFileFilter(new FileNameExtensionFilter(Strings.get("FileFilter-PNG"), "png"));
+			fcPng.setFileFilter(new FileNameExtensionFilter(Strings.get("PNG 파일(*.png)"), "png"));
 			fcPng.setFileSelectionMode(JFileChooser.FILES_ONLY);
 			fcPng.setMultiSelectionEnabled(false);
 		}
@@ -633,7 +633,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			if (lvFiles.isEmpty()) {
 				outputImage = null;
 				ivOutput.setIcon(makeImageIcon(JUNK_IMAGE));
-				jlOutput.setText(Strings.get("output image"));
+				jlOutput.setText(Strings.get("출력 이미지"));
 				break;
 			}
 			
@@ -643,14 +643,14 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			} catch (Exception e) {
 				logger.warn("올바른 크기를 입력하세요.");
 				logger.debug(e);
-				alert(Strings.get("warn-width-input"));
+				alert(Strings.get("올바른 크기를 입력하세요."));
 				break;
 			}
 			
 			final int minWidth = inputMinWidth;
 			if (minWidth > 1920) {
 				logger.warn("최소 크기가 너무 큽니다.");
-				alert(Strings.get("warn-width-large"));
+				alert(Strings.get("최소 크기가 너무 큽니다.\n1920 이하의 값을 적어주세요."));
 				break;
 			}
 			
@@ -675,7 +675,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 							outputImage = Container.toBitmapTwice(containers, minWidth, (h / (double) w), password);
 						}
 						ivOutput.setIcon(makeImageIcon(outputImage));
-						jlOutput.setText(Strings.get("output image") + "(" + outputImage.getWidth() + "×" + outputImage.getHeight() + ")");
+						jlOutput.setText(Strings.get("출력 이미지") + "(" + outputImage.getWidth() + "×" + outputImage.getHeight() + ")");
 						
 					} catch (Exception e) {
 						logger.error("이미지 생성 실패");
@@ -707,7 +707,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		logger.info("updateTarget");
 		ivTarget.setIcon(makeImageIcon(targetImage = image));
 		if (image != null) {
-			jlTarget.setText(Strings.get("input image") + "(" + image.getWidth() + "×" + image.getHeight() + ")");
+			jlTarget.setText(Strings.get("입력 이미지") + "(" + image.getWidth() + "×" + image.getHeight() + ")");
 			if (!rbTarget011.isSelected()) {
 				tfRatioW.setText(""+image.getWidth());
 				tfRatioH.setText(""+image.getHeight());
@@ -727,12 +727,12 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			int result = fcPng.showOpenDialog(this);
 			if (result == JFileChooser.APPROVE_OPTION) {
 				if (!openPng(fcPng.getSelectedFile().getAbsolutePath())) {
-					alert(Strings.get("cant parse"));
+					alert(Strings.get("해석할 수 없는 파일입니다."));
 				}
 			}
 		} else {
 			if (fdOpen == null) {
-				fdOpen = new FileDialog(this, Strings.get("open png"), FileDialog.LOAD);
+				fdOpen = new FileDialog(this, Strings.get("PNG 파일 열기"), FileDialog.LOAD);
 				fdOpen.setFile("*.png");
 				fdOpen.setFilenameFilter(new FilenameFilter() {
 					@Override
@@ -750,7 +750,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			String filename = fdOpen.getFile();
 			if (filename != null) {
 				if (!openPng(fdOpen.getDirectory() + filename)) {
-					alert(Strings.get("cant parse"));
+					alert(Strings.get("해석할 수 없는 파일입니다."));
 				}
 			}
 		}
@@ -942,7 +942,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	 */
 	private void checkAndSave() {
 		if (outputImage == null) {
-			alert(Strings.get("empty image"));
+			alert(Strings.get("이미지로 저장할 내용이 없습니다."));
 		} else if (pngFile == null) {
 			savePng();
 		} else {
@@ -962,12 +962,12 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			int result = fcPng.showSaveDialog(this);
 			if (result == JFileChooser.APPROVE_OPTION) {
 				if (!savePng(fcPng.getSelectedFile())) {
-					alert(Strings.get("cant save"));
+					alert(Strings.get("저장되지 않았습니다."));
 				}
 			}
 		} else {
 			if (fdSave == null) {
-				fdSave = new FileDialog(this, Strings.get("save png"), FileDialog.SAVE);
+				fdSave = new FileDialog(this, Strings.get("PNG 파일 저장"), FileDialog.SAVE);
 				fdSave.setFile("*.png");
 				fdSave.setFilenameFilter(new FilenameFilter() {
 					@Override
@@ -989,7 +989,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					filename += ".png";
 				}
 				if (!savePng(new File(fdSave.getDirectory() + filename))) {
-					alert(Strings.get("cant save"));
+					alert(Strings.get("저장되지 않았습니다."));
 				}
 			}
 		}
@@ -1050,12 +1050,12 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				Toolkit.getDefaultToolkit().getSystemClipboard().setContents(contents, null);
 				logger.debug("copy end: " + Calendar.getInstance().getTimeInMillis());
 				
-				alert(Strings.get("image copied"));
+				alert(Strings.get("이미지가 클립보드에 복사됐습니다."));
 				
 			} catch (Exception e) {
 				logger.error("이미지 복사 실패");
 				logger.debug(e);
-				alert(Strings.get("clipboard fail"));
+				alert(Strings.get("클립보드에 접근하지 못했습니다."));
 			}
 		}
 	}
@@ -1084,7 +1084,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			try {
 				for (Container cont : Container.fileToContainers(file)) {
 					if (paths.contains(cont.path)) {
-						if (confirm(Strings.get("file duplicated message") + cont.path, Strings.get("file duplicated title"))) {
+						if (confirm(Strings.get("파일 경로가 중복됩니다.\n덮어쓰시겠습니까?") + "\n" + cont.path, Strings.get("파일 중복"))) {
 							// 기존 것 찾아서 삭제
 							for (ModelItem item : items) {
 								if (cont.path.equals(item.container.path)) {
@@ -1125,7 +1125,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	private void exportSelected() {
 		String exportPath = tfExportDir.getText();
 		if (exportPath.replace('\\', '/').startsWith(System.getProperty("java.io.tmpdir").replace('\\', '/'))) {
-			alert(Strings.get("cant export to temp dir"));
+			alert(Strings.get("임시 파일 경로에는 추출할 수 없습니다."));
 			return;
 		}
 		logger.info("export to: " + exportPath);
@@ -1140,15 +1140,15 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	private void exportSelected(String exportPath, boolean useAlert) {
 		List<Container> containers = lvFiles.getSelectedContainers();
 		if (containers.size() == 0) {
-			showMessage(Strings.get("file not selected"), useAlert);
+			showMessage(Strings.get("선택된 파일이 없습니다."), useAlert);
 			return;
 		}
 		
 		List<File> files = Container.containersToFiles(containers, exportPath);
 		if (files.size() > 0) {
-			showMessage(Strings.get("file exported"), useAlert);
+			showMessage(Strings.get("파일을 추출했습니다."), useAlert);
 		} else {
-			showMessage(Strings.get("cant export file"), useAlert);
+			showMessage(Strings.get("파일을 추출하지 못했습니다."), useAlert);
 		}
 	}
 	private void showMessage(String msg, boolean useAlert) {
@@ -1292,7 +1292,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				if (c == tfPngFile) {
 					// 이미지 경로로 파일 열기..에 엔터 칠 사람이 있나?
 					if (!openPng(tfPngFile.getText())) {
-						alert(Strings.get("cant parse path"));
+						alert(Strings.get("해석할 수 없는 이미지 경로입니다."));
 					}
 				} else if (c == tfWidth || c == tfRatioW || c == tfRatioH || c == tfPw) {
 					try {
@@ -1301,7 +1301,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					} catch (Exception ex) {
 						logger.warn("올바른 크기를 입력하세요.");
 						logger.debug(ex);
-						alert(Strings.get("warn-width-input"));
+						alert(Strings.get("올바른 크기를 입력하세요."));
 					}
 				}
 				break;
@@ -1331,7 +1331,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			} catch (Exception ex) {
 				logger.warn("올바른 숫자를 입력하세요.");
 				logger.debug(ex);
-				alert(Strings.get("warn-width-input"));
+				alert(Strings.get("최소 크기가 너무 큽니다.\n1920 이하의 값을 적어주세요."));
 				
 				char[] cs = strValue.toCharArray();
 				strValue = "";
@@ -1752,25 +1752,25 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 						break;
 					}
 					
-					if (!confirm(Strings.get("confirm set image"), Strings.get("open image"))) {
+					if (!confirm(Strings.get("이미지를 적용하시겠습니까?"), Strings.get("이미지 파일 열기"))) {
 						return;
 					}
 					if (!setTargetImage(file.getAbsolutePath())) {
-						alert(Strings.get("cant set image"));
+						alert(Strings.get("이미지를 적용할 수 없습니다."));
 					}
 					
 				} else {
 					// PNG 파일 열기
 					if (!ext.equals("png")) {
 						if (c == panelPngFile) {
-							alert(Strings.get("cant parse file"));
+							alert(Strings.get("해석할 수 없는 파일입니다."));
 						}
 						break;
 					}
 					
 					if (!lvFiles.isEmpty()) {
-						if (!confirm(Strings.get("confirm close file"), Strings.get("open png"))) {
-							if (confirm(Strings.get("confirm add file"), Strings.get("open png"))) {
+						if (!confirm(Strings.get("현재 파일을 닫겠습니까?"), Strings.get("PNG 파일 열기"))) {
+							if (confirm(Strings.get("파일 목록에 추가하시겠습니까?"), Strings.get("PNG 파일 열기"))) {
 								c = panelFilesEdit;
 								break;
 							}
@@ -1778,7 +1778,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 						}
 					}
 					if (!openPng(file.getAbsolutePath())) {
-						alert(Strings.get("cant parse png and add to list"));
+						alert(Strings.get("해석할 수 없는 PNG 파일입니다.\n파일 목록에 추가합니다."));
 						break;
 					}
 				}
