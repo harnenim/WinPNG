@@ -837,6 +837,33 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			lvFiles.setContainers(parsed.containers);
 			
 			updateTarget(parsed.targetImage == null ? JUNK_IMAGE : parsed.targetImage);
+			
+			switch (parsed.type) {
+				case Container.WithTarget.TYPE_114: {
+					rbTarget114.setSelected(true);
+					tfRatioW.setEditable(false);
+					tfRatioH.setEditable(false);
+					break;
+				}
+				case Container.WithTarget.TYPE_238: {
+					rbTarget238.setSelected(true);
+					tfRatioW.setEditable(false);
+					tfRatioH.setEditable(false);
+					break;
+				}
+				case Container.WithTarget.TYPE_149: {
+					rbTarget149.setSelected(true);
+					tfRatioW.setEditable(false);
+					tfRatioH.setEditable(false);
+					break;
+				}
+				default: {
+					rbTarget011.setSelected(true);
+					tfRatioW.setEditable(true);
+					tfRatioH.setEditable(true);
+				}
+			}
+			tfPw.setText(key);
 			updateOutput();
 			
 			return true;
@@ -1477,7 +1504,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		@Override
 		public void mousePressed(MouseEvent e) {
 			logger.debug("ImageDragAdaptor.mousePressed");
-			fth.exportAsDrag(c, e, TransferHandler.MOVE);
+			fth.exportAsDrag(c, e, TransferHandler.COPY_OR_MOVE);
 		}
 		@Override
 		public void mouseMoved(MouseEvent e) {
