@@ -208,7 +208,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		setTitle("WinPNG");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
-		boolean isAndroid = false;
+		boolean isAndroid = "Linux".equals(System.getProperty("os.name")) && confirm("Is this Android?", "OS Check");
+		
 		String exportDir = null;
 		
 		{	// 설정 가져오기
@@ -225,12 +226,18 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			// 로그 설정
 			if (!"N".equals(props.getProperty("LogToFile"))) {
 				props.setProperty("LogToFile", "Y");
-				File logDir = new File(TMP_DIR + "log");
-				logDir.mkdirs();
-				
-				String logPath = TMP_DIR + "log/" + Calendar.getInstance().getTimeInMillis() + ".log";
-				System.out.println("로그 파일: " + logPath);
-				File logFile = new File(logPath);
+				File logFile = null;
+				if (isAndroid) {
+					logFile = new File("/storage/emulated/0/Download/WinPNG/WinPNG_log.txt");
+					
+				} else {
+					File logDir = new File(TMP_DIR + "log");
+					logDir.mkdirs();
+					
+					String logPath = TMP_DIR + "log/" + Calendar.getInstance().getTimeInMillis() + ".log";
+					System.out.println("로그 파일: " + logPath);
+					logFile = new File(logPath);
+				}
 				try {
 					logger.set(new PrintStream(logFile)); // 로그 파일 로깅 수준은 설정값에 따름
 				} catch (FileNotFoundException e) {
@@ -322,25 +329,30 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				logger.debug(e);
 			}
 			
-			if ("Linux".equals(System.getProperty("os.name"))) {
-				if (isAndroid = confirm("Is this Android?", "OS Check")) {
-					// Android JRE 실행을 가정
-					Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-					int width  = Math.min(800, screenSize.width);
-					int height = 520;
-					setBounds((screenSize.width - width) / 2, (screenSize.height - height) / 2, width, height);
-					
-					// 다운로드 폴더 내 WinPNG를 기본 추출 폴더로 설정
-					exportDir = "/storage/emulated/0/Download/WinPNG";
-					
-					// OS 자체 파일 선택기 사용 불가능하므로
-					USE_JFC = true; // ... 어차피 권한 없어서 파일 못 가져옴
-				}
+			if (isAndroid) {
+				// Android JRE 실행을 가정
+				Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+				int width  = Math.min(800, screenSize.width);
+				int height = 550;
+				setBounds((screenSize.width - width) / 2, (screenSize.height - height) / 2, width, height);
+				
+				// 다운로드 폴더 내 WinPNG를 기본 추출 폴더로 설정
+				exportDir = "/storage/emulated/0/Download/WinPNG";
+				
+				// OS 자체 파일 선택기 사용 불가능하므로
+				USE_JFC = true; // ... 어차피 안드로이드 권한 문제로 파일 못 가져옴
+				
 			} else {
-				// 시스템 언어 가져오기
-				String language = Locale.getDefault().getLanguage();
+				String language = props.getProperty("language");
+				if (language == null || language.length() == 0) {
+					// 설정 없으면 시스템 언어 가져오기
+					language = Locale.getDefault().getLanguage();
+					props.setProperty("language", language);
+				}
 				if ("ko".equals(language)) {
 					Strings.setLanguage(Strings.Language.KR);
+				} else if ("jp".equals(language)) {
+					Strings.setLanguage(Strings.Language.JP);
 				}
 			}
 		}
