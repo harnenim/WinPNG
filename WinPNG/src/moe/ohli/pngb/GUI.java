@@ -381,10 +381,10 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			rbTarget238.setText("2:3:8");
 			rbTarget149.setText("1:4:9");
 			rbTarget011.setText(Strings.get("사용 안 함"));
-			jlRatio.setText(Strings.get("비율") + ": ");
+			jlRatio.setText("  " + Strings.get("비율") + ": ");
 			jlOutput.setText(Strings.get("출력 이미지"));
-			jlPw.setText("   " + Strings.get("비밀번호 걸기") + " ");
-			jlWidth.setText("      " + Strings.get("최소 폭") + " ");
+			jlPw.setText(Strings.get("비밀번호 걸기") + " ");
+			jlWidth.setText(Strings.get("최소 폭") + " ");
 			btnSave.setText(Strings.get("저장"));
 			btnCopy.setText(Strings.get("복사"));
 		}
@@ -441,32 +441,37 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 						panelTarget.add(panelRadio, BorderLayout.SOUTH);
 						panelPreview.add(panelTarget);
 					}
-					{	// 출력 비율
+					panelPreview.add(new JPanel());
+					{	// 출력 크기
+						panelRatio.add(jlWidth);
+						panelRatio.add(tfWidth);
+						tfWidth.setColumns(4);
+						
 						panelRatio.add(jlRatio);
 						panelRatio.add(tfRatioW);
 						panelRatio.add(new JLabel(":"));
 						panelRatio.add(tfRatioH);
-						tfRatioW.setColumns(4);
-						tfRatioH.setColumns(4);
+						tfRatioW.setColumns(3);
+						tfRatioH.setColumns(3);
+						
 						panelPreview.add(panelRatio);
 					}
-					panelPreview.add(new JPanel());
 					{	// 출력 이미지
-						JPanel panelPw = new JPanel(new BorderLayout());
 						panelOutput.add(jlOutput, BorderLayout.NORTH);
 						panelOutput.add(ivOutput, BorderLayout.CENTER);
+						panelPreview.add(panelOutput);
+					}
+					{	// 출력 비밀번호
+						JPanel panelPw = new JPanel(new BorderLayout());
 						panelPw.add(jlPw, BorderLayout.WEST);
 						panelPw.add(tfPw, BorderLayout.CENTER);
 						panelOutput.add(panelPw, BorderLayout.SOUTH);
-						panelPreview.add(panelOutput);
 					}
 					panelPreview.add(new JPanel());
 					panelRight.add(panelPreview, BorderLayout.CENTER);
 				}
 				{	// 버튼 영역
 					JPanel panelSave = new JPanel(new BorderLayout());
-					panelSave.add(jlWidth, BorderLayout.WEST);
-					panelSave.add(tfWidth, BorderLayout.CENTER);
 					
 					JPanel panelSaveBtn = new JPanel(new GridLayout(1, 2));
 					panelSaveBtn.add(btnCopy);
