@@ -1074,6 +1074,7 @@ public class Container {
 		public static final int TYPE_114 = 1;
 		public static final int TYPE_149 = 2;
 		public static final int TYPE_238 = 3;
+		public static final int TYPE_429 = 4;
 		
 		public BufferedImage targetImage; // 출력물을 꾸며줄 이미지
 		public List<Container> containers; // 컨테이너 목록
@@ -1183,6 +1184,12 @@ public class Container {
 				logger.debug("is not " + pad0(Integer.toHexString(compare), 6));
 				return false;
 			}
+		}
+		
+		// 서브픽셀 섞어보려고 시도해봤는게 결과물이 썩 차별점이 없음...
+		@SuppressWarnings("unused")
+		private static int mix(int r, int g, int b) {
+			return (r&0xFF0000) | (g&0xFF00) | (b&0xFF);
 		}
 		
 		/**
@@ -1441,12 +1448,94 @@ public class Container {
 			
 			return result;
 		}
+		/**
+		 * 이미지4:컨테이너2:결과물9 이미지로 변환
+		 * 
+		 * @param minWidth: 최소 폭
+		 * @return 비트맵 이미지
+		 * @throws Exception
+		 */
+		public BufferedImage toBitmap429(int minWidth) throws Exception {
+			return toBitmap429(minWidth, 0, new int[0]);
+		}
+		/**
+		 * 이미지4:컨테이너2:결과물9 이미지로 변환
+		 * 
+		 * @param minWidth: 최소 폭
+		 * @param key: 암호화 키
+		 * @return 비트맵 이미지
+		 * @throws Exception
+		 */
+		public BufferedImage toBitmap429(int minWidth, String key) throws Exception {
+			return toBitmap429(minWidth, getShift(key), getXors(key));
+		}
+		/**
+		 * 이미지4:컨테이너2:결과물9 이미지로 변환
+		 * 
+		 * @param minWidth: 최소 폭
+		 * @param shift: 출력물 픽셀 밀기
+		 * @param xors: 출력물 xor 연산 수행
+		 * @return 비트맵 이미지
+		 * @throws Exception
+		 */
+		public BufferedImage toBitmap429(int minWidth, int shift, int[] xors) throws Exception {
+			logger.info("\nWithTarget.toBitmap429");
+			BufferedImage dataImage = toBitmapTwice(containers, (minWidth + 2) / 3, getRatio() * 2, 2, shift, xors);
+			int w = dataImage.getWidth(), h = dataImage.getHeight() / 2;
+			
+			// 이미지를 데이터의 2/3 크기로 조절
+			BufferedImage resizedTargetImage = new BufferedImage(w * 2, h * 2, BufferedImage.TYPE_3BYTE_BGR);
+			Graphics graphics = resizedTargetImage.getGraphics();
+			graphics.drawImage(targetImage.getScaledInstance(w * 2, h * 2, Image.SCALE_SMOOTH), 0, 0, null);
+			graphics.dispose();
+			
+			/*
+			 * a: resizedTargetImage 2x2
+			 * d: dataImage          1x2
+			 * 
+			 * 출력: a1  b1  aA
+			 *       c1 aAB  c2
+			 *       aB  b2  a2
+			 * 
+			 * 9픽셀 합계: 5a + 2 -> 평균 내면 a 값에 따라 1/9~8/9 값을 갖게 됨
+			 */
+			
+			BufferedImage result = new BufferedImage(w*3, h*3, BufferedImage.TYPE_3BYTE_BGR);
+			int a1, aA, aB, a2, aAB, d1, d2;
+			
+			for (int y = 0; y < h; y++) {
+				for (int x = 0; x < w; x++) {
+					a1 = 0xFFFFFF & resizedTargetImage.getRGB(2*x  , 2*y  );
+					aA = 0xFFFFFF & resizedTargetImage.getRGB(2*x+1, 2*y  );
+					aB = 0xFFFFFF & resizedTargetImage.getRGB(2*x  , 2*y+1);
+					a2 = 0xFFFFFF & resizedTargetImage.getRGB(2*x+1, 2*y+1);
+					aAB = ((((aA&0xFF0000) + (aB&0xFF0000)) >> 1) & 0xFF0000)
+					    | ((((aA&0x00FF00) + (aB&0x00FF00)) >> 1) & 0x00FF00)
+					    | ((((aA&0x0000FF) + (aB&0x0000FF)) >> 1) & 0x0000FF);
+					d1 = 0xFFFFFF & dataImage.getRGB(x, 2*y  );
+					d2 = 0xFFFFFF & dataImage.getRGB(x, 2*y+1);
+					
+					result.setRGB(3*x  , 3*y  , a1);
+					result.setRGB(3*x+2, 3*y  , aA);
+					result.setRGB(3*x  , 3*y+2, aB);
+					result.setRGB(3*x+2, 3*y+2, a2);
+					result.setRGB(3*x+1, 3*y+1, aAB);
+					result.setRGB(3*x+1, 3*y  , getB(a1, d1));
+					result.setRGB(3*x  , 3*y+1, getC(a1, d1));
+					result.setRGB(3*x+1, 3*y+2, getB(a2, d2));
+					result.setRGB(3*x+2, 3*y+1, getC(a2, d2));
+				}
+			}
+			
+			return result;
+		}
 		
 		private static final int CHECKSUM_SAMPLE_COUNT = 10; // 패리티 검증 체크섬 샘플 개수
 		public static final int CAN_PROTOTYPE = 1;
 		public static final int CAN_114 = 1 << TYPE_114;
 		public static final int CAN_149 = 1 << TYPE_149;
 		public static final int CAN_238 = 1 << TYPE_238;
+		public static final int CAN_429 = 1 << TYPE_429;
 		/**
 		 * 패리티 검증으로 해석 가능한 알고리즘 확인
 		 * @param bmp
@@ -1458,6 +1547,7 @@ public class Container {
 			try { if (can114      (bmp)) { result |= CAN_114;       } } catch (Exception e) { logger.debug(e); }
 			try { if (can149      (bmp)) { result |= CAN_149;       } } catch (Exception e) { logger.debug(e); }
 			try { if (can238      (bmp)) { result |= CAN_238;       } } catch (Exception e) { logger.debug(e); }
+			try { if (can429      (bmp)) { result |= CAN_429;       } } catch (Exception e) { logger.debug(e); }
 			return result;
 		}
 		/**
@@ -1697,6 +1787,71 @@ public class Container {
 			
 			return false;
 		}
+		/**
+		 * 4:2:9 형식 해석이 가능한지 패리티 검증
+		 * @param bmp
+		 * @return
+		 * @throws Exception
+		 */
+		private static boolean can429(BufferedImage bmp) throws Exception {
+			logger.info("\nis it 4:2:9?");
+			
+			int width = bmp.getWidth();
+			int height = bmp.getHeight();
+			logger.info("input size: " + width + " x " + height);
+			
+			try {
+				// 4:2:9 결합 이미지일 경우 크기는 3의 배수여야 함
+				if (width % 3 > 0 || height % 3 > 0) {
+					return false;
+				}
+				
+				int a1, b1, aA
+				  , c1,aAB, c2
+				  , aB, b2, a2;
+				
+				boolean checkFailed = false;
+				
+				for (int i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
+					int x = (int) (Math.random() * width  / 3);
+					int y = (int) (Math.random() * height / 3);
+					logger.debug("sample(" + pad(x, 4) + ", " + pad(y, 4) + "):");
+					
+					a1 = bmp.getRGB(3*x  , 3*y  );
+					aA = bmp.getRGB(3*x+2, 3*y  );
+					aB = bmp.getRGB(3*x  , 3*y+2);
+					a2 = bmp.getRGB(3*x+2, 3*y+2);
+					aAB= bmp.getRGB(3*x+1, 3*y+1) & 0xFFFFFF;
+					b1 = bmp.getRGB(3*x+1, 3*y  );
+					c1 = bmp.getRGB(3*x  , 3*y+1);
+					b2 = bmp.getRGB(3*x+1, 3*y+2);
+					c2 = bmp.getRGB(3*x+2, 3*y+1);
+					
+					// 패리티 검증
+					if (!isValid(a1, b1, c1, getD(b1, c1))) { checkFailed = true; break; }
+					if (!isValid(a2, b2, c2, getD(b2, c2))) { checkFailed = true; break; }
+					if (aAB != (((((aA&0xFF0000) + (aB&0xFF0000)) >> 1) & 0xFF0000)
+						      | ((((aA&0x00FF00) + (aB&0x00FF00)) >> 1) & 0x00FF00)
+						      | ((((aA&0x0000FF) + (aB&0x0000FF)) >> 1) & 0x0000FF))) {
+						logger.debug("aAB != (aA+aB)/2");
+						checkFailed = true; break;
+					}
+				}
+				if (checkFailed) {
+					logger.info("체크섬 오류 - WithTarget 4:2:9 형식 이미지가 아님");
+					return false;
+				}
+				
+				logger.info("체크섬 통과 - WithTarget 4:2:9 형식 가능");
+				return true;
+				
+			} catch (Exception e) {
+				logger.info("이미지 해석 실패");
+				logger.debug(e);
+			}
+			
+			return false;
+		}
 		
 		/**
 		 * 1:1:4 레거시 형식 비트맵 이미지를 해석
@@ -1908,6 +2063,62 @@ public class Container {
 			return null;
 		}
 		/**
+		 * 4:2:9 형식 비트맵 이미지를 해석
+		 * @param bmp
+		 * @param shift: 출력물 픽셀 밀기
+		 * @param xors: 출력물 xor 연산 수행
+		 * @return
+		 * @throws Exception
+		 */
+		private static WithTarget fromBitmap429(BufferedImage bmp, int shift, int[] xors) {
+			logger.info("\nWithTarget.fromBitmap 4:2:9");
+			
+			int width  = bmp.getWidth();
+			int height = bmp.getHeight();
+			logger.info("input size: " + width + " x " + height);
+			
+			int xSize = width / 3, ySize = height / 3;
+			
+			try {
+				int a1, b1, aA
+				  , c1,     c2
+				  , aB, b2, a2;
+				
+				BufferedImage targetImage = new BufferedImage(xSize*2, ySize*2, BufferedImage.TYPE_3BYTE_BGR);
+				BufferedImage dataImage   = new BufferedImage(xSize  , ySize*2, BufferedImage.TYPE_3BYTE_BGR);
+				
+				for (int y = 0; y < ySize; y++) {
+					for (int x = 0; x < xSize; x++) {
+						a1 = bmp.getRGB(3*x  , 3*y  );
+						aA = bmp.getRGB(3*x+2, 3*y  );
+						aB = bmp.getRGB(3*x  , 3*y+2);
+						a2 = bmp.getRGB(3*x+2, 3*y+2);
+						b1 = bmp.getRGB(3*x+1, 3*y  );
+						c1 = bmp.getRGB(3*x  , 3*y+1);
+						b2 = bmp.getRGB(3*x+1, 3*y+2);
+						c2 = bmp.getRGB(3*x+2, 3*y+1);
+
+						targetImage.setRGB(2*x  , 2*y  , a1);
+						targetImage.setRGB(2*x+1, 2*y  , aA);
+						targetImage.setRGB(2*x  , 2*y+1, aB);
+						targetImage.setRGB(2*x+1, 2*y+1, a2);
+						dataImage.setRGB(x, 2*y  , getD(b1, c1));
+						dataImage.setRGB(x, 2*y+1, getD(b2, c2));
+					}
+				}
+				List<Container> containers = Container.fromBitmap(dataImage, shift, xors);
+				if (containers.size() > 0) {
+					return new WithTarget(targetImage, containers, TYPE_429);
+				}
+				
+			} catch (Exception e) {
+				logger.info("이미지 해석 실패");
+				logger.debug(e);
+			}
+			
+			return null;
+		}
+		/**
 		 * 비트맵 이미지를 현존하는 알고리즘으로 차례로 해석 시도
 		 * @param bmp
 		 * @return
@@ -1981,6 +2192,10 @@ public class Container {
 			}
 			// 2:3:8 형식으로 시도
 			if (((possibility & CAN_238) > 0) && (result = fromBitmap238(bmp, shift, xors)) != null) {
+				return result;
+			}
+			// 4:2:9 형식으로 시도
+			if (((possibility & CAN_429) > 0) && (result = fromBitmap429(bmp, shift, xors)) != null) {
 				return result;
 			}
 			
