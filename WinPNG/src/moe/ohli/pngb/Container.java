@@ -21,12 +21,9 @@ public class Container {
 	public static void setLogger(Logger logger) {
 		Container.logger = logger;
 	}
-
-	private static String pad(int v, int len) {
-		return pad("" + v, len);
-	}
-	private static String pad(String str, int len) {
-		return pad(str, len, ' ');
+	
+	private static String pad(Object str, int len) {
+		return pad(str.toString(), len, ' ');
 	}
 	private static String pad0(String str, int len) {
 		return pad(str, len, '0');
@@ -591,6 +588,7 @@ public class Container {
 		logger.info("check output size: " + width + " x " + height + " = " + (width * height));
 		
 		// 최대한 목표 비율에 가가운 값 찾기
+		// 폭에 따라 정크 영역이 줄어들 수 있음
 		double lastRatio = (double) height / width;
 		for (int width0 = width; lastRatio > ratio; width0 += unit) {
 			int width1 = width0 + unit;
@@ -598,9 +596,14 @@ public class Container {
 			for (Container cont : containers) {
 				containersHeight1 += (cont.getRGBPixelCount() + width1 - 1) / width1;
 			}
-			int height1 = Math.max((int) Math.round(width1 * ratio / unit) * unit, (containersHeight1 + unit - 1) / unit * unit);
+			int height1 = Math.max((int) (width1 * ratio / unit) * unit, (containersHeight1 + unit - 1) / unit * unit);
 			logger.info("check output size: " + width1 + " x " + height1 + " = " + (width1 * height1));
 			double ratio1 = (double) height1 / width1;
+			
+			// 높이가 커졌으면 이미 타이트한 상태
+			if (height1 > height) {
+				break;
+			}
 			
 			// 면적이 작아졌으면 해당 값 선택
 			if (width1 * height1 < width * height) {
@@ -1248,8 +1251,8 @@ public class Container {
 			graphics.dispose();
 			
 			/*
-			 * a: resizedTargetImage
-			 * d: dataImage
+			 * a: resizedTargetImage 1x1
+			 * d: dataImage          1x1
 			 * 
 			 *  (2*x  ,2*y  )  │  (2*x+1,2*y  )
 			 *        a        │    (a+d)/₂
@@ -1322,8 +1325,8 @@ public class Container {
 			graphics.dispose();
 			
 			/*
-			 * a: resizedTargetImage
-			 * d: dataImage
+			 * a: resizedTargetImage 1x1
+			 * d: dataImage          2x2
 			 * 
 			 * 출력: b1 c1 b2
 			 *       c4 ａ c2
@@ -1399,8 +1402,8 @@ public class Container {
 			graphics.dispose();
 			
 			/*
-			 * a: resizedTargetImage
-			 * d: dataImage
+			 * a: resizedTargetImage 1x2
+			 * d: dataImage          1x3
 			 * 
 			 * 출력: b1 a1
 			 *       c1 b2
@@ -1704,17 +1707,19 @@ public class Container {
 		@Deprecated
 		private static WithTarget fromBitmapPrototype(BufferedImage bmp, boolean tryWithout) {
 			logger.warn("\nWithTarget.fromBitmapPrototype - 개발 도중 레거시 형식 지원");
-			
-			int width = bmp.getWidth();
+
+			int width  = bmp.getWidth();
 			int height = bmp.getHeight();
 			logger.info("input size: " + width + " x " + height);
 			
+			int xSize = width / 2, ySize = height / 2;
+			
 			try {
-				BufferedImage targetImage = new BufferedImage(width / 2, height / 2, BufferedImage.TYPE_3BYTE_BGR);
-				BufferedImage dataImage   = new BufferedImage(width / 2, height / 2, BufferedImage.TYPE_3BYTE_BGR);
+				BufferedImage targetImage = new BufferedImage(xSize, ySize, BufferedImage.TYPE_3BYTE_BGR);
+				BufferedImage dataImage   = new BufferedImage(xSize, ySize, BufferedImage.TYPE_3BYTE_BGR);
 				
-				for (int y = 0; y < height / 2; y++) {
-					for (int x = 0; x < width / 2; x++) {
+				for (int y = 0; y < ySize; y++) {
+					for (int x = 0; x < xSize; x++) {
 						targetImage.setRGB(x, y, bmp.getRGB(2*x  , 2*y));
 						dataImage  .setRGB(x, y, bmp.getRGB(2*x+1, 2*y));
 					}
@@ -1756,18 +1761,20 @@ public class Container {
 		private static WithTarget fromBitmap114(BufferedImage bmp, int shift, int[] xors) {
 			logger.info("\nWithTarget.fromBitmap 1:1:4");
 			
-			int width = bmp.getWidth();
+			int width  = bmp.getWidth();
 			int height = bmp.getHeight();
 			logger.info("input size: " + width + " x " + height);
+			
+			int xSize = width / 2, ySize = height / 2;
 			
 			try {
 				int a, b, c;
 				
-				BufferedImage targetImage = new BufferedImage(width / 2, height / 2, BufferedImage.TYPE_3BYTE_BGR);
-				BufferedImage dataImage   = new BufferedImage(width / 2, height / 2, BufferedImage.TYPE_3BYTE_BGR);
+				BufferedImage targetImage = new BufferedImage(xSize, ySize, BufferedImage.TYPE_3BYTE_BGR);
+				BufferedImage dataImage   = new BufferedImage(xSize, ySize, BufferedImage.TYPE_3BYTE_BGR);
 				
-				for (int y = 0; y < height / 2; y++) {
-					for (int x = 0; x < width / 2; x++) {
+				for (int y = 0; y < ySize; y++) {
+					for (int x = 0; x < xSize; x++) {
 						a = bmp.getRGB(2*x  , 2*y  );
 						b = bmp.getRGB(2*x+1, 2*y  );
 						c = bmp.getRGB(2*x  , 2*y+1);
@@ -1799,20 +1806,22 @@ public class Container {
 		private static WithTarget fromBitmap149(BufferedImage bmp, int shift, int[] xors) {
 			logger.info("\nWithTarget.fromBitmap 1:4:9");
 			
-			int width = bmp.getWidth();
+			int width  = bmp.getWidth();
 			int height = bmp.getHeight();
 			logger.info("input size: " + width + " x " + height);
+			
+			int xSize = width / 3, ySize = height / 3;
 			
 			try {
 				int b1, c1, b2
 				  , c4, a , c2
 				  , b4, c3, b3;
 				
-				BufferedImage targetImage = new BufferedImage(width / 3, height / 3, BufferedImage.TYPE_3BYTE_BGR);
-				BufferedImage dataImage   = new BufferedImage(width*2/3, height*2/3, BufferedImage.TYPE_3BYTE_BGR);
+				BufferedImage targetImage = new BufferedImage(xSize  , ySize  , BufferedImage.TYPE_3BYTE_BGR);
+				BufferedImage dataImage   = new BufferedImage(xSize*2, ySize*2, BufferedImage.TYPE_3BYTE_BGR);
 				
-				for (int y = 0; y < height / 3; y++) {
-					for (int x = 0; x < width / 3; x++) {
+				for (int y = 0; y < ySize; y++) {
+					for (int x = 0; x < xSize; x++) {
 						a  = bmp.getRGB(3*x+1, 3*y+1);
 						b1 = bmp.getRGB(3*x  , 3*y  );
 						c1 = bmp.getRGB(3*x+1, 3*y  );
@@ -1853,9 +1862,11 @@ public class Container {
 		private static WithTarget fromBitmap238(BufferedImage bmp, int shift, int[] xors) {
 			logger.info("\nWithTarget.fromBitmap 2:3:8");
 			
-			int width = bmp.getWidth();
+			int width  = bmp.getWidth();
 			int height = bmp.getHeight();
 			logger.info("input size: " + width + " x " + height);
+			
+			int xSize = width / 2, ySize = height / 4;
 			
 			try {
 				int b1, a1
@@ -1863,11 +1874,11 @@ public class Container {
 				  , a2, c2
 				  , b3, c3;
 				
-				BufferedImage targetImage = new BufferedImage(width / 2, height / 2, BufferedImage.TYPE_3BYTE_BGR);
-				BufferedImage dataImage   = new BufferedImage(width / 2, height*3/4, BufferedImage.TYPE_3BYTE_BGR);
+				BufferedImage targetImage = new BufferedImage(xSize, ySize*2, BufferedImage.TYPE_3BYTE_BGR);
+				BufferedImage dataImage   = new BufferedImage(xSize, ySize*3, BufferedImage.TYPE_3BYTE_BGR);
 				
-				for (int y = 0; y < height / 4; y++) {
-					for (int x = 0; x < width / 2; x++) {
+				for (int y = 0; y < ySize; y++) {
+					for (int x = 0; x < xSize; x++) {
 						a1 = bmp.getRGB(2*x+1, 4*y  );
 						a2 = bmp.getRGB(2*x  , 4*y+2);
 						b1 = bmp.getRGB(2*x  , 4*y  );
