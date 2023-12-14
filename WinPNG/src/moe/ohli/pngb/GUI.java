@@ -72,6 +72,9 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			String result = "" + (value % 1000);
 			value /= 1000;
 			while (value > 0) {
+				while (result.length() % 4 < 3) {
+					result = '0' + result;
+				}
 				result = (value % 1000) + "," + result;
 				value /= 1000;
 			}
@@ -550,30 +553,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				public void windowClosing(WindowEvent evt) {
 					super.windowClosing(evt);
 
-					Rectangle bounds = getBounds();
-					props.setProperty("LogLevel", logger.getDefaultLevel().name());
-					props.setProperty("bounds", bounds.x + "," + bounds.y + "," + bounds.width + "," + bounds.height);
-					props.setProperty("minWidth", tfWidth.getText());
-					props.setProperty("exportDir", tfExportDir.getText());
-					if (rbTarget114.isSelected()) {
-						props.setProperty("useTargetImage", "114");
-					} else if (rbTarget238.isSelected()) {
-						props.setProperty("useTargetImage", "238");
-					} else if (rbTarget149.isSelected()) {
-						props.setProperty("useTargetImage", "149");
-					} else if (rbTarget011.isSelected()) {
-						props.setProperty("useTargetImage", "011");
-					}
-					
-					FileOutputStream fos = null;
-					try {
-						props.store(fos = new FileOutputStream(new File(CONFIG_FILE_PATH)), "WinPNG config");
-					} catch (Exception e) {
-						logger.error("설정 저장 실패");
-						logger.debug(e);
-					} finally {
-						if (fos != null) try { fos.close(); } catch (Exception e) { }
-					}
+					saveConfig();
 					
 					// 임시 디렉토리는 deleteOnExit 동작이 잘 안 돼서
 					// 아예 빼버리고 이쪽에서 삭제함
@@ -607,6 +587,35 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		// 창 띄우기
 		setVisible(true);
 		setEnabled(true);
+	}
+	/**
+	 * 설정 저장
+	 */
+	private void saveConfig() {
+		Rectangle bounds = getBounds();
+		props.setProperty("LogLevel", logger.getDefaultLevel().name());
+		props.setProperty("bounds", bounds.x + "," + bounds.y + "," + bounds.width + "," + bounds.height);
+		props.setProperty("minWidth", tfWidth.getText());
+		props.setProperty("exportDir", tfExportDir.getText());
+		if (rbTarget114.isSelected()) {
+			props.setProperty("useTargetImage", "114");
+		} else if (rbTarget238.isSelected()) {
+			props.setProperty("useTargetImage", "238");
+		} else if (rbTarget149.isSelected()) {
+			props.setProperty("useTargetImage", "149");
+		} else if (rbTarget011.isSelected()) {
+			props.setProperty("useTargetImage", "011");
+		}
+		
+		FileOutputStream fos = null;
+		try {
+			props.store(fos = new FileOutputStream(new File(CONFIG_FILE_PATH)), "WinPNG config");
+		} catch (Exception e) {
+			logger.error("설정 저장 실패");
+			logger.debug(e);
+		} finally {
+			if (fos != null) try { fos.close(); } catch (Exception e) { }
+		}
 	}
 	/**
 	 * 디렉토리 삭제
@@ -797,6 +806,9 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	}
 	private boolean openPng(String path, String key) {
 		logger.info("openPng: " + path);
+		
+		// TODO: 트위터 이미지 URL orig 변환 넣어야 함
+		
 		try {
 			BufferedImage bmp = null;
 			
@@ -812,7 +824,11 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					bmp = ImageIO.read(fileFromUrl(path));
 				} catch (Exception e) {
 					logger.debug(e);
-					bmp = ImageIO.read(fileFromUrl("http://" + path.substring(8)));
+					try {
+						bmp = ImageIO.read(fileFromUrl("http://" + path.substring(8)));
+					} catch (Exception e2) {
+						logger.debug(e2);
+					}
 				}
 				
 			} else {
@@ -820,7 +836,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				bmp = ImageIO.read(file);
 			}
 
-			if (openBitmap(bmp, file, key)) {
+			if (bmp != null && openBitmap(bmp, file, key)) {
 				return true;
 			}
 			
@@ -1085,6 +1101,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		try {
 			ImageIO.write(outputImage, "PNG", file);
 			tfPngFile.setText((pngFile = file).getAbsolutePath());
+			saveConfig();
 			return true;
 			
 		} catch (Exception e) {
@@ -1370,7 +1387,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			case 10: { // Enter
 				Component c = e.getComponent();
 				if (c == tfPngFile) {
-					// 이미지 경로로 파일 열기..에 엔터 칠 사람이 있나?
+					// 이미지 경로로 파일 열기
 					if (!openPng(tfPngFile.getText())) {
 						alert(Strings.get("해석할 수 없는 이미지 경로입니다."));
 					}
@@ -1498,6 +1515,10 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
         				name = Calendar.getInstance().getTimeInMillis() + ".png";
         			}
         		}
+        		if (image == null) {
+    				logger.info("드래그할 이미지 없음");
+        			return null;
+        		}
         		
         		// 임시 PNG 파일 생성해서 전달
     			File file = new File(TMP_DIR + name);
@@ -1557,7 +1578,9 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		@Override
 		public void mousePressed(MouseEvent e) {
 			logger.debug("ImageDragAdaptor.mousePressed");
-			fth.exportAsDrag(c, e, TransferHandler.MOVE);
+			if (e.getButton() == MouseEvent.BUTTON1) {
+				fth.exportAsDrag(c, e, TransferHandler.MOVE);
+			}
 		}
 		@Override
 		public void mouseMoved(MouseEvent e) {
@@ -1896,16 +1919,28 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		conn.getResponseCode();
 		
 		String contentLength = conn.getHeaderField("Content-Length");
-		int size = Integer.parseInt(contentLength);
-		if (size> 20971520) {
-			throw new Exception("20MB를 초과합니다");
+		logger.debug("Content-Length: " + contentLength);
+		if (contentLength != null) {
+			int size = 0;
+			try {
+				size = Integer.parseInt(contentLength);
+			} catch (Exception e) {
+				logger.warn("크기를 알 수 없음");
+			}
+			if (size > 20971520) {
+				throw new Exception("20MB를 초과합니다");
+			}
 		}
 		
 		String contentDisposition = conn.getHeaderField("Content-Disposition");
+		logger.debug("Content-Disposition: " + contentDisposition);
 		String filename = null;
 		if (contentDisposition == null) {
 			String path = url.getPath();
 			filename = path.substring(path.lastIndexOf("/") + 1);
+			if (filename.indexOf('?') > 0) {
+				filename = filename.substring(0, filename.lastIndexOf('?'));
+			}
 		} else {
 			filename = URLDecoder.decode(contentDisposition.replaceFirst("(?i)^.*filename=\"?([^\"]+)\"?.*$", "$1"), "UTF-8");
 		}
