@@ -28,6 +28,9 @@ public class Container {
 	private static String pad0(String str, int len) {
 		return pad(str, len, '0');
 	}
+	private static String toHex(int value, int len) {
+		return pad(Integer.toHexString(value), len, '0');
+	}
 	private static String pad(String str, int len, char pad) {
 		while (str.length() < len) {
 			str = pad + str;
@@ -109,12 +112,12 @@ public class Container {
 	 * @throws Exception
 	 */
 	public Container(int[] rgbs, int shift, int[] xors) throws Exception {
-		logger.debug("pathLength  : " + pad0(Integer.toHexString(rgbs[ shift    % rgbs.length]), 8));
-		logger.debug("binaryLength: " + pad0(Integer.toHexString(rgbs[(shift+1) % rgbs.length]), 8));
+		logger.debug("pathLength  : " + toHex(rgbs[ shift    % rgbs.length], 8));
+		logger.debug("binaryLength: " + toHex(rgbs[(shift+1) % rgbs.length], 8));
 		// xor 연산 수행
 		if (xors.length > 0) {
-			logger.debug("xors0       : " + pad0(Integer.toHexString(xors[ shift    % xors.length]), 8));
-			logger.debug("xors1       : " + pad0(Integer.toHexString(xors[(shift+1) % xors.length]), 8));
+			logger.debug("xors0       : " + toHex(xors[ shift    % xors.length], 8));
+			logger.debug("xors1       : " + toHex(xors[(shift+1) % xors.length], 8));
 			for (int i = 0; i < rgbs.length; i++) {
 				rgbs[i] ^= xors[i % xors.length];
 			}
@@ -902,11 +905,11 @@ public class Container {
 					logger.debug("xors.length: " + xors.length);
 					int pathLength   = 0xFFFFFF & bmp.getRGB( shift    % width, offsetY);
 					int binaryLength = 0xFFFFFF & bmp.getRGB((shift+1) % width, offsetY);
-					logger.debug("pathLength  : " + pad0(Integer.toHexString(pathLength  ), 8));
-					logger.debug("binaryLength: " + pad0(Integer.toHexString(binaryLength), 8));
+					logger.debug("pathLength  : " + toHex(pathLength  , 8));
+					logger.debug("binaryLength: " + toHex(binaryLength, 8));
 					if (xors.length > 0) {
-						logger.debug("xors0       : " + pad0(Integer.toHexString(xors[ shift    % xors.length]), 8));
-						logger.debug("xors1       : " + pad0(Integer.toHexString(xors[(shift+1) % xors.length]), 8));
+						logger.debug("xors0       : " + toHex(xors[ shift    % xors.length], 8));
+						logger.debug("xors1       : " + toHex(xors[(shift+1) % xors.length], 8));
 						pathLength   = (pathLength   ^ xors[ shift    % xors.length]) & 0xFFFFFF;
 						binaryLength = (binaryLength ^ xors[(shift+1) % xors.length]) & 0xFFFFFF;
 					}
@@ -1075,6 +1078,7 @@ public class Container {
 		public static final int TYPE_149 = 2;
 		public static final int TYPE_238 = 3;
 		public static final int TYPE_429 = 4;
+		public static final int TYPE_114v2 = 5;
 		
 		public BufferedImage targetImage; // 출력물을 꾸며줄 이미지
 		public List<Container> containers; // 컨테이너 목록
@@ -1150,7 +1154,7 @@ public class Container {
 		}
 		// c = (1+a-d)/₂
 		private static int getC(int a, int d) {
-			//     (     1       +  a           +  d                        ) / 2
+			//     (     1       +  a           -  d                        ) / 2
 			return ( ((0x1000000 + (a&0xFF0000) - (d&0xFF0000)) & 0x1FE0000)
 			       | ((0x0010000 + (a&0x00FF00) - (d&0x00FF00)) & 0x001FE00)
 			       | ((0x0000100 + (a&0x0000FF) - (d&0x0000FF)) & 0x00001FE)) >> 1;
@@ -1170,18 +1174,18 @@ public class Container {
 			             + (0x008000 + (a&0x00FF00) - (b&0x00FF00) - (c&0x00FF00))
 			             + (0x000080 + (a&0x0000FF) - (b&0x0000FF) - (c&0x0000FF));
 
-			logger.debug("{ " + pad0(Integer.toHexString(a), 6)
-			          + " / " + pad0(Integer.toHexString(b), 6)
-			          + " / " + pad0(Integer.toHexString(c), 6)
-			          + " / " + pad0(Integer.toHexString(d), 6)
-			          + " } -> checksum: " + pad0(Integer.toHexString(checksum), 6));
+			logger.debug("{ " + toHex(a, 6)
+			          + " / " + toHex(b, 6)
+			          + " / " + toHex(c, 6)
+			          + " / " + toHex(d, 6)
+			          + " } -> checksum: " + toHex(checksum, 6));
 			
 			int compare = (((a&0x010101)+(d&0x010101))&0x010101); // 정수연산 한계로 a+d가 홀수일 땐 1이 나옴
 			
 			if (checksum == compare) {
 				return true;
 			} else {
-				logger.debug("is not " + pad0(Integer.toHexString(compare), 6));
+				logger.debug("is not " + toHex(compare, 6));
 				return false;
 			}
 		}
@@ -1190,6 +1194,127 @@ public class Container {
 		@SuppressWarnings("unused")
 		private static int mix(int r, int g, int b) {
 			return (r&0xFF0000) | (g&0xFF00) | (b&0xFF);
+		}
+
+		// TODO: 연구 중... 해석 오류 발생
+		private static final boolean ROTATE = false;
+		
+		// for 1:1:4 v2
+		/**
+		 * a와 b의 차이가 클 경우의 보정값(홀수) + 0x80(음수가 나오지 않도록 함)
+		 * @param ax
+		 * @param dx
+		 * @param bx
+		 * @return
+		 */
+		private static int getBpx(int ax, int dx, int bx) {
+			return (ax < 0x80 == dx < 0x80) ? 0x80 : ((0x280 + ax - 2*dx) / 8 * 2 + 1);
+//			return (ax < 0x80 == dx < 0x80) ? 0x80 : ((0xFF + ax - bx) / 4 * 2 + 1);
+//			return (ax < 0x80 == dx < 0x80) ? 0x80 : (((ax < 0x80 ? 0x2C0 : 0x240) + ax - 2*dx) / 8 * 2 + 1);
+		}
+		/**
+		 * a와 c의 차이가 클 경우의 보정값(짝수) + 0x80(음수가 나오지 않도록 함)
+		 * @param ax
+		 * @param dx
+		 * @param cx
+		 * @return
+		 */
+		private static int getCpx(int ax, int dx, int cx) {
+			return (ax < 0x80 != dx < 0x80) ? 0x80 : ((0x80 + ax + 2*dx) / 8 * 2);
+//			return (ax < 0x80 != dx < 0x80) ? 0x80 : ((0xFF + ax - cx) / 4 * 2);
+//			return (ax < 0x80 != dx < 0x80) ? 0x80 : (((ax < 0x80 ? 0xC0 : 0x40) + ax + 2*dx) / 8 * 2);
+		}
+		/**
+		 * b 혹은 c의 보정값에 반대되는 a의 보정값 + 0x80(음수가 나오지 않도록 함)
+		 * @param ax
+		 * @param bx
+		 * @param cx
+		 * @param dx
+		 * @return
+		 */
+		private static int getApx(int ax, int bx, int cx, int dx) {
+			return 0x180 - getBpx(ax, dx, bx) - getCpx(ax, dx, cx);
+		}
+		private static int getBn(int a, int d, int b) {
+			return ( ((b&0xFF0000) + (getBpx((a >> 16) & 0xFF, (d >> 16) & 0xFF, (b >> 16) & 0xFF) << 16) - 0x800000)
+			       | ((b&0x00FF00) + (getBpx((a >>  8) & 0xFF, (d >>  8) & 0xFF, (b >>  8) & 0xFF) <<  8) - 0x008000)
+			       | ((b&0x0000FF) + (getBpx((a >>  0) & 0xFF, (d >>  0) & 0xFF, (b >>  0) & 0xFF) <<  0) - 0x000080) );
+		}
+		private static int getCn(int a, int d, int c) {
+			return ( ((c&0xFF0000) + (getCpx((a >> 16) & 0xFF, (d >> 16) & 0xFF, (c >> 16) & 0xFF) << 16) - 0x800000)
+			       | ((c&0x00FF00) + (getCpx((a >>  8) & 0xFF, (d >>  8) & 0xFF, (c >>  8) & 0xFF) <<  8) - 0x008000)
+			       | ((c&0x0000FF) + (getCpx((a >>  0) & 0xFF, (d >>  0) & 0xFF, (c >>  0) & 0xFF) <<  0) - 0x000080) );
+		}
+		private static int getAn(int a, int b, int c, int d) {
+			return ( ((a&0xFF0000) + (getApx((a >> 16) & 0xFF, (b >> 16) & 0xFF, (c >> 16) & 0xFF, (d >> 16) & 0xFF) << 16) - 0x800000)
+			       | ((a&0x00FF00) + (getApx((a >>  8) & 0xFF, (b >>  8) & 0xFF, (c >>  8) & 0xFF, (d >>  8) & 0xFF) <<  8) - 0x008000)
+			       | ((a&0x0000FF) + (getApx((a >>  0) & 0xFF, (b >>  0) & 0xFF, (c >>  0) & 0xFF, (d >>  0) & 0xFF) <<  0) - 0x000080) );
+		}
+		/**
+		 * a 보정값이 짝수일 경우 b 보정값의 역
+		 * @param ap
+		 * @return
+		 */
+		private static int getBpx(int ap) {
+			return (ap % 2 == 0) ? 0x80 : (0x100 - ap); 
+		}
+		/**
+		 * a 보정값이 홀수일 경우 c 보정값의 역
+		 * @param ap
+		 * @return
+		 */
+		private static int getCpx(int ap) {
+			return (ap % 2 == 1) ? 0x80 : (0x100 - ap); 
+		}
+		private static int getAp(int a, int an) {
+			return ( (0x800000 + (an&0xFF0000) - (a&0xFF0000))
+			       | (0x008000 + (an&0x00FF00) - (a&0x00FF00))
+			       | (0x000080 + (an&0x0000FF) - (a&0x0000FF)) );
+		}
+		private static int bn2b(int bn, int ap) {
+			return ( (0x800000 + (bn&0xFF0000) - (getBpx((ap >> 16) & 0xFF) << 16))
+			       | (0x008000 + (bn&0x00FF00) - (getBpx((ap >>  8) & 0xFF) <<  8))
+			       | (0x000080 + (bn&0x0000FF) - (getBpx((ap >>  0) & 0xFF) <<  0)) );
+		}
+		private static int cn2c(int cn, int ap) {
+			return ( (0x800000 + (cn&0xFF0000) - (getCpx((ap >> 16) & 0xFF) << 16))
+			       | (0x008000 + (cn&0x00FF00) - (getCpx((ap >>  8) & 0xFF) <<  8))
+			       | (0x000080 + (cn&0x0000FF) - (getCpx((ap >>  0) & 0xFF) <<  0)) );
+		}
+		
+		private static String padRGB(int value) {
+			String str = pad0(Integer.toBinaryString(value), 24);
+			return str.substring(0, 8) + " " + str.substring(8, 16) + " " + str.substring(16, 24);
+		}
+		public static void main(String[] args) {
+			logger.set(System.out, Logger.L.DEBUG);
+			
+			for (int i = 0; i < 10; i++) {
+				logger.info("─────────────────────");
+				logger.info("");
+				
+				int a = (int) (Math.random() * 0x1000000);
+				int d = (int) (Math.random() * 0x1000000);
+				int b = getB(a, d);
+				int c = getC(a, d);
+				logger.info("a: " + padRGB(a) + " / d: " + padRGB(d));
+				logger.info("b: " + padRGB(b) + " / c: " + padRGB(c));
+				
+				int bn = getBn(a, d, b);
+				int cn = getCn(a, d, c);
+				int an = getAn(a, b, c, d);
+				
+				logger.info("bn:" + padRGB(bn) + " / cn:" + padRGB(cn) + " / an:" + padRGB(an));
+				logger.info("");
+				
+				int ap = getAp(a, an);
+				b = bn2b(bn, ap);
+				c = cn2c(cn, ap);
+				d = getD(b, c);
+				logger.info("a: " + padRGB(a) + " / d: " + padRGB(d));
+				logger.info("b: " + padRGB(b) + " / c: " + padRGB(c));
+				logger.info("isValid: " + isValid(a, b, c, d));
+			}
 		}
 		
 		/**
@@ -1213,6 +1338,8 @@ public class Container {
 				return toBitmap149(minWidth);
 			case TYPE_238:
 				return toBitmap238(minWidth);
+			case TYPE_114v2:
+				return toBitmap114v2(minWidth);
 			}
 			return toBitmap114(minWidth);
 		}
@@ -1285,6 +1412,98 @@ public class Container {
 					result.setRGB(2*x+1, 2*y  , getB(a, d));
 					result.setRGB(2*x  , 2*y+1, getC(a, d));
 					result.setRGB(2*x+1, 2*y+1, a);
+				}
+			}
+			
+			return result;
+		}
+		/**
+		 * 이미지1:컨테이너1:결과물4 v2 이미지로 변환
+		 * 
+		 * @param minWidth: 최소 폭
+		 * @return 비트맵 이미지
+		 * @throws Exception
+		 */
+		public BufferedImage toBitmap114v2(int minWidth) throws Exception {
+			return toBitmap114v2(minWidth, 0, new int[0]);
+		}
+		/**
+		 * 이미지1:컨테이너1:결과물4 v2 이미지로 변환
+		 * 
+		 * @param minWidth: 최소 폭
+		 * @param key: 암호화 키
+		 * @return 비트맵 이미지
+		 * @throws Exception
+		 */
+		public BufferedImage toBitmap114v2(int minWidth, String key) throws Exception {
+			return toBitmap114v2(minWidth, getShift(key), getXors(key));
+		}
+		/**
+		 * 이미지1:컨테이너1:결과물4 v2 이미지로 변환
+		 * 
+		 * @param minWidth: 최소 폭
+		 * @param shift: 출력물 픽셀 밀기
+		 * @param xors: 출력물 xor 연산 수행
+		 * @return 비트맵 이미지
+		 * @throws Exception
+		 */
+		public BufferedImage toBitmap114v2(int minWidth, int shift, int[] xors) throws Exception {
+			logger.info("\nWithTarget.toBitmap114v2");
+			BufferedImage dataImage = toBitmapTwice(containers, minWidth / 2, getRatio(), shift, xors);
+			int w = dataImage.getWidth(), h = dataImage.getHeight();
+			
+			// 이미지를 데이터와 같은 크기로 조절
+			BufferedImage resizedTargetImage = new BufferedImage(w, h, BufferedImage.TYPE_3BYTE_BGR);
+			Graphics graphics = resizedTargetImage.getGraphics();
+			graphics.drawImage(targetImage.getScaledInstance(w, h, Image.SCALE_SMOOTH), 0, 0, null);
+			graphics.dispose();
+
+			/*
+			 * 1:1:4 결과물에서 a와 b,c의 차이가 클 경우
+			 * 여분의 a 값을 통해 보정해줌
+			 */
+			
+			BufferedImage result = new BufferedImage(w*2, h*2, BufferedImage.TYPE_3BYTE_BGR);
+			int a, b, c, d;//, bn, cn, an;
+			
+			for (int y = 0; y < h; y++) {
+				for (int x = 0; x < w; x++) {
+					a = 0xFFFFFF & resizedTargetImage.getRGB(x, y);
+					d = 0xFFFFFF & dataImage.getRGB(x, y);
+					b = getB(a, d);
+					c = getC(a, d);
+					if (ROTATE) {
+						if (x % 2 == 0) {
+							if (y % 2 == 0) {
+								result.setRGB(2*x  , 2*y  , a);
+								result.setRGB(2*x+1, 2*y  , getBn(a, d, b));
+								result.setRGB(2*x+1, 2*y+1, getAn(a, b, c, d));
+								result.setRGB(2*x  , 2*y+1, getCn(a, d, c));
+							} else {
+								result.setRGB(2*x  , 2*y  , getCn(a, d, c));
+								result.setRGB(2*x+1, 2*y  , a);
+								result.setRGB(2*x+1, 2*y+1, getBn(a, d, b));
+								result.setRGB(2*x  , 2*y+1, getAn(a, b, c, d));
+							}
+						} else {
+							if (y % 2 == 0) {
+								result.setRGB(2*x  , 2*y  , getAn(a, b, c, d));
+								result.setRGB(2*x+1, 2*y  , getCn(a, d, c));
+								result.setRGB(2*x+1, 2*y+1, a);
+								result.setRGB(2*x  , 2*y+1, getBn(a, d, b));
+							} else {
+								result.setRGB(2*x  , 2*y  , getBn(a, d, b));
+								result.setRGB(2*x+1, 2*y  , getAn(a, b, c, d));
+								result.setRGB(2*x+1, 2*y+1, getCn(a, d, c));
+								result.setRGB(2*x  , 2*y+1, a);
+							}
+						}
+					} else {
+						result.setRGB(2*x  , 2*y  , a);
+						result.setRGB(2*x+1, 2*y  , getBn(a, d, b));
+						result.setRGB(2*x+1, 2*y+1, getAn(a, b, c, d));
+						result.setRGB(2*x  , 2*y+1, getCn(a, d, c));
+					}
 				}
 			}
 			
@@ -1536,6 +1755,7 @@ public class Container {
 		public static final int CAN_149 = 1 << TYPE_149;
 		public static final int CAN_238 = 1 << TYPE_238;
 		public static final int CAN_429 = 1 << TYPE_429;
+		public static final int CAN_114v2 = 1 << TYPE_114v2;
 		/**
 		 * 패리티 검증으로 해석 가능한 알고리즘 확인
 		 * @param bmp
@@ -1544,6 +1764,7 @@ public class Container {
 		public static int possibility(BufferedImage bmp) {
 			int result = 0;
 			try { if (canPrototype(bmp)) { result |= CAN_PROTOTYPE; } } catch (Exception e) { logger.debug(e); }
+			try { if (can114v2    (bmp)) { result |= CAN_114v2;     } } catch (Exception e) { logger.debug(e); }
 			try { if (can114      (bmp)) { result |= CAN_114;       } } catch (Exception e) { logger.debug(e); }
 			try { if (can149      (bmp)) { result |= CAN_149;       } } catch (Exception e) { logger.debug(e); }
 			try { if (can238      (bmp)) { result |= CAN_238;       } } catch (Exception e) { logger.debug(e); }
@@ -1654,6 +1875,91 @@ public class Container {
 				}
 				
 				logger.info("체크섬 통과 - 현행 WithTarget 1:1:4 형식 가능");
+				return true;
+				
+			} catch (Exception e) {
+				logger.info("이미지 해석 실패");
+				logger.debug(e);
+			}
+			
+			return false;
+		}
+		/**
+		 * 1:1:4 v2 형식 해석이 가능한지 패리티 검증
+		 * @param bmp
+		 * @return
+		 * @throws Exception
+		 */
+		private static boolean can114v2(BufferedImage bmp) throws Exception {
+			logger.info("\nis it 1:1:4 new?");
+			
+			int width = bmp.getWidth();
+			int height = bmp.getHeight();
+			logger.info("input size: " + width + " x " + height);
+			
+			try {
+				// 1:1:4 결합 이미지일 경우 크기는 짝수여야 함
+				if (width % 2 > 0 || height % 2 > 0) {
+					return false;
+				}
+				
+				int a, bn, cn, an, ap, b, c;
+				
+				boolean checkFailed = false;
+				
+				for (int i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
+					int x = (int) (Math.random() * width ) / 2;
+					int y = (int) (Math.random() * height) / 2;
+					logger.debug("sample(" + pad(x, 4) + ", " + pad(y, 4) + ")");
+					
+					if (ROTATE) {
+						if (x % 2 == 0) {
+							if (y % 2 == 0) {
+								a  = bmp.getRGB(2*x  , 2*y  );
+								bn = bmp.getRGB(2*x+1, 2*y  );
+								cn = bmp.getRGB(2*x+1, 2*y+1);
+								an = bmp.getRGB(2*x  , 2*y+1);
+							} else {
+								an = bmp.getRGB(2*x  , 2*y  );
+								a  = bmp.getRGB(2*x+1, 2*y  );
+								bn = bmp.getRGB(2*x+1, 2*y+1);
+								cn = bmp.getRGB(2*x  , 2*y+1);
+							}
+						} else {
+							if (y % 2 == 0) {
+								cn = bmp.getRGB(2*x  , 2*y  );
+								an = bmp.getRGB(2*x+1, 2*y  );
+								a  = bmp.getRGB(2*x+1, 2*y+1);
+								bn = bmp.getRGB(2*x  , 2*y+1);
+							} else {
+								bn = bmp.getRGB(2*x  , 2*y  );
+								cn = bmp.getRGB(2*x+1, 2*y  );
+								an = bmp.getRGB(2*x+1, 2*y+1);
+								a  = bmp.getRGB(2*x  , 2*y+1);
+							}
+						}
+					} else {
+						a  = bmp.getRGB(2*x  , 2*y  );
+						bn = bmp.getRGB(2*x+1, 2*y  );
+						cn = bmp.getRGB(2*x  , 2*y+1);
+						an = bmp.getRGB(2*x+1, 2*y+1);
+					}
+					ap = getAp(a, an);
+					
+					b = bn2b(bn, ap);
+					c = cn2c(cn, ap);
+					
+					if (!isValid(a, b, c, getD(b, c))) {
+						checkFailed = true;
+						break;
+					}
+				}
+				if (checkFailed) {
+					logger.info("체크섬 오류 - WithTarget 1:1:4 v2 형식 이미지가 아님");
+					return false;
+				}
+				
+				logger.info("체크섬 통과 - WithTarget 1:1:4 v2 형식 가능");
 				return true;
 				
 			} catch (Exception e) {
@@ -1951,6 +2257,81 @@ public class Container {
 			return null;
 		}
 		/**
+		 * 1:1:4 v2 형식 비트맵 이미지를 해석
+		 * @param bmp
+		 * @param shift: 출력물 픽셀 밀기
+		 * @param xors: 출력물 xor 연산 수행
+		 * @return
+		 * @throws Exception
+		 */
+		private static WithTarget fromBitmap114v2(BufferedImage bmp, int shift, int[] xors) {
+			logger.info("\nWithTarget.fromBitmap 1:1:4 v2");
+			
+			int width  = bmp.getWidth();
+			int height = bmp.getHeight();
+			logger.info("input size: " + width + " x " + height);
+			
+			int xSize = width / 2, ySize = height / 2;
+			
+			try {
+				int a, an, bn, cn, ap;
+				
+				BufferedImage targetImage = new BufferedImage(xSize, ySize, BufferedImage.TYPE_3BYTE_BGR);
+				BufferedImage dataImage   = new BufferedImage(xSize, ySize, BufferedImage.TYPE_3BYTE_BGR);
+				
+				for (int y = 0; y < ySize; y++) {
+					for (int x = 0; x < xSize; x++) {
+						if (ROTATE) {
+							if (x % 2 == 0) {
+								if (y % 2 == 0) {
+									a  = bmp.getRGB(2*x  , 2*y  );
+									bn = bmp.getRGB(2*x+1, 2*y  );
+									cn = bmp.getRGB(2*x+1, 2*y+1);
+									an = bmp.getRGB(2*x  , 2*y+1);
+								} else {
+									an = bmp.getRGB(2*x  , 2*y  );
+									a  = bmp.getRGB(2*x+1, 2*y  );
+									bn = bmp.getRGB(2*x+1, 2*y+1);
+									cn = bmp.getRGB(2*x  , 2*y+1);
+								}
+							} else {
+								if (y % 2 == 0) {
+									cn = bmp.getRGB(2*x  , 2*y  );
+									an = bmp.getRGB(2*x+1, 2*y  );
+									a  = bmp.getRGB(2*x+1, 2*y+1);
+									bn = bmp.getRGB(2*x  , 2*y+1);
+								} else {
+									bn = bmp.getRGB(2*x  , 2*y  );
+									cn = bmp.getRGB(2*x+1, 2*y  );
+									an = bmp.getRGB(2*x+1, 2*y+1);
+									a  = bmp.getRGB(2*x  , 2*y+1);
+								}
+							}
+						} else {
+							a  = bmp.getRGB(2*x  , 2*y  );
+							bn = bmp.getRGB(2*x+1, 2*y  );
+							cn = bmp.getRGB(2*x  , 2*y+1);
+							an = bmp.getRGB(2*x+1, 2*y+1);
+						}
+						ap = getAp(a, an);
+						
+						targetImage.setRGB(x, y, a);
+						dataImage  .setRGB(x, y, getD(bn2b(bn, ap), cn2c(cn, ap)));
+					}
+				}
+				List<Container> containers = Container.fromBitmap(dataImage, shift, xors);
+				if (containers.size() > 0) {
+					return new WithTarget(targetImage, containers, TYPE_114v2);
+				}
+				
+			} catch (Exception e) {
+				logger.info("이미지 해석 실패");
+				logger.debug(e);
+			}
+			
+			return null;
+		}
+		/**
 		 * 1:4:9 형식 비트맵 이미지를 해석
 		 * @param bmp
 		 * @param shift: 출력물 픽셀 밀기
@@ -2184,6 +2565,10 @@ public class Container {
 			
 			// 1:1:4 형식으로 시도
 			if (((possibility & CAN_114) > 0) && (result = fromBitmap114(bmp, shift, xors)) != null) {
+				return result;
+			}
+			// 1:1:4 v2 형식으로 시도 - 여기에서 1:1:4 형식도 해석이 가능하므로 후순위로
+			if (((possibility & CAN_114v2) > 0) && (result = fromBitmap114v2(bmp, shift, xors)) != null) {
 				return result;
 			}
 			// 1:4:9 형식으로 시도

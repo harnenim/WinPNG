@@ -193,11 +193,12 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	             , panelOutput = new JPanel(new BorderLayout());
 	private JLabel ivTarget = new JLabel(), jlTarget = new JLabel(), jlRatio = new JLabel()
 	             , ivOutput = new JLabel(), jlOutput = new JLabel(), jlPw = new JLabel(), jlWidth = new JLabel();
-	private JRadioButton rbTarget429 = new JRadioButton();
-	private JRadioButton rbTarget114 = new JRadioButton();
-	private JRadioButton rbTarget238 = new JRadioButton();
-	private JRadioButton rbTarget149 = new JRadioButton();
-	private JRadioButton rbTarget011 = new JRadioButton();
+	private JRadioButton rbTarget429  = new JRadioButton();
+	private JRadioButton rbTarget114v2= new JRadioButton();
+	private JRadioButton rbTarget114  = new JRadioButton();
+	private JRadioButton rbTarget238  = new JRadioButton();
+	private JRadioButton rbTarget149  = new JRadioButton();
+	private JRadioButton rbTarget011  = new JRadioButton();
 	private ButtonGroup rbGroupTarget = new ButtonGroup();
 	private JTextField tfRatioW = new JTextField("16"), tfRatioH = new JTextField("9"), tfPw = new JTextField(""), tfWidth = new JTextField("0");
 	private JButton btnSave = new MyButton(this), btnCopy = new MyButton(this);
@@ -277,7 +278,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				logger.log(L.ERROR, "로그 레벨 설정 가져오기 실패");
 				logger.log(L.DEBUG, e); // 기본 로깅 수준은 DEBUG
 			}
-			logger.set(System.out, L.INFO); // 로그 파일과 별개로 콘솔에는 INFO로 찍음
+			logger.set(System.out, L.DEBUG); // 로그 파일과 별개로 콘솔에는 INFO로 찍음
 			
 			// 창 위치
 			try {
@@ -304,6 +305,10 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				String useTargetImage = props.getProperty("useTargetImage");
 				if ("429".equals(useTargetImage)) {
 					rbTarget429.setSelected(true);
+					tfRatioW.setEditable(false);
+					tfRatioH.setEditable(false);
+				} else if ("114v2".equals(useTargetImage)) {
+					rbTarget114v2.setSelected(true);
 					tfRatioW.setEditable(false);
 					tfRatioH.setEditable(false);
 				} else if ("114".equals(useTargetImage)) {
@@ -388,16 +393,17 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			ivTarget.setToolTipText(Strings.get("Ctrl+V로 이미지를 적용할 수 있습니다."));
 			ivOutput.setToolTipText(Strings.get("Ctrl+C로 복사할 수 있습니다."));
 			jlTarget.setText(Strings.get("입력 이미지"));
-			rbTarget429.setText("4:2:9");
-			rbTarget114.setText("1:1:4");
-			rbTarget238.setText("2:3:8");
-			rbTarget149.setText("1:4:9");
-			rbTarget011.setText(Strings.get("사용 안 함"));
-//			rbTarget429.setText("78%");
-//			rbTarget114.setText("75%");
-//			rbTarget238.setText("63%");
-//			rbTarget149.setText("56%");
-//			rbTarget011.setText("X");
+			rbTarget429  .setText("4:2:9");
+			rbTarget114v2.setText("114v2");
+			rbTarget114  .setText("1:1:4");
+			rbTarget238  .setText("2:3:8");
+			rbTarget149  .setText("1:4:9");
+//			rbTarget011  .setText(Strings.get("사용 안 함"));
+//			rbTarget429  .setText("78%");
+//			rbTarget114  .setText("75%");
+//			rbTarget238  .setText("63%");
+//			rbTarget149  .setText("56%");
+			rbTarget011  .setText("X");
 			jlRatio.setText("  " + Strings.get("비율") + ": ");
 			jlOutput.setText(Strings.get("출력 이미지"));
 			jlPw.setText(Strings.get("비밀번호 걸기") + " ");
@@ -448,11 +454,13 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 						panelTarget.add(jlTarget, BorderLayout.NORTH);
 						panelTarget.add(ivTarget, BorderLayout.CENTER);
 //						panelRadio.add(rbTarget429); // 그냥 뺄까...?
+						panelRadio.add(rbTarget114v2);
 						panelRadio.add(rbTarget114);
 						panelRadio.add(rbTarget238);
 						panelRadio.add(rbTarget149);
 						panelRadio.add(rbTarget011);
 						rbGroupTarget.add(rbTarget429);
+						rbGroupTarget.add(rbTarget114v2);
 						rbGroupTarget.add(rbTarget114);
 						rbGroupTarget.add(rbTarget238);
 						rbGroupTarget.add(rbTarget149);
@@ -514,10 +522,10 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			lvFiles.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 			lvFiles.setDragEnabled(true);
 			
-			for (Component c : new Component[] { this, lvFiles, tfRatioW, tfRatioH, tfPw, tfWidth, tfPngFile, rbTarget429, rbTarget114, rbTarget238, rbTarget149, rbTarget011 }) {
+			for (Component c : new Component[] { this, lvFiles, tfRatioW, tfRatioH, tfPw, tfWidth, tfPngFile, rbTarget429, rbTarget114v2, rbTarget114, rbTarget238, rbTarget149, rbTarget011 }) {
 				c.addKeyListener(this);
 			}
-			for (AbstractButton c : new AbstractButton[] { rbTarget429, rbTarget114, rbTarget238, rbTarget149, rbTarget011 }) {
+			for (AbstractButton c : new AbstractButton[] { rbTarget429, rbTarget114v2, rbTarget114, rbTarget238, rbTarget149, rbTarget011 }) {
 				c.addActionListener(this);
 			}
 			
@@ -612,6 +620,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		props.setProperty("exportDir", tfExportDir.getText());
 		if (rbTarget429.isSelected()) {
 			props.setProperty("useTargetImage", "429");
+		} else if (rbTarget114v2.isSelected()) {
+			props.setProperty("useTargetImage", "114v2");
 		} else if (rbTarget114.isSelected()) {
 			props.setProperty("useTargetImage", "114");
 		} else if (rbTarget238.isSelected()) {
@@ -718,6 +728,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 						String password = tfPw.getText();
 						if (rbTarget429.isSelected()) {
 							outputImage = new Container.WithTarget(targetImage, containers).toBitmap429(minWidth, password);
+						} else if (rbTarget114v2.isSelected()) {
+							outputImage = new Container.WithTarget(targetImage, containers).toBitmap114v2(minWidth, password);
 						} else if (rbTarget114.isSelected()) {
 							outputImage = new Container.WithTarget(targetImage, containers).toBitmap114(minWidth, password);
 						} else if (rbTarget238.isSelected()) {
@@ -909,6 +921,12 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					tfRatioH.setEditable(false);
 					break;
 				}
+				case Container.WithTarget.TYPE_114v2: {
+					rbTarget114v2.setSelected(true);
+					tfRatioW.setEditable(false);
+					tfRatioH.setEditable(false);
+					break;
+				}
 				case Container.WithTarget.TYPE_114: {
 					rbTarget114.setSelected(true);
 					tfRatioW.setEditable(false);
@@ -964,7 +982,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				File newPng = new File(path);
 				updateTarget(ImageIO.read(newPng));
 			}
-			if (rbTarget429.isSelected() || rbTarget114.isSelected() || rbTarget238.isSelected() || rbTarget149.isSelected()) {
+			if (rbTarget429.isSelected() || rbTarget114v2.isSelected() || rbTarget114.isSelected() || rbTarget238.isSelected() || rbTarget149.isSelected()) {
 				updateOutput();
 			}
 			return true;
@@ -996,7 +1014,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					openBitmap(image);
 				} else {
 					updateTarget(image);
-					if (rbTarget429.isSelected() || rbTarget114.isSelected() || rbTarget238.isSelected() || rbTarget149.isSelected()) {
+					if (rbTarget429.isSelected() || rbTarget114v2.isSelected() || rbTarget114.isSelected() || rbTarget238.isSelected() || rbTarget149.isSelected()) {
 						updateOutput();
 					}
 				}
@@ -1330,6 +1348,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			copyToClipboard();
 			
 		} else if (target == rbTarget429
+				|| target == rbTarget114v2
 				|| target == rbTarget114
 				|| target == rbTarget238
 				|| target == rbTarget149
