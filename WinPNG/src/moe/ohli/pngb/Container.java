@@ -907,6 +907,10 @@ public class Container {
 					int binaryLength = 0xFFFFFF & bmp.getRGB((shift+1) % width, offsetY);
 					logger.debug("pathLength  : " + toHex(pathLength  , 8));
 					logger.debug("binaryLength: " + toHex(binaryLength, 8));
+					if (pathLength > 255) {
+						logger.error("잘못된 경로 길이: " + pathLength);
+						break;
+					}
 					if (xors.length > 0) {
 						logger.debug("xors0       : " + toHex(xors[ shift    % xors.length], 8));
 						logger.debug("xors1       : " + toHex(xors[(shift+1) % xors.length], 8));
