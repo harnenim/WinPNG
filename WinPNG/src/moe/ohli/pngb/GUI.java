@@ -817,8 +817,6 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	private boolean openPng(String path, String key) {
 		logger.info("openPng: " + path);
 		
-		// TODO: 트위터 이미지 URL orig 변환 넣어야 함
-		
 		try {
 			BufferedImage bmp = null;
 			
@@ -829,6 +827,45 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				bmp = ImageIO.read(fileFromUrl(path));
 				
 			} else if (path.indexOf("https:") >= 0) {
+				if (path.startsWith("https://pbs.twimg.com/media/")) {
+					logger.info("트위터 이미지 URL");
+					String[] params = null;
+					int index = path.indexOf("?");
+					if (index > 0) {
+						params = path.substring(index + 1).split("&");
+						path = path.substring(0, index);
+					}
+					if (path.indexOf(".", 28) < 0) {
+						if (index < 0) {
+							return false;
+						}
+						boolean isPng = false;
+						for (String param : params) {
+							if (param.startsWith("format=")) {
+								if (param.substring(7).toLowerCase().equals("png")) {
+									isPng = true;
+									break;
+								} else {
+									logger.warn("PNG가 아님");
+									return false;
+								}
+							}
+						}
+						if (isPng) {
+							tfPngFile.setText(path = path + ".png:orig");
+						} else {
+							logger.warn("이미지 종류를 알 수 없음");
+							return false;
+						}
+						
+					} else {
+						if (!path.substring(path.indexOf(".", 28) + 1).toLowerCase().startsWith("png")) {
+							logger.warn("PNG가 아님");
+							return false;
+						}
+					}
+				}
+				
 				path = path.substring(path.indexOf("https:")).replace('\\', '/').replace(":/", "://").replace("///", "//");
 				try {
 					bmp = ImageIO.read(fileFromUrl(path));
