@@ -1078,16 +1078,17 @@ public class Container {
 	 *
 	 */
 	public static class WithTarget {
-		public static final int TYPE_114 = 1;
-		public static final int TYPE_149 = 2;
-		public static final int TYPE_238 = 3;
-		public static final int TYPE_429 = 4;
+		public static final int TYPE_114v1 = 1;
+		public static final int TYPE_149   = 2;
+		public static final int TYPE_238   = 3;
+		public static final int TYPE_429   = 4;
 		public static final int TYPE_114v2 = 5;
 		public static final int TYPE_114v3 = 6;
+		public static final int TYPE_114 = TYPE_114v3;
 		
 		public BufferedImage targetImage; // 출력물을 꾸며줄 이미지
 		public List<Container> containers; // 컨테이너 목록
-		public int type = TYPE_114;
+		public int type = TYPE_114v3;
 
 		public WithTarget(BufferedImage targetImage, List<Container> containers) {
 			this.targetImage = targetImage;
@@ -1209,10 +1210,14 @@ public class Container {
 		 * @param bx
 		 * @return
 		 */
-		private static int getBp2(int ax, int dx, int bx) {
+		private static int getBp2x(int ax, int dx, int bx) {
 			return (ax < 0x80 == dx < 0x80) ? 0x80 : ((0x280 + ax - 2*dx) / 8 * 2 + 1);
-//			return (ax < 0x80 == dx < 0x80) ? 0x80 : ((0xFF + ax - bx) / 4 * 2 + 1);
-//			return (ax < 0x80 == dx < 0x80) ? 0x80 : (((ax < 0x80 ? 0x2C0 : 0x240) + ax - 2*dx) / 8 * 2 + 1);
+		}
+		@SuppressWarnings("unused")
+		private static int getBp2(int a, int d, int b) {
+			return ( ((((a&0x800000) ^ (d&0x800000)) == 0x800000) ? 0x800000 : (((0x2800000 + (a&0xFF0000) - 2*(d&0xFF0000)) >> 2) | 0x010000))
+			       | ((((a&0x008000) ^ (d&0x008000)) == 0x008000) ? 0x008000 : (((0x0028000 + (a&0x00FF00) - 2*(d&0x00FF00)) >> 2) | 0x000100))
+			       | ((((a&0x000080) ^ (d&0x000080)) == 0x000080) ? 0x000080 : (((0x0000280 + (a&0x0000FF) - 2*(d&0x0000FF)) >> 2) | 0x000001)) );
 		}
 		/**
 		 * a와 c의 차이가 클 경우의 보정값(짝수) + 0x80(음수가 나오지 않도록 함)
@@ -1221,10 +1226,8 @@ public class Container {
 		 * @param cx
 		 * @return
 		 */
-		private static int getCp2(int ax, int dx, int cx) {
+		private static int getCp2x(int ax, int dx, int cx) {
 			return (ax < 0x80 != dx < 0x80) ? 0x80 : ((0x80 + ax + 2*dx) / 8 * 2);
-//			return (ax < 0x80 != dx < 0x80) ? 0x80 : ((0xFF + ax - cx) / 4 * 2);
-//			return (ax < 0x80 != dx < 0x80) ? 0x80 : (((ax < 0x80 ? 0xC0 : 0x40) + ax + 2*dx) / 8 * 2);
 		}
 		/**
 		 * b 혹은 c의 보정값에 반대되는 a의 보정값 + 0x80(음수가 나오지 않도록 함)
@@ -1234,96 +1237,157 @@ public class Container {
 		 * @param dx
 		 * @return
 		 */
-		private static int getAp2(int ax, int bx, int cx, int dx) {
-			return 0x180 - getBp2(ax, dx, bx) - getCp2(ax, dx, cx);
+		private static int getAp2x(int ax, int bx, int cx, int dx) {
+			return 0x180 - getBp2x(ax, dx, bx) - getCp2x(ax, dx, cx);
 		}
 		private static int getBv2(int a, int d, int b) {
-			return ( ((b&0xFF0000) + (getBp2((a >> 16) & 0xFF, (d >> 16) & 0xFF, (b >> 16) & 0xFF) << 16) - 0x800000)
-			       | ((b&0x00FF00) + (getBp2((a >>  8) & 0xFF, (d >>  8) & 0xFF, (b >>  8) & 0xFF) <<  8) - 0x008000)
-			       | ((b&0x0000FF) + (getBp2((a >>  0) & 0xFF, (d >>  0) & 0xFF, (b >>  0) & 0xFF) <<  0) - 0x000080) );
+			return ( ((b&0xFF0000) + (getBp2x((a >> 16) & 0xFF, (d >> 16) & 0xFF, (b >> 16) & 0xFF) << 16) - 0x800000)
+			       | ((b&0x00FF00) + (getBp2x((a >>  8) & 0xFF, (d >>  8) & 0xFF, (b >>  8) & 0xFF) <<  8) - 0x008000)
+			       | ((b&0x0000FF) + (getBp2x((a >>  0) & 0xFF, (d >>  0) & 0xFF, (b >>  0) & 0xFF) <<  0) - 0x000080) );
 		}
 		private static int getCv2(int a, int d, int c) {
-			return ( ((c&0xFF0000) + (getCp2((a >> 16) & 0xFF, (d >> 16) & 0xFF, (c >> 16) & 0xFF) << 16) - 0x800000)
-			       | ((c&0x00FF00) + (getCp2((a >>  8) & 0xFF, (d >>  8) & 0xFF, (c >>  8) & 0xFF) <<  8) - 0x008000)
-			       | ((c&0x0000FF) + (getCp2((a >>  0) & 0xFF, (d >>  0) & 0xFF, (c >>  0) & 0xFF) <<  0) - 0x000080) );
+			return ( ((c&0xFF0000) + (getCp2x((a >> 16) & 0xFF, (d >> 16) & 0xFF, (c >> 16) & 0xFF) << 16) - 0x800000)
+			       | ((c&0x00FF00) + (getCp2x((a >>  8) & 0xFF, (d >>  8) & 0xFF, (c >>  8) & 0xFF) <<  8) - 0x008000)
+			       | ((c&0x0000FF) + (getCp2x((a >>  0) & 0xFF, (d >>  0) & 0xFF, (c >>  0) & 0xFF) <<  0) - 0x000080) );
 		}
 		private static int getAv2(int a, int b, int c, int d) {
-			return ( ((a&0xFF0000) + (getAp2((a >> 16) & 0xFF, (b >> 16) & 0xFF, (c >> 16) & 0xFF, (d >> 16) & 0xFF) << 16) - 0x800000)
-			       | ((a&0x00FF00) + (getAp2((a >>  8) & 0xFF, (b >>  8) & 0xFF, (c >>  8) & 0xFF, (d >>  8) & 0xFF) <<  8) - 0x008000)
-			       | ((a&0x0000FF) + (getAp2((a >>  0) & 0xFF, (b >>  0) & 0xFF, (c >>  0) & 0xFF, (d >>  0) & 0xFF) <<  0) - 0x000080) );
+			return ( ((a&0xFF0000) + (getAp2x((a >> 16) & 0xFF, (b >> 16) & 0xFF, (c >> 16) & 0xFF, (d >> 16) & 0xFF) << 16) - 0x800000)
+			       | ((a&0x00FF00) + (getAp2x((a >>  8) & 0xFF, (b >>  8) & 0xFF, (c >>  8) & 0xFF, (d >>  8) & 0xFF) <<  8) - 0x008000)
+			       | ((a&0x0000FF) + (getAp2x((a >>  0) & 0xFF, (b >>  0) & 0xFF, (c >>  0) & 0xFF, (d >>  0) & 0xFF) <<  0) - 0x000080) );
+		}
+		/*
+		private static int getBp2x(int ap) {
+			return (ap % 2 == 0) ? 0x80 : (0x100 - ap); 
+		}
+		private static int getCp2x(int ap) {
+			return (ap % 2 == 1) ? 0x80 : (0x100 - ap); 
+		}
+		*/
+		private static int getAp(int a, int an) {
+			return 0x808080 + an - a;
 		}
 		/**
 		 * a 보정값이 짝수일 경우 b 보정값의 역
+		 * @param bn
 		 * @param ap
 		 * @return
 		 */
-		private static int getBp2(int ap) {
-			return (ap % 2 == 0) ? 0x80 : (0x100 - ap); 
+		private static int b2toB(int bn, int ap) {
+			return 0x808080 + bn
+//					- (getBp2x((ap >> 16) & 0xFF) << 16)
+//					- (getBp2x((ap >>  8) & 0xFF) <<  8)
+//					- (getBp2x((ap >>  0) & 0xFF) <<  0);
+					- (((ap&0x010000) == 0x000000) ? 0x800000 : (0x1000000 - (ap&0xFF0000)))
+					- (((ap&0x000100) == 0x000000) ? 0x008000 : (0x0010000 - (ap&0x00FF00)))
+					- (((ap&0x000001) == 0x000000) ? 0x000080 : (0x0000100 - (ap&0x0000FF)));
 		}
 		/**
 		 * a 보정값이 홀수일 경우 c 보정값의 역
+		 * @param cn
 		 * @param ap
 		 * @return
 		 */
-		private static int getCp2(int ap) {
-			return (ap % 2 == 1) ? 0x80 : (0x100 - ap); 
-		}
-		private static int getAp(int a, int an) {
-			return ( (0x800000 + (an&0xFF0000) - (a&0xFF0000))
-			       | (0x008000 + (an&0x00FF00) - (a&0x00FF00))
-			       | (0x000080 + (an&0x0000FF) - (a&0x0000FF)) );
-		}
-		private static int b2toB(int bn, int ap) {
-			return ( (0x800000 + (bn&0xFF0000) - (getBp2((ap >> 16) & 0xFF) << 16))
-			       | (0x008000 + (bn&0x00FF00) - (getBp2((ap >>  8) & 0xFF) <<  8))
-			       | (0x000080 + (bn&0x0000FF) - (getBp2((ap >>  0) & 0xFF) <<  0)) );
-		}
 		private static int c2toC(int cn, int ap) {
-			return ( (0x800000 + (cn&0xFF0000) - (getCp2((ap >> 16) & 0xFF) << 16))
-			       | (0x008000 + (cn&0x00FF00) - (getCp2((ap >>  8) & 0xFF) <<  8))
-			       | (0x000080 + (cn&0x0000FF) - (getCp2((ap >>  0) & 0xFF) <<  0)) );
+			return 0x808080 + cn
+//					- (getCp2x((ap >> 16) & 0xFF) << 16)
+//					- (getCp2x((ap >>  8) & 0xFF) <<  8)
+//					- (getCp2x((ap >>  0) & 0xFF) <<  0);
+					- (((ap&0x010000) == 0x010000) ? 0x800000 : (0x1000000 - (ap&0xFF0000)))
+					- (((ap&0x000100) == 0x000100) ? 0x008000 : (0x0010000 - (ap&0x00FF00)))
+					- (((ap&0x000001) == 0x000001) ? 0x000080 : (0x0000100 - (ap&0x0000FF)));
 		}
 		
 		// for 1:1:4 v3
-		private static int getBp3(int ax, int bx, int cx, int dx) {
+		/*
+		private static int getBp3x(int ax, int bx, int cx, int dx) {
 			return (ax < 0x80 == dx < 0x80) ? (0xC0 - ((0x080 + ax + 2*dx) / 16 * 4 / 2)) : ((0x280 + ax - 2*dx) / 16 * 4 + 1);
+//			return (ax < 0x80 == dx < 0x80) ? (0xC0 - (((0x080 + ax + 2*dx) >> 3) & 0xFE)) : (((0x280 + ax - 2*dx) >> 2) & 0xFC) + 1;
 		}
-		private static int getCp3(int ax, int bx, int cx, int dx) {
+		private static int getCp3x(int ax, int bx, int cx, int dx) {
 			return (ax < 0x80 != dx < 0x80) ? (0xC0 - ((0x280 + ax - 2*dx) / 16 * 4 / 2)) : ((0x080 + ax + 2*dx) / 16 * 4);
+//			return (ax < 0x80 != dx < 0x80) ? (0xC0 - (((0x280 + ax - 2*dx) >> 3) & 0xFE)) : (((0x080 + ax + 2*dx) >> 2) & 0xFC);
 		}
-		private static int getAp3(int ax, int bx, int cx, int dx) {
-			return 0x180 - getBp3(ax, bx, cx, dx) - getCp3(ax, bx, cx, dx);
+		private static int getAp3x(int ax, int bx, int cx, int dx) {
+			return 0x180 - getBp3x(ax, bx, cx, dx) - getCp3x(ax, bx, cx, dx);
 		}
 		private static int getBv3(int a, int b, int c, int d) {
-			return ( ((b&0xFF0000) + (getBp3((a >> 16) & 0xFF, (b >> 16) & 0xFF, (c >> 16) & 0xFF, (d >> 16) & 0xFF) << 16) - 0x800000)
-			       | ((b&0x00FF00) + (getBp3((a >>  8) & 0xFF, (b >>  8) & 0xFF, (c >>  8) & 0xFF, (d >>  8) & 0xFF) <<  8) - 0x008000)
-			       | ((b&0x0000FF) + (getBp3((a >>  0) & 0xFF, (b >>  0) & 0xFF, (c >>  0) & 0xFF, (d >>  0) & 0xFF) <<  0) - 0x000080) );
+			return ( ((b&0xFF0000) + (getBp3x((a >> 16) & 0xFF, (b >> 16) & 0xFF, (c >> 16) & 0xFF, (d >> 16) & 0xFF) << 16) - 0x800000)
+			       | ((b&0x00FF00) + (getBp3x((a >>  8) & 0xFF, (b >>  8) & 0xFF, (c >>  8) & 0xFF, (d >>  8) & 0xFF) <<  8) - 0x008000)
+			       | ((b&0x0000FF) + (getBp3x((a >>  0) & 0xFF, (b >>  0) & 0xFF, (c >>  0) & 0xFF, (d >>  0) & 0xFF) <<  0) - 0x000080) );
 		}
 		private static int getCv3(int a, int b, int c, int d) {
-			return ( ((c&0xFF0000) + (getCp3((a >> 16) & 0xFF, (b >> 16) & 0xFF, (c >> 16) & 0xFF, (d >> 16) & 0xFF) << 16) - 0x800000)
-			       | ((c&0x00FF00) + (getCp3((a >>  8) & 0xFF, (b >>  8) & 0xFF, (c >>  8) & 0xFF, (d >>  8) & 0xFF) <<  8) - 0x008000)
-			       | ((c&0x0000FF) + (getCp3((a >>  0) & 0xFF, (b >>  0) & 0xFF, (c >>  0) & 0xFF, (d >>  0) & 0xFF) <<  0) - 0x000080) );
+			return ( ((c&0xFF0000) + (getCp3x((a >> 16) & 0xFF, (b >> 16) & 0xFF, (c >> 16) & 0xFF, (d >> 16) & 0xFF) << 16) - 0x800000)
+			       | ((c&0x00FF00) + (getCp3x((a >>  8) & 0xFF, (b >>  8) & 0xFF, (c >>  8) & 0xFF, (d >>  8) & 0xFF) <<  8) - 0x008000)
+			       | ((c&0x0000FF) + (getCp3x((a >>  0) & 0xFF, (b >>  0) & 0xFF, (c >>  0) & 0xFF, (d >>  0) & 0xFF) <<  0) - 0x000080) );
 		}
 		private static int getAv3(int a, int b, int c, int d) {
-			return ( ((a&0xFF0000) + (getAp3((a >> 16) & 0xFF, (b >> 16) & 0xFF, (c >> 16) & 0xFF, (d >> 16) & 0xFF) << 16) - 0x800000)
-			       | ((a&0x00FF00) + (getAp3((a >>  8) & 0xFF, (b >>  8) & 0xFF, (c >>  8) & 0xFF, (d >>  8) & 0xFF) <<  8) - 0x008000)
-			       | ((a&0x0000FF) + (getAp3((a >>  0) & 0xFF, (b >>  0) & 0xFF, (c >>  0) & 0xFF, (d >>  0) & 0xFF) <<  0) - 0x000080) );
+			return ( ((a&0xFF0000) + (getAp3x((a >> 16) & 0xFF, (b >> 16) & 0xFF, (c >> 16) & 0xFF, (d >> 16) & 0xFF) << 16) - 0x800000)
+			       | ((a&0x00FF00) + (getAp3x((a >>  8) & 0xFF, (b >>  8) & 0xFF, (c >>  8) & 0xFF, (d >>  8) & 0xFF) <<  8) - 0x008000)
+			       | ((a&0x0000FF) + (getAp3x((a >>  0) & 0xFF, (b >>  0) & 0xFF, (c >>  0) & 0xFF, (d >>  0) & 0xFF) <<  0) - 0x000080) );
 		}
-		private static int getBp3(int ap) {
-			return (ap % 2 == 0) ? ap : (0x17F - 2*ap); 
+		*/
+		private static int getBp3(int a, int d) {
+			return ( ((((a&0x800000) ^ (d&0x800000)) == 0x000000) ? (0xC00000 - (((0x0800000 + (a&0xFF0000) + 2*(d&0xFF0000)) >> 3) & 0xFE0000)) : (((0x2800000 + (a&0xFF0000) - 2*(d&0xFF0000)) >> 2) & 0xFC0000) | 0x010000)
+			       | ((((a&0x008000) ^ (d&0x008000)) == 0x000000) ? (0x00C000 - (((0x0008000 + (a&0x00FF00) + 2*(d&0x00FF00)) >> 3) & 0x00FE00)) : (((0x0028000 + (a&0x00FF00) - 2*(d&0x00FF00)) >> 2) & 0x00FC00) | 0x000100)
+			       | ((((a&0x000080) ^ (d&0x000080)) == 0x000000) ? (0x0000C0 - (((0x0000080 + (a&0x0000FF) + 2*(d&0x0000FF)) >> 3) & 0x0000FE)) : (((0x0000280 + (a&0x0000FF) - 2*(d&0x0000FF)) >> 2) & 0x0000FC) | 0x000001) );
 		}
-		private static int getCp3(int ap) {
-			return (ap % 2 == 0) ? (0x180 - 2*ap) : ap + 1; 
+		private static int getCp3(int a, int d) {
+			return ( ((((a&0x800000) ^ (d&0x800000)) == 0x800000) ? (0xC00000 - (((0x2800000 + (a&0xFF0000) - 2*(d&0xFF0000)) >> 3) & 0xFE0000)) : (((0x0800000 + (a&0xFF0000) + 2*(d&0xFF0000)) >> 2) & 0xFC0000))
+			       | ((((a&0x008000) ^ (d&0x008000)) == 0x008000) ? (0x00C000 - (((0x0028000 + (a&0x00FF00) - 2*(d&0x00FF00)) >> 3) & 0x00FE00)) : (((0x0008000 + (a&0x00FF00) + 2*(d&0x00FF00)) >> 2) & 0x00FC00))
+			       | ((((a&0x000080) ^ (d&0x000080)) == 0x000080) ? (0x0000C0 - (((0x0000280 + (a&0x0000FF) - 2*(d&0x0000FF)) >> 3) & 0x0000FE)) : (((0x0000080 + (a&0x0000FF) + 2*(d&0x0000FF)) >> 2) & 0x0000FC)) );
+		}
+		private static int getBv3(int b, int bp) { return b + bp - 0x808080; }
+		private static int getCv3(int c, int cp) { return c + cp - 0x808080; }
+		private static int getAv3(int a, int bp, int cp) { return a + 0x1010100 - bp - cp; }
+		/*
+		private static int getBp3x(int apx) {
+//			return (apx % 2 == 0) ? apx : (0x17F - 2*apx);
+			return ((apx&1) == 0) ? apx : (0x17F - (apx<<1));
+		}
+		private static int getCp3x(int apx) {
+//			return (apx % 2 == 0) ? (0x180 - 2*apx) : apx + 1;
+			return ((apx&1) == 0) ? (0x180 - (apx<<1)) : apx + 1;
 		}
 		private static int b3toB(int bn, int ap) {
-			return ( (0x800000 + (bn&0xFF0000) - (getBp3((ap >> 16) & 0xFF) << 16))
-			       | (0x008000 + (bn&0x00FF00) - (getBp3((ap >>  8) & 0xFF) <<  8))
-			       | (0x000080 + (bn&0x0000FF) - (getBp3((ap >>  0) & 0xFF) <<  0)) );
+			return ( (0x800000 + (bn&0xFF0000) - (getBp3x((ap >> 16) & 0xFF) << 16))
+			       | (0x008000 + (bn&0x00FF00) - (getBp3x((ap >>  8) & 0xFF) <<  8))
+			       | (0x000080 + (bn&0x0000FF) - (getBp3x((ap >>  0) & 0xFF) <<  0)) );
 		}
 		private static int c3toC(int cn, int ap) {
-			return ( (0x800000 + (cn&0xFF0000) - (getCp3((ap >> 16) & 0xFF) << 16))
-			       | (0x008000 + (cn&0x00FF00) - (getCp3((ap >>  8) & 0xFF) <<  8))
-			       | (0x000080 + (cn&0x0000FF) - (getCp3((ap >>  0) & 0xFF) <<  0)) );
+			return ( (0x800000 + (cn&0xFF0000) - (getCp3x((ap >> 16) & 0xFF) << 16))
+			       | (0x008000 + (cn&0x00FF00) - (getCp3x((ap >>  8) & 0xFF) <<  8))
+			       | (0x000080 + (cn&0x0000FF) - (getCp3x((ap >>  0) & 0xFF) <<  0)) );
+		}
+		*/
+		/*
+		private static int getBp3(int ap) {
+			return ( (((ap&0x010000) == 0) ? (ap&0xFF0000) : (0x17F0000 - ((ap&0xFF0000)<<1)))
+			       | (((ap&0x000100) == 0) ? (ap&0x00FF00) : (0x0017F00 - ((ap&0x00FF00)<<1)))
+			       | (((ap&0x000001) == 0) ? (ap&0x0000FF) : (0x000017F - ((ap&0x0000FF)<<1))) );
+		}
+		private static int getCp3(int ap) {
+			return ( (((ap&0x010000) == 0) ? (0x1800000 - ((ap&0xFF0000)<<1)) : ((ap&0xFF0000) + 0x010000))
+			       | (((ap&0x000100) == 0) ? (0x0018000 - ((ap&0x00FF00)<<1)) : ((ap&0x00FF00) + 0x000100))
+			       | (((ap&0x000001) == 0) ? (0x0000180 - ((ap&0x0000FF)<<1)) : ((ap&0x0000FF) + 0x000001)) );
+		}
+		private static int b3toB(int bn, int ap) {
+			return 0x808080 + bn - getBp3(ap);
+		}
+		private static int c3toC(int cn, int ap) {
+			return 0x808080 + cn - getCp3(ap);
+		}
+		*/
+		private static int b3toB(int bn, int ap) {
+			return 0x808080 + bn
+					- (((ap&0x010000) == 0) ? (ap&0xFF0000) : (0x17F0000 - ((ap&0xFF0000)<<1)))
+					- (((ap&0x000100) == 0) ? (ap&0x00FF00) : (0x0017F00 - ((ap&0x00FF00)<<1)))
+					- (((ap&0x000001) == 0) ? (ap&0x0000FF) : (0x000017F - ((ap&0x0000FF)<<1)));
+		}
+		private static int c3toC(int cn, int ap) {
+			return 0x808080 + cn
+					- (((ap&0x010000) == 0) ? (0x1800000 - ((ap&0xFF0000)<<1)) : ((ap&0xFF0000) + 0x010000))
+					- (((ap&0x000100) == 0) ? (0x0018000 - ((ap&0x00FF00)<<1)) : ((ap&0x00FF00) + 0x000100))
+					- (((ap&0x000001) == 0) ? (0x0000180 - ((ap&0x0000FF)<<1)) : ((ap&0x0000FF) + 0x000001));
 		}
 		
 		private static String padRGB(int value) {
@@ -1333,21 +1397,25 @@ public class Container {
 		public static void main(String[] args) {
 			logger.set(System.out, Logger.L.DEBUG);
 			
+			int a, b, c, d;
+			int bp, cp, ap;
+			int bn, cn, an;
+			
 			for (int i = 0; i < 10; i++) {
 				logger.info("─────────────────────");
 				logger.info("");
 				
-				int a = (int) (Math.random() * 0x1000000);
-				int d = (int) (Math.random() * 0x1000000);
-				int b = getB(a, d);
-				int c = getC(a, d);
+				a = (int) (Math.random() * 0x1000000);
+				d = (int) (Math.random() * 0x1000000);
+				b = getB(a, d);
+				c = getC(a, d);
 				logger.info("a: " + padRGB(a) + " / d: " + padRGB(d));
 				logger.info("b: " + padRGB(b) + " / c: " + padRGB(c));
 				
 				/*
-				int bn = getBv2(a, d, b);
-				int cn = getCv2(a, d, c);
-				int an = getAv2(a, b, c, d);
+				bn = getBv2(a, d, b);
+				cn = getCv2(a, d, c);
+				an = getAv2(a, b, c, d);
 				
 				logger.info("bn:" + padRGB(bn) + " / cn:" + padRGB(cn) + " / an:" + padRGB(an));
 				logger.info("");
@@ -1362,14 +1430,34 @@ public class Container {
 				logger.info("");
 				*/
 				
-				int bn = getBv3(a, b, c, d);
-				int cn = getCv3(a, b, c, d);
-				int an = getAv3(a, b, c, d);
+				/*
+				bn = getBv3(a, b, c, d);
+				cn = getCv3(a, b, c, d);
+				an = getAv3(a, b, c, d);
 				
 				logger.info("bn:" + padRGB(bn) + " / cn:" + padRGB(cn) + " / an:" + padRGB(an));
 				logger.info("");
 				
-				int ap = getAp(a, an);
+				ap = getAp(a, an);
+				b = b3toB(bn, ap);
+				c = c3toC(cn, ap);
+				d = getD(b, c);
+				logger.info("a: " + padRGB(a) + " / d: " + padRGB(d));
+				logger.info("b: " + padRGB(b) + " / c: " + padRGB(c));
+				logger.info("isValid: " + isValid(a, b, c, d));
+				logger.info("");
+				*/
+				
+				bp = getBp3(a, d);
+				cp = getCp3(a, d);
+				bn = getBv3(b, bp);
+				cn = getCv3(c, cp);
+				an = getAv3(a, bp, cp);
+				
+				logger.info("bn:" + padRGB(bn) + " / cn:" + padRGB(cn) + " / an:" + padRGB(an));
+				logger.info("");
+				
+				ap = getAp(a, an);
 				b = b3toB(bn, ap);
 				c = c3toC(cn, ap);
 				d = getD(b, c);
@@ -1401,6 +1489,8 @@ public class Container {
 				return toBitmap149(minWidth);
 			case TYPE_238:
 				return toBitmap238(minWidth);
+			case TYPE_114v1:
+				return toBitmap114v1(minWidth);
 			case TYPE_114v2:
 				return toBitmap114v2(minWidth);
 			case TYPE_114v3:
@@ -1416,7 +1506,7 @@ public class Container {
 		 * @throws Exception
 		 */
 		public BufferedImage toBitmap114(int minWidth) throws Exception {
-			return toBitmap114(minWidth, 0, new int[0]);
+			return toBitmap114v3(minWidth, 0, new int[0]);
 		}
 		/**
 		 * 이미지1:컨테이너1:결과물4 이미지로 변환
@@ -1427,10 +1517,31 @@ public class Container {
 		 * @throws Exception
 		 */
 		public BufferedImage toBitmap114(int minWidth, String key) throws Exception {
-			return toBitmap114(minWidth, getShift(key), getXors(key));
+			return toBitmap114v3(minWidth, getShift(key), getXors(key));
 		}
 		/**
-		 * 이미지1:컨테이너1:결과물4 이미지로 변환
+		 * 이미지1:컨테이너1:결과물4 v1 이미지로 변환
+		 * 
+		 * @param minWidth: 최소 폭
+		 * @return 비트맵 이미지
+		 * @throws Exception
+		 */
+		public BufferedImage toBitmap114v1(int minWidth) throws Exception {
+			return toBitmap114v1(minWidth, 0, new int[0]);
+		}
+		/**
+		 * 이미지1:컨테이너1:결과물4 v1 이미지로 변환
+		 * 
+		 * @param minWidth: 최소 폭
+		 * @param key: 암호화 키
+		 * @return 비트맵 이미지
+		 * @throws Exception
+		 */
+		public BufferedImage toBitmap114v1(int minWidth, String key) throws Exception {
+			return toBitmap114v1(minWidth, getShift(key), getXors(key));
+		}
+		/**
+		 * 이미지1:컨테이너1:결과물4 v1 이미지로 변환
 		 * 
 		 * @param minWidth: 최소 폭
 		 * @param shift: 출력물 픽셀 밀기
@@ -1438,8 +1549,8 @@ public class Container {
 		 * @return 비트맵 이미지
 		 * @throws Exception
 		 */
-		public BufferedImage toBitmap114(int minWidth, int shift, int[] xors) throws Exception {
-			logger.info("\nWithTarget.toBitmap114");
+		public BufferedImage toBitmap114v1(int minWidth, int shift, int[] xors) throws Exception {
+			logger.info("\nWithTarget.toBitmap114 v1");
 			BufferedImage dataImage = toBitmapTwice(containers, minWidth / 2, getRatio(), shift, xors);
 			int w = dataImage.getWidth(), h = dataImage.getHeight();
 			
@@ -1594,18 +1705,25 @@ public class Container {
 			 */
 			
 			BufferedImage result = new BufferedImage(w*2, h*2, BufferedImage.TYPE_3BYTE_BGR);
-			int a, b, c, d;
+//			int a, b, c, d;
+			int a, d, bp, cp;
 			
 			for (int y = 0; y < h; y++) {
 				for (int x = 0; x < w; x++) {
 					a = 0xFFFFFF & resizedTargetImage.getRGB(x, y);
 					d = 0xFFFFFF & dataImage.getRGB(x, y);
+					/*
 					b = getB(a, d);
 					c = getC(a, d);
 					result.setRGB(2*x  , 2*y  , a);
 					result.setRGB(2*x+1, 2*y  , getBv3(a, b, c, d));
 					result.setRGB(2*x  , 2*y+1, getCv3(a, b, c, d));
 					result.setRGB(2*x+1, 2*y+1, getAv3(a, b, c, d));
+					*/
+					result.setRGB(2*x  , 2*y  , a);
+					result.setRGB(2*x+1, 2*y  , getBv3(getB(a, d), bp = getBp3(a, d)));
+					result.setRGB(2*x  , 2*y+1, getCv3(getC(a, d), cp = getCp3(a, d)));
+					result.setRGB(2*x+1, 2*y+1, getAv3(a, bp, cp));
 				}
 			}
 			
@@ -1853,10 +1971,10 @@ public class Container {
 		
 		private static final int CHECKSUM_SAMPLE_COUNT = 10; // 패리티 검증 체크섬 샘플 개수
 		public static final int CAN_PROTOTYPE = 1;
-		public static final int CAN_114 = 1 << TYPE_114;
-		public static final int CAN_149 = 1 << TYPE_149;
-		public static final int CAN_238 = 1 << TYPE_238;
-		public static final int CAN_429 = 1 << TYPE_429;
+		public static final int CAN_114v1 = 1 << TYPE_114v1;
+		public static final int CAN_149   = 1 << TYPE_149;
+		public static final int CAN_238   = 1 << TYPE_238;
+		public static final int CAN_429   = 1 << TYPE_429;
 		public static final int CAN_114v2 = 1 << TYPE_114v2;
 		public static final int CAN_114v3 = 1 << TYPE_114v3;
 		/**
@@ -1869,7 +1987,7 @@ public class Container {
 			try { if (canPrototype(bmp)) { result |= CAN_PROTOTYPE; } } catch (Exception e) { logger.debug(e); }
 			try { if (can114v3    (bmp)) { result |= CAN_114v3;     } } catch (Exception e) { logger.debug(e); }
 			try { if (can114v2    (bmp)) { result |= CAN_114v2;     } } catch (Exception e) { logger.debug(e); }
-			try { if (can114      (bmp)) { result |= CAN_114;       } } catch (Exception e) { logger.debug(e); }
+			try { if (can114      (bmp)) { result |= CAN_114v1;     } } catch (Exception e) { logger.debug(e); }
 			try { if (can149      (bmp)) { result |= CAN_149;       } } catch (Exception e) { logger.debug(e); }
 			try { if (can238      (bmp)) { result |= CAN_238;       } } catch (Exception e) { logger.debug(e); }
 			try { if (can429      (bmp)) { result |= CAN_429;       } } catch (Exception e) { logger.debug(e); }
@@ -2319,7 +2437,7 @@ public class Container {
 				}
 				List<Container> containers = Container.fromBitmap(dataImage);
 				if (containers.size() > 0) {
-					return new WithTarget(targetImage, containers, TYPE_114);
+					return new WithTarget(targetImage, containers, TYPE_114v1);
 				}
 				
 			} catch (Exception e) {
@@ -2378,7 +2496,7 @@ public class Container {
 				}
 				List<Container> containers = Container.fromBitmap(dataImage, shift, xors);
 				if (containers.size() > 0) {
-					return new WithTarget(targetImage, containers, TYPE_114);
+					return new WithTarget(targetImage, containers, TYPE_114v1);
 				}
 				
 			} catch (Exception e) {
@@ -2713,17 +2831,17 @@ public class Container {
 		public static WithTarget fromBitmap(BufferedImage bmp, int possibility, int shift, int[] xors) {
 			logger.info("\nWithTarget.fromBitmap");
 			WithTarget result;
-
-			// 1:1:4 형식으로 시도
-			if (((possibility & CAN_114) > 0) && (result = fromBitmap114(bmp, shift, xors)) != null) {
-				return result;
-			}
+			
 			// 1:1:4 v3 형식으로 시도
 			if (((possibility & CAN_114v3) > 0) && (result = fromBitmap114v3(bmp, shift, xors)) != null) {
 				return result;
 			}
-			// 1:1:4 v2 형식으로 시도 - 여기에서 1:1:4 형식도 해석이 가능하므로 후순위로
+			// 1:1:4 v2 형식으로 시도
 			if (((possibility & CAN_114v2) > 0) && (result = fromBitmap114v2(bmp, shift, xors)) != null) {
+				return result;
+			}
+			// 1:1:4 v1 형식으로 시도
+			if (((possibility & CAN_114v1) > 0) && (result = fromBitmap114(bmp, shift, xors)) != null) {
 				return result;
 			}
 			// 1:4:9 형식으로 시도
@@ -2738,6 +2856,11 @@ public class Container {
 			if (((possibility & CAN_429) > 0) && (result = fromBitmap429(bmp, shift, xors)) != null) {
 				return result;
 			}
+			// 레거시 1:1:4 형식으로 시도
+			if ((possibility & CAN_PROTOTYPE) > 0) {
+				logger.info("현행 방식으로 해석 실패했을 경우, 개발 도중 레거시 형식으로 재시도");
+				return fromBitmapPrototype(bmp, false);
+			}
 			
 			logger.info("Without target 해석 시도");
 			try {
@@ -2749,10 +2872,6 @@ public class Container {
 				logger.error(e);
 			}
 			
-			if ((possibility & CAN_PROTOTYPE) > 0) {
-				logger.info("현행 방식으로 해석 실패했을 경우, 개발 도중 레거시 형식으로 재시도");
-				return fromBitmapPrototype(bmp, false);
-			}
 			return null;
 		}
 	}
