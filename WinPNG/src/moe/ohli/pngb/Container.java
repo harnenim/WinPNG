@@ -39,7 +39,20 @@ public class Container {
 	}
 	private static final double RATIO = 9 / 16.0;
 	
-	public String path;   // 상대경로
+	private static int pathLengthToRGB(int pathLength) {
+		// 경로 길이를 그대로 쓰면 RG가 0으로 고정돼버림
+//		return pathLength & 0xFF;
+		// 1바이트를 R3-G2-B3비트로 분배하고 여분은 랜덤으로 채움 
+		return ((pathLength << 11)&0x070000) | ((pathLength << 5)&0x000300) | (pathLength&0x000007) | (0xF8FCF8 & (int) (Math.random() * 0xFFFFFF));
+	}
+	private static int pathLengthFromRGB(int rgb) {
+		if ((rgb&0xFFFF00) == 0) {
+			return rgb & 0xFF; // 레거시 지원
+		}
+		return ((rgb&0x070000) >> 11) | ((rgb&0x000300) >> 5) | (rgb&0x000007);
+	}
+	
+	public String path;   // 상대경로(255자로 제한)
 	public byte[] binary; // 파일 내용물
 	
 	/**
@@ -53,8 +66,8 @@ public class Container {
 		if (!file.isFile()) {
 			throw new Exception("파일이 아닙니다.");
 		}
-		if (file.length() > 10485760) {
-			throw new Exception("10MB를 초과합니다.");
+		if (file.length() > 0xFFFFFF) {
+			throw new Exception("16MB 미만의 파일만 지원합니다.");
 		}
 		
 		this.path = path;
@@ -84,7 +97,7 @@ public class Container {
 	 * @param offset: 특정 위치부터 읽어오기
 	 */
 	public Container(byte[] bytes, int offset) {
-		int pathLength   = threeBytesToInt(bytes, offset);
+		int pathLength   = threeBytesToInt(bytes, offset) & 0xFF;
 		int binaryLength = threeBytesToInt(bytes, offset + 4);
 		try {
 			offset += 8;
@@ -122,8 +135,8 @@ public class Container {
 				rgbs[i] ^= xors[i % xors.length];
 			}
 		}
-		int pathLength   = rgbs[ shift    % rgbs.length] & 0xFFFFFF;
-		int binaryLength = rgbs[(shift+1) % rgbs.length] & 0xFFFFFF;
+		int pathLength = pathLengthFromRGB(rgbs[ shift    % rgbs.length]);
+		int binaryLength = 0xFFFFFF &      rgbs[(shift+1) % rgbs.length];
 		logger.debug("pathLength  : " + pathLength);
 		logger.debug("binaryLength: " + binaryLength);
 		
@@ -218,9 +231,9 @@ public class Container {
 		int[] rgbs = new int[rectPixelCount];
 		int offset = (shift = shift % width);
 		
-		// 경로 길이 1바이트
-		rgbs[offset++ % rectPixelCount] = pathBytes.length;
-		// 데이터 길이 1바이트
+		// 경로 길이 1픽셀 (255자 제한)
+		rgbs[offset++ % rectPixelCount] = pathLengthToRGB(pathBytes.length);
+		// 데이터 길이 1픽셀
 		rgbs[offset++ % rectPixelCount] = binary.length;
 		
 		// 경로
@@ -913,6 +926,7 @@ public class Container {
 						pathLength   = (pathLength   ^ xors[ shift    % xors.length]) & 0xFFFFFF;
 						binaryLength = (binaryLength ^ xors[(shift+1) % xors.length]) & 0xFFFFFF;
 					}
+					pathLength = pathLengthFromRGB(pathLength);
 					int pixelCount = 2 + ((pathLength + 2) / 3) + ((binaryLength + 2) / 3);
 					int contHeight = (pixelCount + width - 1) / width;
 					logger.debug("");
@@ -955,7 +969,7 @@ public class Container {
 				logger.debug("RGBA");
 				logger.warn("개발 도중 레거시 형식 지원");
 				while (offsetY < height) {
-					int pathLength = bmp.getRGB(0, offsetY);
+					int pathLength = bmp.getRGB(0, offsetY) & 0xFF;
 					int binaryLength = bmp.getRGB(1, offsetY);
 					int pixelCount = 2 + ((pathLength + 3) / 4) + ((binaryLength + 3) / 4);
 					int contHeight = (pixelCount + width - 1) / width;
