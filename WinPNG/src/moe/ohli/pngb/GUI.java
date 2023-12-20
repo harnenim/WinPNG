@@ -709,7 +709,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					try {
 						String password = tfPw.getText();
 						if        (rbTarget114.isSelected()) {
-							outputImage = new Container.WithTarget(targetImage, containers).toBitmap114v3(minWidth, password);
+							outputImage = new Container.WithTarget(targetImage, containers).toBitmap114(minWidth, password);
 						} else if (rbTarget238.isSelected()) {
 							outputImage = new Container.WithTarget(targetImage, containers).toBitmap238(minWidth, password);
 						} else if (rbTarget149.isSelected()) {
@@ -934,9 +934,9 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			
 			switch (parsed.type) {
 				case Container.WithTarget.TYPE_429:
+				case Container.WithTarget.TYPE_114v1:
 				case Container.WithTarget.TYPE_114v2:
-				case Container.WithTarget.TYPE_114v3:
-				case Container.WithTarget.TYPE_114: {
+				case Container.WithTarget.TYPE_114v3: {
 					rbTarget114.setSelected(true);
 					tfRatioW.setEditable(false);
 					tfRatioH.setEditable(false);
