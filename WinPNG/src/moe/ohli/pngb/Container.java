@@ -897,7 +897,7 @@ public class Container {
 		logger.info("input size: " + width + " x " + height);
 		
 		try {
-			if (((bmp.getRGB(shift, offsetY) >> 24) & 0xFF) == 0xFF) {
+			if ((bmp.getRGB(shift, offsetY) & 0xFF000000) == 0xFF000000) {
 				// RGB
 				logger.debug("RGB");
 				while (offsetY < height) {
@@ -907,10 +907,6 @@ public class Container {
 					int binaryLength = 0xFFFFFF & bmp.getRGB((shift+1) % width, offsetY);
 					logger.debug("pathLength  : " + toHex(pathLength  , 8));
 					logger.debug("binaryLength: " + toHex(binaryLength, 8));
-					if (pathLength > 255) {
-						logger.error("잘못된 경로 길이: " + pathLength);
-						break;
-					}
 					if (xors.length > 0) {
 						logger.debug("xors0       : " + toHex(xors[ shift    % xors.length], 8));
 						logger.debug("xors1       : " + toHex(xors[(shift+1) % xors.length], 8));
@@ -924,6 +920,10 @@ public class Container {
 					logger.debug("binaryLength: " + binaryLength);
 					logger.debug("pixelCount: " + pixelCount);
 					logger.debug("contHeight: " + contHeight);
+					if (pathLength > 255) {
+						logger.error("잘못된 경로 길이: " + pathLength);
+						break;
+					}
 					
 					int[] rgbs = bmp.getRGB(0, offsetY, width, contHeight, new int[width * contHeight], 0, width);
 					Container cont = new Container(rgbs, shift, xors);
