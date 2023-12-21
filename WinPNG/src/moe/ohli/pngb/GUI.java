@@ -24,7 +24,6 @@ import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-import moe.ohli.pngb.Logger.L;
 import sun.awt.image.AbstractMultiResolutionImage;
 
 @SuppressWarnings("serial")
@@ -40,7 +39,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		graphics.dispose();
 	}
 	
-	private static Logger logger = new Logger(L.DEBUG); // 로그 파일 로깅 수준 기본값 디버그
+	private static Logger logger = new Logger(Logger.L.DEBUG); // 로그 파일 로깅 수준 기본값 디버그
 	
 	private File pngFile = null;
 	private BufferedImage targetImage = null;
@@ -260,9 +259,9 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				File logFileInfo  = new File(logPath + "_info_.log");
 				File logFileError = new File(logPath + "_error.log");
 				try {
-					logger.set(new PrintStream(logFileDebug), L.DEBUG);
-					logger.set(new PrintStream(logFileInfo ), L.INFO );
-					logger.set(new PrintStream(logFileError), L.ERROR);
+					logger.set(new PrintStream(logFileDebug), Logger.L.DEBUG);
+					logger.set(new PrintStream(logFileInfo ), Logger.L.INFO );
+					logger.set(new PrintStream(logFileError), Logger.L.ERROR);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -270,13 +269,13 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			*/
 			try {
 				String logLevel = props.getProperty("LogLevel");
-				logger.setDefaultLevel(L.valueOf(logLevel)); // 로그 파일 로깅 수준은 설정값에 따름
-				logger.log(L.INFO, "로그 레벨: " + logLevel);
+				logger.setDefaultLevel(Logger.L.valueOf(logLevel)); // 로그 파일 로깅 수준은 설정값에 따름
+				logger.log(Logger.L.INFO, "로그 레벨: " + logLevel);
 			} catch (Exception e) {
-				logger.log(L.ERROR, "로그 레벨 설정 가져오기 실패");
-				logger.log(L.DEBUG, e); // 기본 로깅 수준은 DEBUG
+				logger.log(Logger.L.ERROR, "로그 레벨 설정 가져오기 실패");
+				logger.log(Logger.L.DEBUG, e); // 기본 로깅 수준은 DEBUG
 			}
-			logger.set(System.out, L.DEBUG); // 로그 파일과 별개로 콘솔에는 INFO로 찍음
+			logger.set(System.out, Logger.L.INFO); // 로그 파일과 별개로 콘솔에는 INFO로 찍음
 			
 			// 창 위치
 			try {
