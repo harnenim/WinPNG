@@ -67,7 +67,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		public String toString() {
 			return container.path + " (" + comma(container.binary.length) + ")" + (originalPath == null ? "" : ": " + originalPath);
 		}
-		private String comma(int value) {
+		private static String comma(int value) {
 			String result = "" + (value % 1000);
 			value /= 1000;
 			while (value > 0) {
@@ -194,7 +194,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	             , ivOutput = new JLabel(), jlOutput = new JLabel(), jlPw = new JLabel(), jlWidth = new JLabel();
 	private JRadioButton rbTarget114  = new JRadioButton();
 	private JRadioButton rbTarget238  = new JRadioButton();
-	private JRadioButton rbTarget149  = new JRadioButton();
+	private JRadioButton rbTarget124  = new JRadioButton();
 	private JRadioButton rbTarget011  = new JRadioButton();
 	private ButtonGroup rbGroupTarget = new ButtonGroup();
 	private JTextField tfRatioW = new JTextField("16"), tfRatioH = new JTextField("9"), tfPw = new JTextField(""), tfWidth = new JTextField("0");
@@ -310,8 +310,9 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					rbTarget238.setSelected(true);
 					tfRatioW.setEditable(false);
 					tfRatioH.setEditable(false);
-				} else if ("149".equals(useTargetImage)) {
-					rbTarget149.setSelected(true);
+				} else if ("149".equals(useTargetImage)
+				        || "124".equals(useTargetImage)) {
+					rbTarget124.setSelected(true);
 					tfRatioW.setEditable(false);
 					tfRatioH.setEditable(false);
 				} else {
@@ -386,7 +387,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			jlTarget.setText(Strings.get("입력 이미지"));
 			rbTarget114  .setText("1:1:4");
 			rbTarget238  .setText("2:3:8");
-			rbTarget149  .setText("1:4:9");
+			rbTarget124  .setText("1:2:4");
 			rbTarget011  .setText(Strings.get("사용 안 함"));
 //			rbTarget114  .setText("75%");
 //			rbTarget238  .setText("63%");
@@ -443,11 +444,11 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 						panelTarget.add(ivTarget, BorderLayout.CENTER);
 						panelRadio.add(rbTarget114);
 						panelRadio.add(rbTarget238);
-						panelRadio.add(rbTarget149);
+						panelRadio.add(rbTarget124);
 						panelRadio.add(rbTarget011);
 						rbGroupTarget.add(rbTarget114);
 						rbGroupTarget.add(rbTarget238);
-						rbGroupTarget.add(rbTarget149);
+						rbGroupTarget.add(rbTarget124);
 						rbGroupTarget.add(rbTarget011);
 						panelTarget.add(panelRadio, BorderLayout.SOUTH);
 						panelPreview.add(panelTarget);
@@ -506,10 +507,10 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			lvFiles.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 			lvFiles.setDragEnabled(true);
 			
-			for (Component c : new Component[] { this, lvFiles, tfRatioW, tfRatioH, tfPw, tfWidth, tfPngFile, rbTarget114, rbTarget238, rbTarget149, rbTarget011 }) {
+			for (Component c : new Component[] { this, lvFiles, tfRatioW, tfRatioH, tfPw, tfWidth, tfPngFile, rbTarget114, rbTarget238, rbTarget124, rbTarget011 }) {
 				c.addKeyListener(this);
 			}
-			for (AbstractButton c : new AbstractButton[] { rbTarget114, rbTarget238, rbTarget149, rbTarget011 }) {
+			for (AbstractButton c : new AbstractButton[] { rbTarget114, rbTarget238, rbTarget124, rbTarget011 }) {
 				c.addActionListener(this);
 			}
 			
@@ -606,8 +607,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			props.setProperty("useTargetImage", "114");
 		} else if (rbTarget238.isSelected()) {
 			props.setProperty("useTargetImage", "238");
-		} else if (rbTarget149.isSelected()) {
-			props.setProperty("useTargetImage", "149");
+		} else if (rbTarget124.isSelected()) {
+			props.setProperty("useTargetImage", "124");
 		} else if (rbTarget011.isSelected()) {
 			props.setProperty("useTargetImage", "011");
 		}
@@ -711,8 +712,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 							outputImage = new Container.WithTarget(targetImage, containers).toBitmap114(minWidth, password);
 						} else if (rbTarget238.isSelected()) {
 							outputImage = new Container.WithTarget(targetImage, containers).toBitmap238(minWidth, password);
-						} else if (rbTarget149.isSelected()) {
-							outputImage = new Container.WithTarget(targetImage, containers).toBitmap149(minWidth, password);
+						} else if (rbTarget124.isSelected()) {
+							outputImage = new Container.WithTarget(targetImage, containers).toBitmap124(minWidth, password);
 						} else {
 							int w = Integer.parseInt(tfRatioW.getText().trim());
 							int h = Integer.parseInt(tfRatioH.getText().trim());
@@ -947,8 +948,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					tfRatioH.setEditable(false);
 					break;
 				}
-				case Container.WithTarget.TYPE_149: {
-					rbTarget149.setSelected(true);
+				case Container.WithTarget.TYPE_124: {
+					rbTarget124.setSelected(true);
 					tfRatioW.setEditable(false);
 					tfRatioH.setEditable(false);
 					break;
@@ -990,7 +991,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				File newPng = new File(path);
 				updateTarget(ImageIO.read(newPng));
 			}
-			if (rbTarget114.isSelected() || rbTarget238.isSelected() || rbTarget149.isSelected()) {
+			if (rbTarget114.isSelected() || rbTarget238.isSelected() || rbTarget124.isSelected()) {
 				updateOutput();
 			}
 			return true;
@@ -1022,7 +1023,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					openBitmap(image);
 				} else {
 					updateTarget(image);
-					if (rbTarget114.isSelected() || rbTarget238.isSelected() || rbTarget149.isSelected()) {
+					if (rbTarget114.isSelected() || rbTarget238.isSelected() || rbTarget124.isSelected()) {
 						updateOutput();
 					}
 				}
@@ -1357,7 +1358,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			
 		} else if (target == rbTarget114
 				|| target == rbTarget238
-				|| target == rbTarget149
+				|| target == rbTarget124
 				|| target == rbTarget011
 				) {
 			if (target == rbTarget011) {
