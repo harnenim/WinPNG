@@ -388,11 +388,11 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			rbTarget114  .setText("1:1:4");
 			rbTarget238  .setText("2:3:8");
 			rbTarget124  .setText("1:2:4");
-			rbTarget011  .setText(Strings.get("사용 안 함"));
+//			rbTarget011  .setText(Strings.get("사용 안 함"));
 //			rbTarget114  .setText("75%");
 //			rbTarget238  .setText("63%");
 //			rbTarget149  .setText("56%");
-//			rbTarget011  .setText("X");
+			rbTarget011  .setText("X");
 			jlRatio.setText("  " + Strings.get("비율") + ": ");
 			jlOutput.setText(Strings.get("출력 이미지"));
 			jlPw.setText(Strings.get("비밀번호 걸기") + " ");
