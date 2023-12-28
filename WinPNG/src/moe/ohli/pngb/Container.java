@@ -498,7 +498,7 @@ public class Container {
 		}
 		return files;
 	}
-
+	
 	/**
 	 * 비트맵 이미지가 가질 크기를 구한다
 	 * @param containers
@@ -934,7 +934,7 @@ public class Container {
 					logger.debug("binaryLength: " + binaryLength);
 					logger.debug("pixelCount: " + pixelCount);
 					logger.debug("contHeight: " + contHeight);
-					if (pathLength > 255) {
+					if (pathLength > 255) { // pathLengthFromRGB 적용하면서 이렇게 나올 일이 없음...
 						logger.error("잘못된 경로 길이: " + pathLength);
 						break;
 					}
@@ -957,6 +957,16 @@ public class Container {
 							continue;
 						}
 					} else {
+						// 잘못된 경로: 해석 실패 - 이것만으론 불충분할 수도...
+						if (cont.path.indexOf("*") >= 0
+						 || cont.path.indexOf("?") >= 0
+						 || cont.path.indexOf('"') >= 0
+						 || cont.path.indexOf("<") >= 0
+						 || cont.path.indexOf(">") >= 0
+						 || cont.path.indexOf("|") >= 0
+								) {
+							throw new Exception("잘못된 경로");
+						}
 						// 경로가 있음: 일반 파일
 						containers.add(cont);
 					}
@@ -2236,11 +2246,11 @@ public class Container {
 					}
 				}
 				if (checkFailed) {
-					logger.info("체크섬 오류 - 현행 WithTarget 1:1:4 형식 이미지가 아님");
+					logger.info("체크섬 오류 - WithTarget 1:1:4 v1 형식 이미지가 아님");
 					return false;
 				}
 				
-				logger.info("체크섬 통과 - 현행 WithTarget 1:1:4 형식 가능");
+				logger.info("체크섬 통과 - WithTarget 1:1:4 v1 형식 가능");
 				return true;
 				
 			} catch (Exception e) {
