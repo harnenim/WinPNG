@@ -42,8 +42,9 @@ public class Container {
 	private static int pathLengthToRGB(int pathLength) {
 		// 경로 길이를 그대로 쓰면 RG가 0으로 고정돼버림
 //		return pathLength & 0xFF;
-		// 1바이트를 R3-G2-B3비트로 분배하고 여분은 랜덤으로 채움 
+		// 1바이트를 R3-G2-B3비트로 분배하고 여분은 랜덤으로 채움
 		return ((pathLength << 11)&0x070000) | ((pathLength << 5)&0x000300) | (pathLength&0x000007) | (0xF8FCF8 & (int) (Math.random() * 0xFFFFFF));
+		// 검증코드 몇 비트라도 넣을걸 후회 중...
 	}
 	private static int pathLengthFromRGB(int rgb) {
 		if ((rgb&0xFFFF00) == 0) {

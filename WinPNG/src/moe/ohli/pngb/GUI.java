@@ -388,11 +388,11 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			rbTarget114  .setText("1:1:4");
 			rbTarget238  .setText("2:3:8");
 			rbTarget124  .setText("1:2:4");
-//			rbTarget011  .setText(Strings.get("사용 안 함"));
+			rbTarget011  .setText(Strings.get("사용 안 함"));
 //			rbTarget114  .setText("75%");
 //			rbTarget238  .setText("63%");
 //			rbTarget149  .setText("56%");
-			rbTarget011  .setText("X");
+//			rbTarget011  .setText("X");
 			jlRatio.setText("  " + Strings.get("비율") + ": ");
 			jlOutput.setText(Strings.get("출력 이미지"));
 			jlPw.setText(Strings.get("비밀번호 걸기") + " ");
@@ -552,6 +552,18 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			tfPngFile  .addMouseListener(mouseRightAdapter);
 			panelTarget.addMouseListener(mouseRightAdapter);
 			ivTarget   .addMouseListener(mouseRightAdapter);
+			
+			// 더블 클릭 실행
+			lvFiles.addMouseListener(new MouseAdapter() {
+				@Override
+				public void mouseClicked(MouseEvent evt) {
+					logger.info("mouseClicked");
+					if (evt.getClickCount() == 2) {
+						logger.debug("더블 클릭");
+						runSelectedFile();
+					}
+				}
+			});
 			
 			// 종료 이벤트 시 설정 저장
 			addWindowListener(new WindowAdapter() {
@@ -1450,11 +1462,74 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 						logger.debug(ex);
 						alert(Strings.get("올바른 크기를 입력하세요."));
 					}
+				} else if (c == lvFiles) {
+					runSelectedFile();
 				}
 				break;
 			}
 			default: {
 				logger.all("keyPressed: " + e.getKeyCode());
+			}
+		}
+	}
+	private void runSelectedFile() {
+		ModelItem item = lvFiles.getSelectedValue(); // 더블클릭 시 2개 이상 선택은 무시
+		if (item == null) {
+			logger.debug("선택된 파일 없음");
+			return;
+		}
+		
+		List<Container> containers = new ArrayList<>();
+		containers.add(item.container);
+		
+		// 임시 파일 생성
+		String rootDir = TMP_DIR + Calendar.getInstance().getTimeInMillis();
+		List<File> files = Container.containersToFiles(containers, rootDir);
+		
+		if (files.size() > 0) {
+			String path = files.get(0).getAbsolutePath();
+			
+			// 파일 유형 확인
+			String type = null;
+			int index = path.lastIndexOf('.');
+			if (index > 0) {
+				type = path.substring(index + 1).toLowerCase();
+			}
+			if ("bmp".equals(type)
+			 || "png".equals(type)
+			 || "gif".equals(type)
+			 || "jpg".equals(type)
+			 || "jpeg".equals(type)
+			) {
+				type = "image?";
+			}
+			
+			try {
+				// OS와 파일 유형에 따른 실행 명령어 설정
+				String os = System.getProperty("os.name");
+				logger.debug("os: " + os);
+				String cmd = null;
+				if (os.toLowerCase().startsWith("windows")) {
+					if ("image?".equals(type)) {
+						cmd = "mspaint";
+					} else {
+						cmd = "notepad";
+					}
+				} else if (os.toLowerCase().startsWith("linux")) {
+					if ("image?".equals(type)) {
+						cmd = "eog";
+					} else {
+						cmd = "cat";
+					}
+				} else if (os.toLowerCase().startsWith("mac")) {
+					cmd = "open";
+				}
+				if (cmd != null) {
+					Runtime.getRuntime().exec(new String[] { cmd, path });
+				}
+			} catch (Exception e) {
+				logger.error("실행 실패: " + path);
+				logger.debug(e);
 			}
 		}
 	}
