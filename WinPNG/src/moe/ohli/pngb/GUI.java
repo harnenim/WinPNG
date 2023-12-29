@@ -42,6 +42,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	private static Logger logger = new Logger(Logger.L.DEBUG); // 로그 파일 로깅 수준 기본값 디버그
 	
 	private File pngFile = null;
+	private BufferedImage openedImage = null;
 	private BufferedImage targetImage = null;
 	private BufferedImage outputImage = null;
 	
@@ -562,6 +563,13 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 						logger.debug("더블 클릭");
 						runSelectedFile();
 					}
+					if (evt.getButton() == MouseEvent.BUTTON3) {
+						logger.debug("우클릭");
+						if (openedImage != null) {
+							String key = JOptionPane.showInputDialog(GUI.this, Strings.get("비밀번호 걸린 이미지가 잘못 해석된 것 같다면\n비밀번호 키를 입력하세요."));
+							openBitmap(openedImage, pngFile, key);
+						}
+					}
 				}
 			});
 			
@@ -918,12 +926,18 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	private boolean openBitmap(BufferedImage bmp, File file, String key) {
 		try {
 			int possibility = Container.WithTarget.possibility(bmp);
-			Container.WithTarget parsed = Container.WithTarget.fromBitmap(bmp, possibility);
-			if (parsed == null) {
-				if (key != null) {
-					// 파라미터 키값 가지고 재시도
-					parsed = Container.WithTarget.fromBitmap(bmp, possibility, key);
+			Container.WithTarget parsed = null;
+			if (key == null) {
+				parsed = Container.WithTarget.fromBitmap(bmp, possibility);
+			} else {
+				// 파라미터 키값 가지고 시도
+				parsed = Container.WithTarget.fromBitmap(bmp, possibility, key);
+				if (parsed == null) {
+					// 파라미터 키값 없이 재시도
+					parsed = Container.WithTarget.fromBitmap(bmp, possibility);
 				}
+			}
+			if (parsed == null) {
 				if (parsed == null) {
 					// 키값 입력받아서 재시도
 					key = JOptionPane.showInputDialog(this, "이미지를 해석할 수 없습니다.\n비밀번호가 있다면 키를 입력하세요.");
@@ -939,6 +953,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				pngFile = file;
 				tfPngFile.setText(pngFile.getAbsolutePath());
 			}
+			openedImage = bmp;
 			
 			lvFiles.setContainers(parsed.containers);
 			
@@ -973,7 +988,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 				}
 			}
 			tfPw.setText(key);
-			updateOutput();
+			ivOutput.setIcon(makeImageIcon(outputImage = openedImage));
+			jlOutput.setText(Strings.get("출력 이미지") + "(" + outputImage.getWidth() + "×" + outputImage.getHeight() + ")");
 			
 			return true;
 			
@@ -1161,7 +1177,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 	private boolean savePng(File file) {
 		logger.info("savePng");
 		try {
-			ImageIO.write(outputImage, "PNG", file);
+			ImageIO.write(openedImage = outputImage, "PNG", file);
 			tfPngFile.setText((pngFile = file).getAbsolutePath());
 			saveConfig();
 			return true;
@@ -1331,6 +1347,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 			lvFiles.clear();
 			pngFile = null;
 			tfPngFile.setText("");
+			openedImage = null;
 			updateTarget(JUNK_IMAGE);
 			updateOutput();
 			
@@ -1997,6 +2014,11 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 					}
 					
 					if (!lvFiles.isEmpty()) {
+						if (file.getAbsolutePath().replace('\\', '/').startsWith(TMP_DIR)) {
+							// 임시 파일이면 잘못 드래그한 경우
+							logger.info("임시 파일 무시");
+							return;
+						}
 						if (!confirm(Strings.get("현재 파일을 닫겠습니까?"), Strings.get("PNG 파일 열기"))) {
 							if (confirm(Strings.get("파일 목록에 추가하시겠습니까?"), Strings.get("PNG 파일 열기"))) {
 								c = panelFilesEdit;

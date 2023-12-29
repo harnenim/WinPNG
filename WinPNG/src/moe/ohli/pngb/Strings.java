@@ -70,6 +70,8 @@ public class Strings {
 		
 		EN.put("클립보드의 이미지를 가져옵니다."                        , "Do you want ead the image from clipboard.");
 		EN.put("이미지 붙여넣기"                                        , "Paste the image");
+		
+		EN.put("비밀번호 걸린 이미지가 잘못 해석된 것 같다면\n비밀번호 키를 입력하세요.", "If you think it is false parsed data,\ninput the password.");
 	}
 	private static final Map<String, String> JP = new HashMap<>();
 	static {
@@ -126,6 +128,8 @@ public class Strings {
 		
 		JP.put("클립보드의 이미지를 가져옵니다."                        , "クリップボードから画像を読み込みます。");
 		JP.put("이미지 붙여넣기"                                        , "画像ペースト");
+
+		EN.put("비밀번호 걸린 이미지가 잘못 해석된 것 같다면\n비밀번호 키를 입력하세요.", "パスワードがかけられた画像が間違って解析されたようだったら\nパスワードを入力してください。");
 	}
 	
 	private static Map<String, String> selected = EN;
