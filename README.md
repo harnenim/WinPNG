@@ -1,6 +1,6 @@
 # WinPNG
 
-[다운로드](https://noitamina.moe/_/WinPNG.zip)
+[다운로드](https://github.com/harnenim/WinPNG/releases/tag/WinPNG)
 
 ```
 "님 잠깐 소스코드 좀 보내주세요"
