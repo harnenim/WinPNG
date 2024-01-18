@@ -211,7 +211,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		setTitle("WinPNG");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
-		boolean isAndroid = "Linux".equals(System.getProperty("os.name")) && confirm("Is this Android?", "OS Check");
+		boolean isAndroid = "Linux".equals(System.getProperty("os.name"));// && confirm("Is this Android?", "OS Check");
 		
 		String exportDir = null;
 		
