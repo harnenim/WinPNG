@@ -146,7 +146,30 @@ public class GUI extends JFrame implements ActionListener, KeyListener {
 		private static final Comparator<ModelItem> COMP = new Comparator<ModelItem>() {
 			@Override
 			public int compare(ModelItem item1, ModelItem item2) {
-				return item1.container.path.compareTo(item2.container.path);
+				return compare(item1.container.path.replace('\\', '/'), item2.container.path.replace('\\', '/'));
+			}
+			private int compare(String path1, String path2) {
+				int index1 = path1.indexOf("/");
+				int index2 = path2.indexOf("/");
+				if (index1 < 0) {
+					if (index2 < 0) {
+						return path1.compareTo(path2);
+					} else {
+						return 1;
+					}
+				} else {
+					if (index2 < 0) {
+						return -1;
+					} else {
+						String dir1 = path1.substring(0, index1);
+						String dir2 = path2.substring(0, index2);
+						if (dir1.equals(dir2)) {
+							return compare(path1.substring(index1 + 1), path2.substring(index2 + 1));
+						} else {
+							return dir1.compareTo(dir2);
+						}
+					}
+				}
 			}
 		};
 		public void selectAll() {
