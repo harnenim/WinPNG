@@ -1,8 +1,8 @@
 # WinPNG
 
-[다운로드](https://github.com/harnenim/WinPNG/releases/tag/WinPNG)
+# [프로그램 다운로드](https://github.com/harnenim/WinPNG/releases/tag/WinPNG)
 
-[![Video Label](http://img.youtube.com/vi/yMRfzjBRMpQ/0.jpg)](https://youtu.be/yMRfzjBRMpQ)
+[테스트 영상 (교체 예정)](https://youtu.be/yMRfzjBRMpQ)
 
 ```
 "님 잠깐 소스코드 좀 보내주세요"
