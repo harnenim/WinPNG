@@ -442,6 +442,19 @@ public class Container {
 	}
 	
 	/**
+	 * 원하는 경로로 객체 재생성
+	 * @param path
+	 * @return
+	 */
+	public Container copy(String path) {
+		return new Container(path, binary);
+	}
+	private Container(String path, byte[] binary) {
+		this.path = path;
+		this.binary = binary;
+	}
+	
+	/**
 	 * 파일/디렉토리를 컨테이너 목록으로 변환
 	 * @param file: 파일/디렉토리
 	 * @return 컨테이너 목록
