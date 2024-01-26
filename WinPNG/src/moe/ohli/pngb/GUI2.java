@@ -96,14 +96,16 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	private static final int IMAGE_VIEW_WIDTH = 280, IMAGE_VIEW_HEIGHT = 158;
 	
 	private static boolean USE_JFC = false;
+	private boolean isAndroid = false;
 	
 	private JFileChooser fcPng = new JFileChooser();
 	
 	public void init() {
 		setTitle("WinPNG");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		
-		boolean isAndroid = "Linux".equals(System.getProperty("os.name"));// && confirm("Is this Android?", "OS Check");
+
+		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+		isAndroid = "Linux".equals(System.getProperty("os.name")) && (screenSize.width < 800);//confirm("Is this Android?", "OS Check");
 		
 		String exportDir = null;
 		
@@ -183,7 +185,6 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 				logger.debug(e);
 				
 				// 실패 시 기본값
-				Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 				int width  = Math.min(800, screenSize.width );
 				int height = Math.min(600, screenSize.height);
 				setBounds((screenSize.width - width) / 2, (screenSize.height - height) / 2, width, height);
@@ -232,10 +233,9 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			
 			if (isAndroid) {
 				// Android JRE 실행을 가정
-				Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-				int width  = Math.min(800, screenSize.width);
+				int width  = screenSize.width;
 				int height = 550;
-				setBounds((screenSize.width - width) / 2, (screenSize.height - height) / 2, width, height);
+				setBounds(0, (screenSize.height - height) / 2, width, height);
 				
 				// 다운로드 폴더 내 WinPNG를 기본 추출 폴더로 설정
 				exportDir = "/storage/emulated/0/Download/WinPNG";
@@ -282,10 +282,6 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			rbTarget238  .setText("2:3:8");
 			rbTarget124  .setText("1:2:4");
 			rbTarget011  .setText(Strings.get("사용 안 함"));
-//			rbTarget114  .setText("75%");
-//			rbTarget238  .setText("63%");
-//			rbTarget149  .setText("56%");
-//			rbTarget011  .setText("X");
 			jlRatio.setText("  " + Strings.get("비율") + ": ");
 			jlOutput.setText(Strings.get("출력 이미지"));
 			jlPw.setText(Strings.get("비밀번호 걸기") + " ");
@@ -392,7 +388,24 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 				updateTarget(JUNK_IMAGE);
 				updateOutput();
 				
-				add(panelRight, BorderLayout.EAST);
+				if (isAndroid) {
+					JTextArea taConsole = new JTextArea(50, 10);
+					JScrollPane spConsole = new JScrollPane(taConsole);
+					add(spConsole, BorderLayout.EAST);
+					spConsole.setPreferredSize(new Dimension(IMAGE_VIEW_WIDTH, 400));
+					
+					logger.set(new PrintStream(new OutputStream() {
+						@Override
+						public void write(int b) throws IOException {
+							taConsole.append(String.valueOf((char) b));
+							taConsole.setCaretPosition(taConsole.getDocument().getLength());
+							taConsole.update(taConsole.getGraphics());
+						}
+					}), Logger.L.INFO);
+					
+				} else {
+					add(panelRight, BorderLayout.EAST);
+				}
 			}
 		}
 		
@@ -405,7 +418,6 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			}
 			
 			FileTransferHandler fth = new FileTransferHandler();
-//			explorer.setTransferHandler(fth);
 			ivTarget.setTransferHandler(fth);
 			ivOutput.setTransferHandler(fth);
 			ivTarget.addMouseListener(new ImageDragAdaptor(ivTarget, fth));
@@ -717,6 +729,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 				bmp = ImageIO.read(fileFromUrl(path));
 				
 			} else if (path.indexOf("https:") >= 0) {
+				path = path.substring(path.indexOf("https:")).replace('\\', '/').replace(":/", "://").replace("///", "//");
 				if (path.startsWith("https://pbs.twimg.com/media/")) {
 					logger.info("트위터 이미지 URL");
 					String[] params = null;
@@ -756,15 +769,59 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 					}
 				}
 				
-				path = path.substring(path.indexOf("https:")).replace('\\', '/').replace(":/", "://").replace("///", "//");
+				String contentType = "";
 				try {
-					bmp = ImageIO.read(fileFromUrl(path));
+					contentType = getContentType(path);
 				} catch (Exception e) {
 					logger.debug(e);
 					try {
-						bmp = ImageIO.read(fileFromUrl("http://" + path.substring(8)));
+						contentType = getContentType("http://" + path.substring(8));
 					} catch (Exception e2) {
 						logger.debug(e2);
+					}
+				}
+				// 텍스트일 경우 소스코드 내 이미지 URL 찾기
+				if (contentType.startsWith("text")) {
+					List<String> imgUrls = new ArrayList<>();
+					try {
+						imgUrls = getImgUrls(textFromUrl(path));
+					} catch (Exception e) {
+						logger.debug(e);
+						try {
+							imgUrls = getImgUrls("http://" + path.substring(8));
+						} catch (Exception e2) {
+							logger.debug(e2);
+						}
+					}
+					// 이미지 리스트 전체 돌리기 (비밀번호 입력 없이)
+					for (String imgUrl : imgUrls) {
+						logger.info("imgUrl: " + imgUrl);
+						try {
+							bmp = ImageIO.read(fileFromUrl(imgUrl));
+						} catch (Exception e) {
+							logger.debug(e);
+							try {
+								bmp = ImageIO.read(fileFromUrl("http://" + path.substring(8)));
+							} catch (Exception e2) {
+								logger.debug(e2);
+								continue;
+							}
+						}
+						if (bmp != null && openBitmap(bmp, file, key, false)) {
+							return true;
+						}
+						bmp = null;
+					}
+				} else {
+					try {
+						bmp = ImageIO.read(fileFromUrl(path));
+					} catch (Exception e) {
+						logger.debug(e);
+						try {
+							bmp = ImageIO.read(fileFromUrl("http://" + path.substring(8)));
+						} catch (Exception e2) {
+							logger.debug(e2);
+						}
 					}
 				}
 				
@@ -772,8 +829,8 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 				file = new File(path);
 				bmp = ImageIO.read(file);
 			}
-
-			if (bmp != null && openBitmap(bmp, file, key)) {
+			
+			if (bmp != null && openBitmap(bmp, file, key, true)) {
 				return true;
 			}
 			
@@ -783,17 +840,49 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		}
 		return false;
 	}
+	private static List<String> getImgUrls(String html) {
+		List<String> imgUrls = new ArrayList<>();
+		int index = 0;
+		try {
+			while ((index = html.indexOf("<img ")) >= 0) {
+				html = html.substring(index + 5);
+				if ((index = html.indexOf("src=")) < 0) {
+					break;
+				}
+				html = html.substring(index + 4);
+				char q = html.charAt(0);
+				if (q == '"' || q == '\'') {
+					html = html.substring(1);
+					int endIndex = html.indexOf(q);
+					if (endIndex > 0) {
+						imgUrls.add(html.substring(0, endIndex));
+						html = html.substring(endIndex + 1);
+					}
+				} else {
+					int endIndex = html.indexOf(">");
+					if (endIndex > 0) {
+						imgUrls.add(html.substring(0, endIndex).split(" ")[0]);
+						html = html.substring(endIndex + 1);
+					}
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return imgUrls;
+	}
 	private boolean openBitmap(BufferedImage bmp) {
-		return openBitmap(bmp, null, null);
+		return openBitmap(bmp, null, null, true);
 	}
 	/**
 	 * 비트맵 이미지 해석
 	 * @param bmp
 	 * @param file
 	 * @param key
+	 * @param retry 해석 실패 시 비밀번호 입력창 표시 여부
 	 * @return 성공여부
 	 */
-	private boolean openBitmap(BufferedImage bmp, File file, String key) {
+	private boolean openBitmap(BufferedImage bmp, File file, String key, boolean retry) {
 		try {
 			int possibility = Container.WithTarget.possibility(bmp);
 			Container.WithTarget parsed = null;
@@ -808,6 +897,9 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 				}
 			}
 			if (parsed == null) {
+				if (!retry) {
+					return false;
+				}
 				if (parsed == null) {
 					// 키값 입력받아서 재시도
 					key = JOptionPane.showInputDialog(this, "이미지를 해석할 수 없습니다.\n비밀번호가 있다면 키를 입력하세요.");
@@ -1212,7 +1304,13 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		
 		if (target == btnOpen) {
 			// PNG 파일 열기
-			openPng();
+			if (isAndroid) {
+				if (!openPng(tfPngFile.getText())) {
+					alert(Strings.get("해석할 수 없는 이미지 경로입니다."));
+				}
+			} else {
+				openPng();
+			}
 			
 		} else if (target == btnClose) {
 			// PNG 파일 닫기
@@ -1422,7 +1520,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	public void checkPw() {
 		if (openedImage != null) {
 			String key = JOptionPane.showInputDialog(GUI2.this, Strings.get("비밀번호 걸린 이미지가 잘못 해석된 것 같다면\n비밀번호 키를 입력하세요."));
-			openBitmap(openedImage, pngFile, key);
+			openBitmap(openedImage, pngFile, key, false);
 		}
 	}
 
@@ -1492,38 +1590,6 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
         	logger.debug("createTransferable");
 			final List<File> rootFiles = new ArrayList<>();
 			
-			/*
-        	if (c == explorer) { // 리스트의 파일 선택 드래그
-        		List<Container> containers = explorer.getSelectedContainers();
-        		if (containers.size() == 0) {
-        			return null;
-        		}
-        		
-        		// 임시 파일 생성
-    			String rootDir = TMP_DIR + Calendar.getInstance().getTimeInMillis();
-    			List<File> files = Container.containersToFiles(containers, rootDir);
-    			
-    			// 하위 디렉토리가 있는 경우 최상위 경로만 선택
-    			List<String> primaryNames = new ArrayList<>();
-    			for (File subFile : files) {
-    				// 최상위 경로 찾기
-    				String primaryName = subFile.getAbsolutePath().substring(rootDir.length() + 1).replace('\\', '/');
-    				int index = primaryName.indexOf('/');
-					if (index > 0) {
-						primaryName = primaryName.substring(0, index);
-					}
-					if (!primaryNames.contains(primaryName)) {
-						primaryNames.add(primaryName);
-					}
-    			}
-    			
-    			// 최상위 객체 리스트 전달
-    			for (String name : primaryNames) {
-    				rootFiles.add(new File(rootDir, name));
-    			}
-    			
-        	} else
-    		*/
         	if (c == ivOutput || c == ivTarget) { // 이미지뷰 드래그
         		BufferedImage image = targetImage;
         		String name = "target.png";
@@ -1991,6 +2057,38 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		}
 		
 		return file;
+	}
+	private static String textFromUrl(String strUrl) throws Exception {
+		logger.info("textFromUrl: " + strUrl);
+		URL url = new URL(strUrl);
+		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+		conn.setConnectTimeout(2000);
+		conn.setReadTimeout(2000);
+		conn.setRequestMethod("GET");
+		conn.getResponseCode();
+
+		BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+		String line;
+		StringBuffer response = new StringBuffer();
+
+		while ((line = in.readLine()) != null) {
+			response.append(line);
+		}
+		in.close();
+		
+		return response.toString();
+	}
+	private static String getContentType(String strUrl) throws Exception {
+		logger.info("getContentType: " + strUrl);
+		URL url = new URL(strUrl);
+		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+		conn.setConnectTimeout(2000);
+		conn.setReadTimeout(2000);
+		conn.setRequestMethod("GET");
+		conn.getResponseCode();
+		String contentType = conn.getHeaderField("Content-Type");
+		logger.info("contentType: " + contentType);
+		return contentType;
 	}
 	
 	public static void main(String[] args) {

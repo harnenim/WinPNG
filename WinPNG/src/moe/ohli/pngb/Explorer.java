@@ -95,6 +95,19 @@ public class Explorer extends JPanel {
 		}
 	}
 	
+	private static String comma(int value) {
+		String result = "" + (value % 1000);
+		value /= 1000;
+		while (value > 0) {
+			while (result.length() % 4 < 3) {
+				result = '0' + result;
+			}
+			result = (value % 1000) + "," + result;
+			value /= 1000;
+		}
+		return result;
+	}
+	
 	private List<FileItem> list = new ArrayList<>();
 	private Logger logger;
 	private Listener listener;
@@ -115,167 +128,161 @@ public class Explorer extends JPanel {
 		this.logger = logger;
 		this.listener = listener;
 		
-		JScrollPane spd = new JScrollPane(dlv);
-		JScrollPane spf = new JScrollPane(flv);
-		add(spd, BorderLayout.WEST);
-		add(spf, BorderLayout.CENTER);
-		
-		spd.setPreferredSize(new Dimension(120, 0));
-		
-		DefaultTreeCellRenderer renderer = (DefaultTreeCellRenderer) dlv.getCellRenderer();
-		Icon dIcon = renderer.getClosedIcon();
-		Icon fIcon = renderer.getLeafIcon();
-		renderer.setLeafIcon(dIcon);
-		renderer.setBackgroundSelectionColor(SELECTED_COLOR);
-		
-		flv.setCellRenderer(new DefaultListCellRenderer() {
-			@Override
-			public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected, boolean expanded) {
-				FileItem item = (FileItem) value;
-				JLabel label = new JLabel(item.label);
-				label.setOpaque(true);
-				label.setIcon(item.container == null ? dIcon : fIcon);
-				if (selected) {
-					label.setBackground(SELECTED_COLOR);
-				} else {
-					label.setBackground(Color.WHITE);
-				}
-				return label;
-			}
-		});
-		
-		dlv.addTreeSelectionListener(new TreeSelectionListener() {
-			@Override
-			public void valueChanged(TreeSelectionEvent e) {
-				TreePath tp = dlv.getSelectionPath();
-				if (tp == null) {
-					return;
-				}
-				String path = "/";
-				Object[] dirs = tp.getPath();
-				for (int i = 1; i < dirs.length; i++) {
-					path += (path.length() > 1 ? "/" : "") + dirs[i];
-				}
-				cd(path, true);
-			}
-		});
-
-		flv.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-		flv.setDragEnabled(true);
-		
-		// 더블 클릭 실행
-		flv.addMouseListener(new MouseAdapter() {
-			@Override
-			public void mouseClicked(MouseEvent evt) {
-				logger.info("mouseClicked");
-				if (evt.getClickCount() == 2) {
-					Explorer.this.logger.debug("더블 클릭");
-					openSelectedFile();
-				}
-				if (evt.getButton() == MouseEvent.BUTTON3) {
-					logger.debug("우클릭");
-					Explorer.this.listener.checkPw();
-				}
-			}
-		});
-		flv.addKeyListener(new KeyListener() {
-			@Override
-			public void keyTyped(KeyEvent arg0) {}
+		{	// UI 배치
+			JScrollPane spd = new JScrollPane(dlv);
+			JScrollPane spf = new JScrollPane(flv);
+			add(spd, BorderLayout.WEST);
+			add(spf, BorderLayout.CENTER);
 			
-			@Override
-			public void keyReleased(KeyEvent e) {
-				switch (e.getKeyCode()) {
-					case 27: { // ESC
-						clearSelection();
-						break;
-					}
-					case 127: { // Delete
-						listener.deleteSelected();
-						break;
-					}
-				}
-			}
+			spd.setPreferredSize(new Dimension(120, 0));
+		}
+		
+		{	// 폴더 아이콘
+			DefaultTreeCellRenderer renderer = (DefaultTreeCellRenderer) dlv.getCellRenderer();
+			Icon dIcon = renderer.getClosedIcon();
+			Icon fIcon = renderer.getLeafIcon();
+			renderer.setLeafIcon(dIcon);
+			renderer.setBackgroundSelectionColor(SELECTED_COLOR);
 			
-			@Override
-			public void keyPressed(KeyEvent e) {
-				switch (e.getKeyCode()) {
-					case 10: { // Enter
-						openSelectedFile();
+			flv.setCellRenderer(new DefaultListCellRenderer() {
+				@Override
+				public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected, boolean expanded) {
+					FileItem item = (FileItem) value;
+					JLabel label = new JLabel(item.label);
+					label.setOpaque(true);
+					label.setIcon(item.container == null ? dIcon : fIcon);
+					if (selected) {
+						label.setBackground(SELECTED_COLOR);
+					} else {
+						label.setBackground(Color.WHITE);
+					}
+					return label;
+				}
+			});
+		}
+		
+		{	// 이벤트 리스너
+			dlv.addTreeSelectionListener(new TreeSelectionListener() {
+				@Override
+				public void valueChanged(TreeSelectionEvent e) {
+					TreePath tp = dlv.getSelectionPath();
+					if (tp == null) {
+						return;
+					}
+					String path = "/";
+					Object[] dirs = tp.getPath();
+					for (int i = 1; i < dirs.length; i++) {
+						path += (path.length() > 1 ? "/" : "") + dirs[i];
+					}
+					openDir(path, true);
+				}
+			});
+			
+			flv.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+			flv.setDragEnabled(true);
+			
+			// 더블 클릭 실행
+			flv.addMouseListener(new MouseAdapter() {
+				@Override
+				public void mouseClicked(MouseEvent evt) {
+					logger.info("mouseClicked");
+					if (evt.getClickCount() == 2) {
+						if (evt.getButton() == MouseEvent.BUTTON3) {
+							logger.debug("우측 더블 클릭");
+							listener.checkPw();
+						} else {
+							logger.debug("더블 클릭");
+							openSelectedFile();
+						}
 					}
 				}
-			}
-		});
-		flv.setTransferHandler(new TransferHandler() {
-	        @Override
-	        protected Transferable createTransferable(JComponent c) {
-	        	logger.debug("createTransferable");
-				final List<File> rootFiles = new ArrayList<>();
+			});
+			flv.addKeyListener(new KeyListener() {
+				@Override
+				public void keyTyped(KeyEvent arg0) {}
 				
-	    		List<Container> containers = getSelectedContainers();
-	    		if (containers.size() == 0) {
-	    			return null;
-	    		}
-	    		
-	    		// 임시 파일 생성
-				String rootDir = TMP_DIR + Calendar.getInstance().getTimeInMillis();
-				List<File> files = Container.containersToFiles(containers, rootDir);
-				
-				// 하위 디렉토리가 있는 경우 최상위 경로만 선택
-				List<String> primaryNames = new ArrayList<>();
-				for (File subFile : files) {
-					// 최상위 경로 찾기
-					String primaryName = subFile.getAbsolutePath().substring(rootDir.length() + 1).replace('\\', '/');
-					int index = primaryName.indexOf('/');
-					if (index > 0) {
-						primaryName = primaryName.substring(0, index);
-					}
-					if (!primaryNames.contains(primaryName)) {
-						primaryNames.add(primaryName);
+				@Override
+				public void keyReleased(KeyEvent e) {
+					switch (e.getKeyCode()) {
+						case 27: { // ESC
+							clearSelection();
+							break;
+						}
+						case 127: { // Delete
+							listener.deleteSelected();
+							break;
+						}
 					}
 				}
 				
-				// 최상위 객체 리스트 전달
-				for (String name : primaryNames) {
-					rootFiles.add(new File(rootDir, name));
+				@Override
+				public void keyPressed(KeyEvent e) {
+					switch (e.getKeyCode()) {
+						case 10: { // Enter
+							openSelectedFile();
+						}
+					}
 				}
-	        	
-	        	if (rootFiles.size() > 0) {
-	        		return new FileTransferable(rootFiles);
-	        	}
-	        	return null;
-	        }
-	
-	        @Override
-	        public int getSourceActions(JComponent c) {
-	            return MOVE;
-	        }
-	    });
+			});
+			flv.setTransferHandler(new TransferHandler() {
+				@Override
+				protected Transferable createTransferable(JComponent c) {
+					logger.debug("createTransferable");
+					final List<File> rootFiles = new ArrayList<>();
+					
+					List<Container> containers = getSelectedContainers();
+					if (containers.size() == 0) {
+						return null;
+					}
+					
+					// 임시 파일 생성
+					String rootDir = TMP_DIR + Calendar.getInstance().getTimeInMillis();
+					List<File> files = Container.containersToFiles(containers, rootDir);
+					
+					// 하위 디렉토리가 있는 경우 최상위 경로만 선택
+					List<String> primaryNames = new ArrayList<>();
+					for (File subFile : files) {
+						// 최상위 경로 찾기
+						String primaryName = subFile.getAbsolutePath().substring(rootDir.length() + 1).replace('\\', '/');
+						int index = primaryName.indexOf('/');
+						if (index > 0) {
+							primaryName = primaryName.substring(0, index);
+						}
+						if (!primaryNames.contains(primaryName)) {
+							primaryNames.add(primaryName);
+						}
+					}
+					
+					// 최상위 객체 리스트 전달
+					for (String name : primaryNames) {
+						rootFiles.add(new File(rootDir, name));
+					}
+					
+					if (rootFiles.size() > 0) {
+						return new FileTransferable(rootFiles);
+					}
+					return null;
+				}
+				
+				@Override
+				public int getSourceActions(JComponent c) {
+					return MOVE;
+				}
+			});
+		}
 	}
 	@Override
 	public synchronized void addKeyListener(KeyListener kl) {
 		flv.addKeyListener(kl);
 	}
-	public void openSelectedFile() {
-		logger.info("openSelectedFile");
-		FileItem item = flv.getSelectedValue();
-		if (item == null) {
-			return;
-		}
-		if (item.container == null) {
-			logger.info("openDir: " + item.label);
-			cd(item.label);
-		} else {
-			logger.info("run: " + item.container.path);
-			listener.runFile(item.container);
-		}
-	}
+	
 	public boolean isEmpty() {
 		return list.isEmpty();
 	}
 	public void clear() {
 		list.clear();
-		dlRoot.removeAllChildren();
-		flModel.clear();
+		currentDir = "";
+		refresh();
 	}
 	public void add(FileItem item) {
 		logger.info("add: " + item.container.path);
@@ -363,16 +370,6 @@ public class Explorer extends JPanel {
 			}
 		}
 		return result;
-	}
-	
-	@Override
-	public void setTransferHandler(TransferHandler th) {
-		flv.setTransferHandler(th);
-	}
-	
-	@Override
-	public synchronized void setDropTarget(DropTarget dt) {
-		flv.setDropTarget(dt);
 	}
 	
 	public void setContainers(List<Container> containers) {
@@ -465,28 +462,39 @@ public class Explorer extends JPanel {
 	};
 	
 	public void cd(String dir) {
-		cd(dir, false);
-	}
-	public void cd(String dir, boolean byTree) {
-		System.out.println("cd: " + dir);
+		logger.info("/" + currentDir + "> cd " + dir);
 		if (dir.startsWith("/")) {
 			if (dir.equals("/")) {
-				this.currentDir = "";
+				currentDir = "";
 			} else {
-				this.currentDir = dir.substring(1) + "/";
+				currentDir = dir.substring(1) + "/";
 			}
 		} else if (dir.equals("..")) {
-			this.currentDir = this.currentDir.substring(0, this.currentDir.length() - 1);
-			this.currentDir = this.currentDir.substring(0, this.currentDir.lastIndexOf("/") + 1);
+			currentDir = currentDir.substring(0, currentDir.length() - 1);
+			currentDir = currentDir.substring(0, currentDir.lastIndexOf("/") + 1);
 		} else {
-			this.currentDir += dir + "/";
+			currentDir += dir + "/";
 		}
-		while (this.currentDir.endsWith("//")) {
-			this.currentDir = this.currentDir.substring(0, this.currentDir.length() - 1);
+		while (currentDir.endsWith("//")) {
+			currentDir = currentDir.substring(0, currentDir.length() - 1);
+		}
+		
+		if (currentDir.length() == 0) {
+			dlv.setSelectionRow(0);
+			return;
+		}
+		dlv.setSelectionPath(pathMap.get(currentDir));
+	}
+	public void openDir(String dir, boolean byTree) {
+		logger.info("openDir: " + dir);
+		if (dir.equals("/")) {
+			this.currentDir = "";
+		} else {
+			this.currentDir = dir.substring(1) + "/";
 		}
 		
 		int cut = this.currentDir.length();
-
+		
 		flModel.clear();
 		if (cut > 0) {
 			flModel.addElement(new FileItem(".."));
@@ -518,25 +526,27 @@ public class Explorer extends JPanel {
 				}
 			}
 		}
-		if (byTree) return;
-		
-		if (cut == 0) {
-			dlv.setSelectionRow(0);
+	}
+
+	@Override
+	public void setTransferHandler(TransferHandler th) {
+		flv.setTransferHandler(th);
+	}
+	@Override
+	public synchronized void setDropTarget(DropTarget dt) {
+		flv.setDropTarget(dt);
+	}
+	public void openSelectedFile() {
+		logger.info("openSelectedFile");
+		FileItem item = flv.getSelectedValue();
+		if (item == null) {
 			return;
 		}
-		dlv.setSelectionPath(pathMap.get(this.currentDir));
-	}
-	
-	private static String comma(int value) {
-		String result = "" + (value % 1000);
-		value /= 1000;
-		while (value > 0) {
-			while (result.length() % 4 < 3) {
-				result = '0' + result;
-			}
-			result = (value % 1000) + "," + result;
-			value /= 1000;
+		if (item.container == null) {
+			cd(item.label);
+		} else {
+			logger.info("run: " + item.container.path);
+			listener.runFile(item.container);
 		}
-		return result;
 	}
 }
