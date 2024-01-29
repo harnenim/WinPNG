@@ -1,6 +1,6 @@
 # WinPNG
 
-# [프로그램 다운로드](https://github.com/harnenim/WinPNG/releases/tag/WinPNG)
+# [프로그램 다운로드](https://github.com/harnenim/WinPNG/releases)
 
 [테스트 영상 (교체 예정)](https://youtu.be/yMRfzjBRMpQ)
 
