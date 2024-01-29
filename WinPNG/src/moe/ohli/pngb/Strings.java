@@ -21,6 +21,7 @@ public class Strings {
 		EN.put("열기"                                                   , "Open");
 		EN.put("닫기"                                                   , "Close");
 		
+		EN.put("파일 {count}개 / {size}"                                , "{count} file(s) / {size}");
 		EN.put("추가"                                                   , "Add");
 		EN.put("전체 선택"                                              , "Select All");
 		EN.put("삭제"                                                   , "Delete");
@@ -78,7 +79,8 @@ public class Strings {
 		JP.put("이미지 파일을 드래그해서 열 수 있습니다."               , "画像ファイルをドラッグして開くことができます。");
 		JP.put("열기"                                                   , "開く");
 		JP.put("닫기"                                                   , "閉じる");
-		
+
+		JP.put("파일 {count}개 / {size}"                                , "ファイル {count}個 / {size}");
 		JP.put("추가"                                                   , "追加");
 		JP.put("전체 선택"                                              , "全て選択");
 		JP.put("삭제"                                                   , "削除");

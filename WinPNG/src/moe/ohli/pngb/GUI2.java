@@ -75,6 +75,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	private JPanel panelFilesEdit = new JPanel(new BorderLayout());
 	private Explorer explorer = new Explorer(logger, this);
 	private JButton btnAddFile = new MyButton(this), btnSelectAll = new MyButton(this), btnDelete = new MyButton(this);
+	private JLabel labelInfo = new JLabel("", SwingConstants.RIGHT);
 	private JPanel panelExport = new JPanel(new BorderLayout());
 	private JTextField tfExportDir = new JTextField();
 	private JButton btnExport = new MyButton(this);
@@ -278,10 +279,10 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			ivTarget.setToolTipText(Strings.get("Ctrl+V로 이미지를 적용할 수 있습니다."));
 			ivOutput.setToolTipText(Strings.get("Ctrl+C로 복사할 수 있습니다."));
 			jlTarget.setText(Strings.get("입력 이미지"));
-			rbTarget114  .setText("1:1:4");
-			rbTarget238  .setText("2:3:8");
-			rbTarget124  .setText("1:2:4");
-			rbTarget011  .setText(Strings.get("사용 안 함"));
+			rbTarget114.setText("1:1:4");
+			rbTarget238.setText("2:3:8");
+			rbTarget124.setText("1:2:4");
+			rbTarget011.setText(Strings.get("사용 안 함"));
 			jlRatio.setText("  " + Strings.get("비율") + ": ");
 			jlOutput.setText(Strings.get("출력 이미지"));
 			jlPw.setText(Strings.get("비밀번호 걸기") + " ");
@@ -309,11 +310,14 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 				JPanel panelFiles = new JPanel(new BorderLayout());
 				{	// 파일 리스트 영역
 					panelFilesEdit.add(explorer, BorderLayout.CENTER);
+					JPanel panelStatus = new JPanel(new BorderLayout());
 					JPanel panelFilesBtn = new JPanel(new FlowLayout(FlowLayout.LEFT));
 					panelFilesBtn.add(btnAddFile);
 					panelFilesBtn.add(btnSelectAll);
 					panelFilesBtn.add(btnDelete);
-					panelFilesEdit.add(panelFilesBtn , BorderLayout.SOUTH);
+					panelStatus.add(panelFilesBtn, BorderLayout.WEST);
+					panelStatus.add(labelInfo, BorderLayout.EAST);
+					panelFilesEdit.add(panelStatus , BorderLayout.SOUTH);
 					panelFiles.add(panelFilesEdit, BorderLayout.CENTER);
 				}
 				{	// 버튼 영역
@@ -544,6 +548,22 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		return count;
 	}
 	
+	private void updateInfo() {
+		List<Container> conts = explorer.getAllContainers();
+		int size = 0;
+		for (Container cont : conts) {
+			size += cont.binary.length;
+		}
+		String strSize = size + "B";
+		if (size > 10240) { // 10.0kB 이상
+			strSize = "" + ((size * 10 + 512) / 1024);
+			strSize = strSize.substring(0, strSize.length() - 1) + "." + strSize.substring(strSize.length() - 1) + "kB";
+		} else if (size > 1000) { // 1,000B 이상
+			strSize = (size / 1000) + "," + (size % 1000) + "B";
+		}
+		labelInfo.setText(Strings.get("파일 {count}개 / {size}").replace("{count}", ""+conts.size()).replace("{size}", strSize) + "   ");
+	}
+	
 	private static ImageIcon makeImageIcon(BufferedImage image) {
 		// 비율을 유지한 채로 조절한 크기를 구함
 		int w = IMAGE_VIEW_WIDTH, h = IMAGE_VIEW_HEIGHT;
@@ -579,6 +599,8 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		}
 		do {
 			updateStatus = 1;
+			updateInfo();
+			
 			if (explorer.isEmpty()) {
 				outputImage = null;
 				ivOutput.setIcon(makeImageIcon(JUNK_IMAGE));
@@ -914,10 +936,12 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			if (file != null) {
 				pngFile = file;
 				tfPngFile.setText(pngFile.getAbsolutePath());
+				explorer.setContainers(parsed.containers, file.getName(), false);
+			} else {
+				explorer.setContainers(parsed.containers, false);
 			}
 			openedImage = bmp;
-			
-			explorer.setContainers(parsed.containers);
+			updateInfo();
 			
 			updateTarget(parsed.targetImage == null ? JUNK_IMAGE : parsed.targetImage);
 			
@@ -1141,6 +1165,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		try {
 			ImageIO.write(openedImage = outputImage, "PNG", file);
 			tfPngFile.setText((pngFile = file).getAbsolutePath());
+			explorer.setRootName(file.getName(), true);
 			saveConfig();
 			return true;
 			
@@ -1227,7 +1252,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 							// 기존 것 찾아서 삭제
 							for (FileItem item : items) {
 								if (cont.path.equals(item.container.path)) {
-									explorer.remove(item);
+									explorer.remove(item, false);
 								}
 							}
 						} else {
@@ -1235,7 +1260,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 							continue;
 						}
 					}
-					explorer.add(new FileItem(cont, file.getParent() + "/" + cont.path));
+					explorer.add(new FileItem(cont, file.getParent() + "/" + cont.path), false);
 					count++;
 				}
 			} catch (Exception e) {
@@ -1252,10 +1277,9 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	/**
 	 * 선택된 파일 삭제
 	 */
-	@Override public void deleteSelected() {
+	public void deleteSelected() {
 		logger.info("deleteSelected");
-		explorer.removeSelected();
-		updateOutput();
+		explorer.removeSelected(true);
 	}
 	
 	/**
@@ -1449,8 +1473,6 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 						logger.debug(ex);
 						alert(Strings.get("올바른 크기를 입력하세요."));
 					}
-				} else if (c == explorer) {
-					explorer.openSelectedFile();
 				}
 				break;
 			}
@@ -1517,11 +1539,15 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		}
 	}
 	@Override
-	public void checkPw() {
+	public void requestCheckError() {
 		if (openedImage != null) {
 			String key = JOptionPane.showInputDialog(GUI2.this, Strings.get("비밀번호 걸린 이미지가 잘못 해석된 것 같다면\n비밀번호 키를 입력하세요."));
 			openBitmap(openedImage, pngFile, key, false);
 		}
+	}
+	@Override
+	public void onUpdate() {
+		updateOutput();
 	}
 
 	@Override
@@ -1607,16 +1633,23 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
         		}
         		
         		// 임시 PNG 파일 생성해서 전달
-    			File file = new File(TMP_DIR + name);
-    			file.deleteOnExit();
-    			try {
-    				ImageIO.write(image, "PNG", file); // 생각보다 PNG write 딜레이가 거슬림...
-    				rootFiles.add(file);
-    				
-    			} catch (Exception e) {
-    				logger.error("임시 파일 생성 실패");
-    				logger.debug(e);
-    			}
+        		File file = new File(TMP_DIR + name);
+        		file.deleteOnExit();
+        		
+				// 파일만 생성해서 전달 후 스레드에서 PNG 파일 내용 작성
+				final BufferedImage fileImage = image; // 스레드 전달용 final
+				new Thread(new Runnable() {
+					@Override
+					public void run() {
+						try {
+							ImageIO.write(fileImage, "PNG", file);
+						} catch (IOException e) {
+		    				logger.error("임시 파일 쓰기 실패");
+							logger.debug(e);
+						}
+					}
+				}).start();
+				rootFiles.add(file);
         	}
         	
         	if (rootFiles.size() > 0) {
@@ -1692,12 +1725,11 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			normalBorder = (this.c = c).getBorder();
 		}
     	
-    	/**
-    	 * 드래그 들어왔을 때 테두리 표현
-    	 */
     	@Override
     	public synchronized void dragEnter(DropTargetDragEvent evt) {
     		logger.debug("FileDropTarget.dragEnter");
+    		
+    		// 드래그 들어왔을 때 테두리 표현
 			normalBorder = c.getBorder();
 			c.setBorder(dragBorder);
     	}
