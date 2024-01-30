@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.util.*;
 
 import javax.swing.*;
+import javax.swing.border.Border;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.filechooser.FileSystemView;
@@ -33,6 +34,7 @@ import javax.swing.tree.TreePath;
 public class Explorer extends JPanel {
 	private static final String TMP_DIR = System.getProperty("java.io.tmpdir").replace('\\', '/') + "WinPNG/";
 	private static final Color SELECTED_COLOR = new Color(204, 232, 255);
+	private final Border FOCUS_BORDER = UIManager.getBorder("List.focusCellHighlightBorder");
 	
 	/**
 	 * 파일 드래그 객체
@@ -80,9 +82,7 @@ public class Explorer extends JPanel {
 		public FileItem(Container container, String originalPath) {
 			this.container = container;
 			this.originalPath = originalPath;
-			label = container.path.substring(container.path.replace('\\', '/').lastIndexOf('/') + 1)
-					+ " (" + comma(container.binary.length) + ")"
-					+ (originalPath == null ? "" : ": " + originalPath);
+			refreshLabel();
 		}
 		public FileItem(String label) {
 			this.label = label;
@@ -90,15 +90,21 @@ public class Explorer extends JPanel {
 		public void clearOriginalPath() {
 			if (originalPath != null) {
 				originalPath = null;
-				label = container.path.substring(container.path.replace('\\', '/').lastIndexOf('/') + 1)
-						+ " (" + comma(container.binary.length) + ")";
+				refreshLabel();
 			}
+		}
+		public void refreshLabel() {
+			if (container == null) return; // 디렉토리는 건드릴 일 없음
+
+			label = container.path.substring(container.path.lastIndexOf('/') + 1)
+					+ " (" + comma(container.binary.length) + ")"
+					+ (originalPath == null ? "" : ": " + originalPath);
 		}
 		public String getName() {
 			if (container == null) {
 				return label;
 			}
-			return container.path.substring(container.path.replace('\\', '/').lastIndexOf('/') + 1);
+			return container.path.substring(container.path.lastIndexOf('/') + 1);
 		}
 	}
 	/**
@@ -157,8 +163,7 @@ public class Explorer extends JPanel {
 	private JTree dlv = new JTree(dlRoot);
 
 	private DefaultListModel<FileItem> flModel = new DefaultListModel<>();
-	private JList<FileItem> flv = new JList<>(flModel);
-	private TransferHandler th;
+	private JList<FileItem> flv = new RubberBandList<>(flModel);
 	
 	private String currentDir = "";
 	public String getDir() {
@@ -211,7 +216,7 @@ public class Explorer extends JPanel {
 			
 			flv.setCellRenderer(new DefaultListCellRenderer() {
 				@Override
-				public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected, boolean expanded) {
+				public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected, boolean hasFocus) {
 					FileItem item = (FileItem) value;
 					Icon icon = item.container == null ? dIcon : fIcon;
 					if (item.container != null) {
@@ -228,11 +233,8 @@ public class Explorer extends JPanel {
 					label.setOpaque(true);
 					label.setIcon(icon);
 					label.setFont(font);
-					if (selected) {
-						label.setBackground(SELECTED_COLOR);
-					} else {
-						label.setBackground(Color.WHITE);
-					}
+					label.setBackground(selected ? SELECTED_COLOR : Color.WHITE);
+				    label.setBorder(hasFocus ? FOCUS_BORDER : noFocusBorder);
 					return label;
 				}
 			});
@@ -254,9 +256,6 @@ public class Explorer extends JPanel {
 					openDir(path, true);
 				}
 			});
-			
-			flv.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-			flv.setDragEnabled(true);
 			
 			flv.addMouseListener(new MouseAdapter() {
 				@Override
@@ -304,8 +303,7 @@ public class Explorer extends JPanel {
 					}
 				}
 			});
-			// 나중에 이벤트를 다를 데로 옮길 일이... 있나?
-			th = new TransferHandler() {
+			flv.setTransferHandler(new TransferHandler() {
 				@Override
 				protected Transferable createTransferable(JComponent c) {
 					logger.debug("createTransferable");
@@ -324,7 +322,7 @@ public class Explorer extends JPanel {
 					List<String> primaryNames = new ArrayList<>();
 					for (File subFile : files) {
 						// 최상위 경로 찾기
-						String primaryName = subFile.getAbsolutePath().substring(rootDir.length() + 1).replace('\\', '/');
+						String primaryName = subFile.getAbsolutePath().substring(rootDir.length() + 1);
 						int index = primaryName.indexOf('/');
 						if (index > 0) {
 							primaryName = primaryName.substring(0, index);
@@ -349,8 +347,7 @@ public class Explorer extends JPanel {
 				public int getSourceActions(JComponent c) {
 					return MOVE;
 				}
-			};
-			flv.setTransferHandler(th);
+			});
 		}
 	}
 	@Override
@@ -373,6 +370,7 @@ public class Explorer extends JPanel {
 	}
 	public void add(FileItem item, boolean withUpdate) {
 		logger.info("Explorer.add: " + item.container.path);
+		item.container.path = item.container.path.replace('\\', '/');
 		list.add(item);
 		refresh(withUpdate);
 	}
@@ -484,6 +482,7 @@ public class Explorer extends JPanel {
 		logger.info("Explorer.setContainers" + (withUpdate ? " with update" : ""));
 		list.clear();
 		for (Container cont : containers) {
+			cont.path = cont.path.replace('\\', '/');
 			list.add(new FileItem(cont));
 		}
 		refresh(withUpdate);
@@ -492,6 +491,7 @@ public class Explorer extends JPanel {
 		logger.info("Explorer.setContainers " + name + (withUpdate ? " with update" : ""));
 		list.clear();
 		for (Container cont : containers) {
+			cont.path = cont.path.replace('\\', '/');
 			list.add(new FileItem(cont));
 		}
 		dlRoot.setUserObject(name);
@@ -566,26 +566,31 @@ public class Explorer extends JPanel {
 	private static final Comparator<FileItem> COMP = new Comparator<FileItem>() {
 		@Override
 		public int compare(FileItem item1, FileItem item2) {
-			return compare(item1.container.path.replace('\\', '/'), item2.container.path.replace('\\', '/'));
+			return compare(item1.container.path, item2.container.path);
 		}
 		private int compare(String path1, String path2) {
 			int index1 = path1.indexOf("/");
 			int index2 = path2.indexOf("/");
 			if (index1 < 0) {
 				if (index2 < 0) {
+					// 파일끼리 대소문자 무시하고 비교
 					return path1.toUpperCase().compareTo(path2.toUpperCase());
 				} else {
+					// 폴더 < 파일
 					return 1;
 				}
 			} else {
 				if (index2 < 0) {
+					// 파일 > 폴더
 					return -1;
 				} else {
 					String dir1 = path1.substring(0, index1);
 					String dir2 = path2.substring(0, index2);
 					if (dir1.equals(dir2)) {
+						// 같은 폴더면 하위 내용물 비교
 						return compare(path1.substring(index1 + 1), path2.substring(index2 + 1));
 					} else {
+						// 폴더끼리 대소문자 무시하고 비교
 						return dir1.toUpperCase().compareTo(dir2.toUpperCase());
 					}
 				}
@@ -606,6 +611,10 @@ public class Explorer extends JPanel {
 				currentDir = currentDir.substring(0, currentDir.length() - 1);
 				currentDir = currentDir.substring(0, currentDir.lastIndexOf("/") + 1);
 			}
+		} else if (dir.equals(".")) {
+			// refresh
+			openDir(currentDir.length() == 0 ? "/" : currentDir.substring(0, currentDir.length() - 1), true);
+			return;
 		} else {
 			currentDir += dir + "/";
 		}
@@ -664,7 +673,7 @@ public class Explorer extends JPanel {
 			}
 		}
 	}
-
+	
 	@Override
 	public void setTransferHandler(TransferHandler th) {
 		flv.setTransferHandler(th);
