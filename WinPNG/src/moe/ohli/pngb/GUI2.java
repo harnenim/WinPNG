@@ -61,7 +61,8 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
      *
      */
     private static class MyButton extends JButton {
-    	private static final Border BTN_BODER = BorderFactory.createCompoundBorder(BORDER, new EmptyBorder(4, 8, 4, 8));
+    	private static final Border BTN_MARGIN = new EmptyBorder(4, 8, 4, 8);
+    	private static final Border BTN_BORDER = BorderFactory.createCompoundBorder(BORDER, BTN_MARGIN);
     	private static final Color COLOR_DEFAULT = new Color(0xEEEEEE);
     	private static final Color COLOR_HOVERED = new Color(0xDDDDDD);
     	public MyButton(GUI2 gui) {
@@ -76,9 +77,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
     			attributes.put(TextAttribute.WEIGHT, TextAttribute.WEIGHT_REGULAR);
     			font = new Font(attributes);
     		}
-    		setFont(font);
-    		setBorder(BTN_BODER);
-    		setBackground(COLOR_DEFAULT);
+    		setBorder(isWindows() ? BTN_MARGIN : BTN_BORDER);
     		addActionListener(gui);
     		addKeyListener(gui);
     		addMouseListener(maHover);
@@ -93,95 +92,46 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
     			e.getComponent().setBackground(COLOR_DEFAULT);
     		};
 		};
-    }
-    private static class MyTextField extends JTextField {
-    	private static final Border TF_BODER = BorderFactory.createCompoundBorder(BORDER, new EmptyBorder(2, 2, 2, 2));
-    	private static final Color SELECTION_COLOR = new Color(0, 120, 215);
-    	public MyTextField() {
-    		super();
-    		init();
-    	}
-    	public MyTextField(String text) {
-    		super(text);
-    		init();
-    	}
-    	private void init() {
-    		setBorder(TF_BODER);
-    		setSelectionColor(SELECTION_COLOR);
-    		setSelectedTextColor(Color.WHITE);
-    	}
-    }
-    private static class MyLabel extends JLabel {
-    	public MyLabel() {
-    		super();
-    		init();
-    	}
-    	public MyLabel(String text) {
-    		super(text);
-    		init();
-    	}
-    	public MyLabel(String text, int constants) {
-    		super(text, constants);
-    		init();
-    	}
-    	private static Font font;
-    	private void init() {
-    		if (font == null) {
-    			@SuppressWarnings("unchecked")
-				Map<TextAttribute, Object> attributes = (Map<TextAttribute, Object>) getFont().getAttributes();
-    			attributes.put(TextAttribute.WEIGHT, TextAttribute.WEIGHT_REGULAR);
-    			font = new Font(attributes);
-    		}
-    		setFont(font);
-    	}
-    }
-    private static class MyRadioButton extends JRadioButton {
-    	public MyRadioButton() {
-    		super();
-    		setFont();
-    	}
-    	private static Font font;
-    	private void setFont() {
-    		if (font == null) {
-    			@SuppressWarnings("unchecked")
-				Map<TextAttribute, Object> attributes = (Map<TextAttribute, Object>) getFont().getAttributes();
-    			attributes.put(TextAttribute.WEIGHT, TextAttribute.WEIGHT_REGULAR);
-    			font = new Font(attributes);
-    		}
-    		setFont(font);
-    	}
+		private static Boolean isWindows = null;
+		private static boolean isWindows() {
+			if (isWindows == null) {
+				isWindows = os.toLowerCase().startsWith("windows");
+			}
+			return isWindows;
+		}
     }
 
 	// 윗줄 PNG 파일 읽기
 	private JPanel panelPngFile = new JPanel(new BorderLayout());
-	private JTextField tfPngFile = new MyTextField();
+	private JTextField tfPngFile = new JTextField();
 	private JButton btnOpen = new MyButton(this), btnClose = new MyButton(this);
 	
 	// 좌측 내용물
 	private JPanel panelFilesEdit = new JPanel(new BorderLayout());
 	private Explorer explorer = new Explorer(logger, this);
 	private JButton btnAddFile = new MyButton(this), btnSelectAll = new MyButton(this), btnDelete = new MyButton(this);
-	private JLabel labelInfo = new MyLabel("", SwingConstants.RIGHT);
+	private JLabel labelInfo = new JLabel("", SwingConstants.RIGHT);
 	private JPanel panelExport = new JPanel(new BorderLayout());
-	private JTextField tfExportDir = new MyTextField();
+	private JTextField tfExportDir = new JTextField();
 	private JButton btnExport = new MyButton(this);
 	
 	// 우측 이미지
 	private JPanel panelRight  = new JPanel(new BorderLayout()), panelPreview = new JPanel()
 	             , panelTarget = new JPanel(new BorderLayout()), panelRatio   = new JPanel()
 	             , panelOutput = new JPanel(new BorderLayout());
-	private JLabel ivTarget = new MyLabel(), jlTarget = new MyLabel(), jlRatio = new MyLabel()
-	             , ivOutput = new MyLabel(), jlOutput = new MyLabel(), jlPw = new MyLabel(), jlWidth = new MyLabel();
-	private JRadioButton rbTarget114  = new MyRadioButton();
-	private JRadioButton rbTarget238  = new MyRadioButton();
-	private JRadioButton rbTarget124  = new MyRadioButton();
-	private JRadioButton rbTarget011  = new MyRadioButton();
+	private JLabel ivTarget = new JLabel(), jlTarget = new JLabel(), jlRatio = new JLabel()
+	             , ivOutput = new JLabel(), jlOutput = new JLabel(), jlPw = new JLabel(), jlWidth = new JLabel();
+	private JRadioButton rbTarget114  = new JRadioButton();
+	private JRadioButton rbTarget238  = new JRadioButton();
+	private JRadioButton rbTarget124  = new JRadioButton();
+	private JRadioButton rbTarget011  = new JRadioButton();
 	private ButtonGroup rbGroupTarget = new ButtonGroup();
-	private JTextField tfRatioW = new MyTextField("16"), tfRatioH = new MyTextField("9"), tfPw = new MyTextField(""), tfWidth = new MyTextField("0");
+	private JTextField tfRatioW = new JTextField("16"), tfRatioH = new JTextField("9"), tfPw = new JTextField(""), tfWidth = new JTextField("0");
 	private JButton btnSave = new MyButton(this), btnCopy = new MyButton(this);
 
 	private static final int IMAGE_VIEW_WIDTH = 280, IMAGE_VIEW_HEIGHT = 158;
 	
+	private static String os = "";
 	private static boolean USE_JFC = false;
 	private boolean isAndroid = false;
 	
@@ -192,7 +142,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
 		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-		isAndroid = "Linux".equals(System.getProperty("os.name")) && (screenSize.width < 800);//confirm("Is this Android?", "OS Check");
+		isAndroid = "Linux".equals(os) && (screenSize.width < 800);//confirm("Is this Android?", "OS Check");
 		
 		String exportDir = null;
 		
@@ -447,7 +397,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 						
 						panelRatio.add(jlRatio);
 						panelRatio.add(tfRatioW);
-						panelRatio.add(new MyLabel(":"));
+						panelRatio.add(new JLabel(":"));
 						panelRatio.add(tfRatioH);
 						tfRatioW.setColumns(3);
 						tfRatioH.setColumns(3);
@@ -1607,7 +1557,6 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			
 			try {
 				// OS와 파일 유형에 따른 실행 명령어 설정
-				String os = System.getProperty("os.name");
 				logger.debug("os: " + os);
 				String cmd = null;
 				if (os.toLowerCase().startsWith("windows")) {
@@ -2220,6 +2169,13 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	
 	public static void main(String[] args) {
 		Container.setLogger(logger);
+		
+		try {
+			os = System.getProperty("os.name");
+			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 		
 		GUI2 gui = new GUI2();
 		

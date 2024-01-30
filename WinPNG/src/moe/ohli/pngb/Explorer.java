@@ -35,7 +35,7 @@ import javax.swing.tree.TreePath;
 public class Explorer extends JPanel {
 	private static final String TMP_DIR = System.getProperty("java.io.tmpdir").replace('\\', '/') + "WinPNG/";
 	private static final Color SELECTED_COLOR = new Color(204, 232, 255);
-	private final Border FOCUS_BORDER = UIManager.getBorder("List.focusCellHighlightBorder");
+	private static final Border FOCUS_BORDER = BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(153, 209, 255));
 	
 	/**
 	 * 파일 드래그 객체
@@ -218,6 +218,8 @@ public class Explorer extends JPanel {
 			final Icon dIcon = closedIcon;
 			renderer.setLeafIcon(closedIcon);
 			renderer.setBackgroundSelectionColor(SELECTED_COLOR);
+			renderer.setBorderSelectionColor(SELECTED_COLOR);
+			renderer.setTextSelectionColor(Color.BLACK);
 
 			font = renderer.getFont();
 			String os = System.getProperty("os.name");
