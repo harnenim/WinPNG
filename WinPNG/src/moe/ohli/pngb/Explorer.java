@@ -79,10 +79,13 @@ public class Explorer extends JPanel {
 		public String label = null;
 		public FileItem(Container container) {
 			this.container = container;
+			container.path = container.path.replace('\\', '/');
+			refreshLabel();
 		}
 		public FileItem(Container container, String originalPath) {
 			this.container = container;
 			this.originalPath = originalPath;
+			container.path = container.path.replace('\\', '/');
 			refreshLabel();
 		}
 		public FileItem(String label) {
@@ -339,7 +342,7 @@ public class Explorer extends JPanel {
 					List<String> primaryNames = new ArrayList<>();
 					for (File subFile : files) {
 						// 최상위 경로 찾기
-						String primaryName = subFile.getAbsolutePath().substring(rootDir.length() + 1);
+						String primaryName = subFile.getAbsolutePath().substring(rootDir.length() + 1).replace('\\', '/');
 						int index = primaryName.indexOf('/');
 						if (index > 0) {
 							primaryName = primaryName.substring(0, index);
