@@ -286,6 +286,9 @@ public class Explorer extends JPanel {
 							removeSelected(true);
 							break;
 						}
+						case 113: { // F2
+							renameSelected();
+						}
 					}
 				}
 				@Override
@@ -407,6 +410,59 @@ public class Explorer extends JPanel {
 			list.remove(item);
 		}
 		refresh(withUpdate);
+	}
+	private static final char[] antiChars = "\\/:*?\"<>|".toCharArray();
+	public static boolean isValidFileName(String name) {
+		if (name == null || name.length() == 0) {
+			return false;
+		}
+		for (char c : name.toCharArray()) {
+			for (char anti : antiChars) {
+				if (c == anti) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+	public void renameSelected() {
+		logger.info("Explorer.renameSelected");
+		FileItem selected = flv.getSelectedValue();
+		if (selected == null) return;
+		
+		String name = selected.label; // 디렉토리
+		if (selected.container != null) { // 파일
+			name = selected.container.path.substring(selected.container.path.lastIndexOf('/') + 1);
+		}
+		name = JOptionPane.showInputDialog(this, Strings.get("새 이름을 입력하세요."), name);
+		logger.info("name: " + name);
+		
+		if (!isValidFileName(name)) {
+			if (name != null) {
+				JOptionPane.showMessageDialog(this, Strings.get("올바른 이름이 아닙니다."));
+			}
+			return;
+		}
+		
+		if (selected.container == null) {
+			// 디렉토리
+			String from = currentDir + selected.label + "/";
+			String to = currentDir + name + "/";
+			for (FileItem item : list) {
+				if (item.container.path.startsWith(from)) {
+					item.container.path = to + item.container.path.substring(from.length());
+				}
+			}
+			refresh(true);
+			
+		} else {
+			// 파일
+			selected.container.path = selected.container.path.substring(0, selected.container.path.lastIndexOf('/') + 1) + name;
+			selected.refreshLabel();
+			sort();
+			cd(".");
+			listener.onUpdate();
+		}
 	}
 	public void selectAll() {
 		logger.info("Explorer.selectAll");

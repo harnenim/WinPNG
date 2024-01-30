@@ -64,7 +64,6 @@ public class Strings {
 		EN.put("이미지 파일 열기"                                       , "Open image file");
 		EN.put("이미지를 적용하시겠습니까?"                             , "Do you set the target image?");
 		EN.put("이미지를 적용할 수 없습니다."                           , "Can't set the image.");
-		EN.put("해석할 수 없는 파일입니다."                             , "Can't parse the file.");
 		EN.put("현재 파일을 닫겠습니까?"                                , "Do you want close the opened file?");
 		EN.put("파일 목록에 추가하시겠습니까?"                          , "Do you want add the file(s) to the list?");
 		EN.put("해석할 수 없는 PNG 파일입니다.\n파일 목록에 추가합니다.", "Can't parse the PNG file.\nThe file will add to the list.");
@@ -73,6 +72,10 @@ public class Strings {
 		EN.put("이미지 붙여넣기"                                        , "Paste the image");
 		
 		EN.put("비밀번호 걸린 이미지가 잘못 해석된 것 같다면\n비밀번호 키를 입력하세요.", "If you think it is false parsed data,\ninput the password.");
+		EN.put("이미지를 해석할 수 없습니다.\n비밀번호가 있다면 키를 입력하세요.", "Can't parse the image. If it has a password, input the password.");
+		
+		EN.put("새 이름을 입력하세요.", "Input new name.");
+		EN.put("올바른 이름이 아닙니다.", "It's not valid name.");
 	}
 	private static final Map<String, String> JP = new HashMap<>();
 	static {
@@ -123,7 +126,6 @@ public class Strings {
 		JP.put("이미지 파일 열기"                                       , "画像ファイル開き");
 		JP.put("이미지를 적용하시겠습니까?"                             , "画像を適用しますか？");
 		JP.put("이미지를 적용할 수 없습니다."                           , "画像を適用できません。");
-		JP.put("해석할 수 없는 파일입니다."                             , "解析できないファイルです。");
 		JP.put("현재 파일을 닫겠습니까?"                                , "現在のファイルを閉じますか？");
 		JP.put("파일 목록에 추가하시겠습니까?"                          , "ファイルリストに追加しますか？");
 		JP.put("해석할 수 없는 PNG 파일입니다.\n파일 목록에 추가합니다.", "解析できないPNGファイルです。\nファイルリストに追加します。");
@@ -132,6 +134,10 @@ public class Strings {
 		JP.put("이미지 붙여넣기"                                        , "画像ペースト");
 
 		JP.put("비밀번호 걸린 이미지가 잘못 해석된 것 같다면\n비밀번호 키를 입력하세요.", "パスワードがかけられた画像が間違って解析されたようだったら\nパスワードを入力してください。");
+		JP.put("이미지를 해석할 수 없습니다.\n비밀번호가 있다면 키를 입력하세요.", "画像を解析できません。\\nパスワードがあるなら入力してください。");
+		
+		JP.put("새 이름을 입력하세요.", "新しい名前を入力してください。");
+		JP.put("올바른 이름이 아닙니다.", "正しい名前ではありません。");
 	}
 	
 	private static Map<String, String> selected = EN;
