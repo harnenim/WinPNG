@@ -24,8 +24,7 @@ import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-import moe.ohli.pngb.Explorer.FileItem;
-import moe.ohli.pngb.Explorer.FileTransferable;
+import moe.ohli.pngb.Explorer.*;
 import sun.awt.image.AbstractMultiResolutionImage;
 
 @SuppressWarnings("serial")
@@ -229,6 +228,12 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 				exportDir = props.getProperty("exportDir");
 			} catch (Exception e) {
 				logger.warn("추출 경로 설정 가져오기 실패");
+				logger.debug(e);
+			}
+			try {
+				explorer.setDirWidth(Integer.parseInt(props.getProperty("dirWidth")));
+			} catch (Exception e) {
+				logger.warn("디렉토리 트리 크기 가져오기 실패");
 				logger.debug(e);
 			}
 			
@@ -507,6 +512,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		Rectangle bounds = getBounds();
 		props.setProperty("LogLevel", logger.getDefaultLevel().name());
 		props.setProperty("bounds", bounds.x + "," + bounds.y + "," + bounds.width + "," + bounds.height);
+		props.setProperty("dirWidth", explorer.getDirWidth() + "");
 		props.setProperty("minWidth", tfWidth.getText());
 		props.setProperty("exportDir", tfExportDir.getText());
 		if        (rbTarget114.isSelected()) {

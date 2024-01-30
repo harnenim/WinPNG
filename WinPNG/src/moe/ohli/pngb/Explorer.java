@@ -3,6 +3,7 @@ package moe.ohli.pngb;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.datatransfer.DataFlavor;
@@ -161,14 +162,19 @@ public class Explorer extends JPanel {
 	
 	private DirTreeNode dlRoot = new DirTreeNode("/");
 	private JTree dlv = new JTree(dlRoot);
+	private JScrollPane spd = new JScrollPane(dlv);
+	private JPanel panelDir = new JPanel(new BorderLayout());
+	private JPanel bar = new JPanel();
 
 	private DefaultListModel<FileItem> flModel = new DefaultListModel<>();
 	private JList<FileItem> flv = new RubberBandList<>(flModel);
+	private JScrollPane spf = new JScrollPane(flv);
 	
 	private String currentDir = "";
 	public String getDir() {
 		return currentDir;
 	}
+	int fromWidth = 0;
 	
 	/**
 	 * 탐색기 생성자
@@ -181,12 +187,15 @@ public class Explorer extends JPanel {
 		this.listener = listener;
 		
 		{	// UI 배치
-			JScrollPane spd = new JScrollPane(dlv);
-			JScrollPane spf = new JScrollPane(flv);
-			add(spd, BorderLayout.WEST);
+			panelDir.add(spd, BorderLayout.CENTER);
+			panelDir.add(bar, BorderLayout.EAST);
+			
+			add(panelDir, BorderLayout.WEST);
 			add(spf, BorderLayout.CENTER);
 			
-			spd.setPreferredSize(new Dimension(120, 0));
+			setDirWidth(120);
+			bar.setPreferredSize(new Dimension(5, 0));
+			bar.setCursor(new Cursor(Cursor.E_RESIZE_CURSOR));
 
 			dlv.setRowHeight(19);
 			flv.setFixedCellHeight(19);
@@ -351,11 +360,58 @@ public class Explorer extends JPanel {
 					return MOVE;
 				}
 			});
+			
+			{	// 디렉토리 트리 사이즈 조절
+				MouseAdapter maResize = new MouseAdapter() {
+					private int fromX = 0;
+					
+					@Override
+					public void mousePressed(MouseEvent e) {
+						fromX = (int) e.getPoint().getX();
+						fromWidth = getDirWidth();
+					}
+					@Override
+					public void mouseDragged(MouseEvent e) {
+						if (fromWidth == 0) return;
+						int width = fromWidth + (int) e.getPoint().getX() - fromX;
+						setDirWidth(width < 1 ? 1 : width);
+					}
+					@Override
+					public void mouseReleased(MouseEvent e) {
+						if (fromWidth == 0) return;
+						fromWidth = 0;
+					}
+				};
+				addMouseListener(maResize);
+				addMouseMotionListener(maResize);
+				addKeyListener(new KeyAdapter() {
+					@Override
+					public void keyReleased(KeyEvent e) {
+						switch (e.getKeyCode()) {
+							case 27: { // ESC
+								// 리사이즈 취소
+								if (fromWidth == 0) return;
+								setDirWidth(fromWidth);
+								fromWidth = 0;
+								break;
+							}
+						}
+					}
+				});
+			}
 		}
 	}
 	@Override
 	public synchronized void addKeyListener(KeyListener kl) {
 		flv.addKeyListener(kl);
+	}
+	
+	public void setDirWidth(int width) {
+		panelDir.setPreferredSize(new Dimension(width, 0));
+		updateUI();
+	}
+	public int getDirWidth() {
+		return panelDir.getWidth();
 	}
 	
 	public boolean isEmpty() {
