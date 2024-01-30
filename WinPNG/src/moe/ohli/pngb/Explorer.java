@@ -278,13 +278,19 @@ public class Explorer extends JPanel {
 				@Override
 				public void mouseClicked(MouseEvent evt) {
 					logger.info("mouseClicked");
-					if (evt.getClickCount() == 2) {
-						if (evt.getButton() == MouseEvent.BUTTON3) {
-							logger.debug("우측 더블 클릭");
-							listener.requestCheckError(); // 파싱 오류 보완책
-						} else {
+					if (evt.getClickCount() == 1) {
+						if (evt.getButton() == 4) { // 뒤로가기 대신 상위폴더로 작동
+							cd("..");
+						}
+						
+					} else if (evt.getClickCount() == 2) {
+						if (evt.getButton() == MouseEvent.BUTTON1) {
 							logger.debug("더블 클릭");
 							openSelectedFile(); // 실행
+							
+						} else if (evt.getButton() == MouseEvent.BUTTON3) {
+							logger.debug("우측 더블 클릭");
+							listener.requestCheckError(); // 파싱 오류 보완책
 						}
 					}
 				}
@@ -316,7 +322,7 @@ public class Explorer extends JPanel {
 							openSelectedFile();
 						}
 						case 37: { // ←
-							if (e.isAltDown()) {
+							if (e.isAltDown()) { // 뒤로가기 대신 상위폴더로 작동
 								cd("..");
 							}
 						}

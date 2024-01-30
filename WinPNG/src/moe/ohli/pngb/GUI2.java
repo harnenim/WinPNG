@@ -140,7 +140,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	public void init() {
 		setTitle("WinPNG");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
+		
 		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 		isAndroid = "Linux".equals(os) && (screenSize.width < 800);//confirm("Is this Android?", "OS Check");
 		
