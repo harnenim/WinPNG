@@ -195,7 +195,10 @@ public class Explorer extends JPanel {
 			
 			setDirWidth(120);
 			bar.setPreferredSize(new Dimension(5, 0));
+			bar.setBackground(new Color(221, 221, 221));
 			bar.setCursor(new Cursor(Cursor.E_RESIZE_CURSOR));
+			spd.setBorder(null);
+			spf.setBorder(null);
 
 			dlv.setRowHeight(19);
 			flv.setFixedCellHeight(19);

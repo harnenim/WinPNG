@@ -6,6 +6,7 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FileDialog;
 import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.GridLayout;
 import java.awt.Image;
@@ -14,6 +15,7 @@ import java.awt.Toolkit;
 import java.awt.datatransfer.*;
 import java.awt.dnd.*;
 import java.awt.event.*;
+import java.awt.font.TextAttribute;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.*;
@@ -22,6 +24,7 @@ import java.util.*;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.Border;
+import javax.swing.border.EmptyBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 import moe.ohli.pngb.Explorer.*;
@@ -39,6 +42,8 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		graphics.fillRect(0, 0, 16, 9);
 		graphics.dispose();
 	}
+	private static final Border BORDER = BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(204, 204, 204));
+	private static final Border DRAG_BORDER = BorderFactory.createMatteBorder(2, 2, 2, 2, new Color(0f, 0f, 1f, 0.25f));
 	
 	private static Logger logger = new Logger(Logger.L.DEBUG); // 로그 파일 로깅 수준 기본값 디버그
 	
@@ -56,41 +61,123 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
      *
      */
     private static class MyButton extends JButton {
-    	private static final Color COLOR_EEEEEE = new Color(0xEEEEEE);
+    	private static final Border BTN_BODER = BorderFactory.createCompoundBorder(BORDER, new EmptyBorder(4, 8, 4, 8));
+    	private static final Color COLOR_DEFAULT = new Color(0xEEEEEE);
+    	private static final Color COLOR_HOVERED = new Color(0xDDDDDD);
     	public MyButton(GUI2 gui) {
     		super();
-    		setBackground(COLOR_EEEEEE);
+    		init(gui);
+    	}
+    	private static Font font;
+    	private void init(GUI2 gui) {
+    		if (font == null) {
+    			@SuppressWarnings("unchecked")
+				Map<TextAttribute, Object> attributes = (Map<TextAttribute, Object>) getFont().getAttributes();
+    			attributes.put(TextAttribute.WEIGHT, TextAttribute.WEIGHT_REGULAR);
+    			font = new Font(attributes);
+    		}
+    		setFont(font);
+    		setBorder(BTN_BODER);
+    		setBackground(COLOR_DEFAULT);
     		addActionListener(gui);
     		addKeyListener(gui);
+    		addMouseListener(maHover);
+    	}
+    	private static final MouseAdapter maHover = new MouseAdapter() {
+    		@Override
+    		public void mouseEntered(MouseEvent e) {
+    			e.getComponent().setBackground(COLOR_HOVERED);
+    		};
+    		@Override
+    		public void mouseExited(MouseEvent e) {
+    			e.getComponent().setBackground(COLOR_DEFAULT);
+    		};
+		};
+    }
+    private static class MyTextField extends JTextField {
+    	private static final Border TF_BODER = BorderFactory.createCompoundBorder(BORDER, new EmptyBorder(2, 2, 2, 2));
+    	private static final Color SELECTION_COLOR = new Color(0, 120, 215);
+    	public MyTextField() {
+    		super();
+    		init();
+    	}
+    	public MyTextField(String text) {
+    		super(text);
+    		init();
+    	}
+    	private void init() {
+    		setBorder(TF_BODER);
+    		setSelectionColor(SELECTION_COLOR);
+    		setSelectedTextColor(Color.WHITE);
+    	}
+    }
+    private static class MyLabel extends JLabel {
+    	public MyLabel() {
+    		super();
+    		init();
+    	}
+    	public MyLabel(String text) {
+    		super(text);
+    		init();
+    	}
+    	public MyLabel(String text, int constants) {
+    		super(text, constants);
+    		init();
+    	}
+    	private static Font font;
+    	private void init() {
+    		if (font == null) {
+    			@SuppressWarnings("unchecked")
+				Map<TextAttribute, Object> attributes = (Map<TextAttribute, Object>) getFont().getAttributes();
+    			attributes.put(TextAttribute.WEIGHT, TextAttribute.WEIGHT_REGULAR);
+    			font = new Font(attributes);
+    		}
+    		setFont(font);
+    	}
+    }
+    private static class MyRadioButton extends JRadioButton {
+    	public MyRadioButton() {
+    		super();
+    		setFont();
+    	}
+    	private static Font font;
+    	private void setFont() {
+    		if (font == null) {
+    			@SuppressWarnings("unchecked")
+				Map<TextAttribute, Object> attributes = (Map<TextAttribute, Object>) getFont().getAttributes();
+    			attributes.put(TextAttribute.WEIGHT, TextAttribute.WEIGHT_REGULAR);
+    			font = new Font(attributes);
+    		}
+    		setFont(font);
     	}
     }
 
 	// 윗줄 PNG 파일 읽기
 	private JPanel panelPngFile = new JPanel(new BorderLayout());
-	private JTextField tfPngFile = new JTextField();
+	private JTextField tfPngFile = new MyTextField();
 	private JButton btnOpen = new MyButton(this), btnClose = new MyButton(this);
 	
 	// 좌측 내용물
 	private JPanel panelFilesEdit = new JPanel(new BorderLayout());
 	private Explorer explorer = new Explorer(logger, this);
 	private JButton btnAddFile = new MyButton(this), btnSelectAll = new MyButton(this), btnDelete = new MyButton(this);
-	private JLabel labelInfo = new JLabel("", SwingConstants.RIGHT);
+	private JLabel labelInfo = new MyLabel("", SwingConstants.RIGHT);
 	private JPanel panelExport = new JPanel(new BorderLayout());
-	private JTextField tfExportDir = new JTextField();
+	private JTextField tfExportDir = new MyTextField();
 	private JButton btnExport = new MyButton(this);
 	
 	// 우측 이미지
 	private JPanel panelRight  = new JPanel(new BorderLayout()), panelPreview = new JPanel()
 	             , panelTarget = new JPanel(new BorderLayout()), panelRatio   = new JPanel()
 	             , panelOutput = new JPanel(new BorderLayout());
-	private JLabel ivTarget = new JLabel(), jlTarget = new JLabel(), jlRatio = new JLabel()
-	             , ivOutput = new JLabel(), jlOutput = new JLabel(), jlPw = new JLabel(), jlWidth = new JLabel();
-	private JRadioButton rbTarget114  = new JRadioButton();
-	private JRadioButton rbTarget238  = new JRadioButton();
-	private JRadioButton rbTarget124  = new JRadioButton();
-	private JRadioButton rbTarget011  = new JRadioButton();
+	private JLabel ivTarget = new MyLabel(), jlTarget = new MyLabel(), jlRatio = new MyLabel()
+	             , ivOutput = new MyLabel(), jlOutput = new MyLabel(), jlPw = new MyLabel(), jlWidth = new MyLabel();
+	private JRadioButton rbTarget114  = new MyRadioButton();
+	private JRadioButton rbTarget238  = new MyRadioButton();
+	private JRadioButton rbTarget124  = new MyRadioButton();
+	private JRadioButton rbTarget011  = new MyRadioButton();
 	private ButtonGroup rbGroupTarget = new ButtonGroup();
-	private JTextField tfRatioW = new JTextField("16"), tfRatioH = new JTextField("9"), tfPw = new JTextField(""), tfWidth = new JTextField("0");
+	private JTextField tfRatioW = new MyTextField("16"), tfRatioH = new MyTextField("9"), tfPw = new MyTextField(""), tfWidth = new MyTextField("0");
 	private JButton btnSave = new MyButton(this), btnCopy = new MyButton(this);
 
 	private static final int IMAGE_VIEW_WIDTH = 280, IMAGE_VIEW_HEIGHT = 158;
@@ -324,6 +411,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 					panelStatus.add(labelInfo, BorderLayout.EAST);
 					panelFilesEdit.add(panelStatus , BorderLayout.SOUTH);
 					panelFiles.add(panelFilesEdit, BorderLayout.CENTER);
+					explorer.setBorder(BORDER);
 				}
 				{	// 버튼 영역
 					panelExport.add(tfExportDir, BorderLayout.CENTER);
@@ -359,7 +447,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 						
 						panelRatio.add(jlRatio);
 						panelRatio.add(tfRatioW);
-						panelRatio.add(new JLabel(":"));
+						panelRatio.add(new MyLabel(":"));
 						panelRatio.add(tfRatioH);
 						tfRatioW.setColumns(3);
 						tfRatioH.setColumns(3);
@@ -930,7 +1018,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 				}
 				if (parsed == null) {
 					// 키값 입력받아서 재시도
-					key = JOptionPane.showInputDialog(this, "이미지를 해석할 수 없습니다.\n비밀번호가 있다면 키를 입력하세요.");
+					key = JOptionPane.showInputDialog(this, Strings.get("이미지를 해석할 수 없습니다.\n비밀번호가 있다면 키를 입력하세요."));
 					parsed = Container.WithTarget.fromBitmap(bmp, possibility, key);
 				}
 				if (parsed == null) {
@@ -1187,7 +1275,9 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	private void copyToClipboard() {
 		logger.info("copyToClipboard");
 		final Image image = outputImage;
-		if (outputImage != null) {
+		if (outputImage == null) {
+			alert(Strings.get("이미지로 저장할 내용이 없습니다."));
+		} else {
 			try {
 				Transferable contents = new Transferable() {
 					@Override
@@ -1716,7 +1806,6 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	 *
 	 */
     private static class FileDropTarget extends DropTarget {
-		private static Border dragBorder = BorderFactory.createMatteBorder(2, 2, 2, 2, new Color(0f, 0f, 1f, 0.25f));
     	private Border normalBorder;
     	private GUI2 gui;
     	protected JComponent c;
@@ -1737,7 +1826,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
     		
     		// 드래그 들어왔을 때 테두리 표현
 			normalBorder = c.getBorder();
-			c.setBorder(dragBorder);
+			c.setBorder(DRAG_BORDER);
     	}
     	
 		@SuppressWarnings("unchecked")
