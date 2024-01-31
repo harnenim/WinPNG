@@ -23,8 +23,7 @@ import java.util.*;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
-import javax.swing.border.Border;
-import javax.swing.border.EmptyBorder;
+import javax.swing.border.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 import moe.ohli.pngb.Explorer.*;
@@ -100,6 +99,44 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			return isWindows;
 		}
     }
+	
+	/**
+	 * 리스너 적용된 메뉴 아이템
+	 * 
+	 * @author harne_
+	 *
+	 */
+	private class MyMenuItem extends JMenuItem {
+		private ActionListener acMenu = new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				Object source = e.getSource();
+				if (source == miOpenFile) {
+					explorer.openSelectedFile();
+				} else if (source == miRename) {
+					explorer.renameSelected();
+				} else if (source == miRemove) {
+					explorer.removeSelected();
+				} else if (source == miAddFile) {
+					addFileWithDialog();
+				} else if (source == miSelectAll) {
+					explorer.selectAll();
+				} else if (source == miIfError) {
+					requestCheckError();
+				}
+			}
+		};
+		public MyMenuItem() {
+			super();
+			addActionListener(acMenu);
+		}
+	}
+	private JMenuItem miOpenFile  = new MyMenuItem();
+	private JMenuItem miRename    = new MyMenuItem();
+	private JMenuItem miRemove    = new MyMenuItem();
+	private JMenuItem miAddFile   = new MyMenuItem();
+	private JMenuItem miSelectAll = new MyMenuItem();
+	private JMenuItem miIfError   = new MyMenuItem();
 
 	// 윗줄 PNG 파일 읽기
 	private JPanel panelPngFile = new JPanel(new BorderLayout());
@@ -331,6 +368,13 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			jlWidth.setText(Strings.get("최소 폭") + " ");
 			btnSave.setText(Strings.get("저장"));
 			btnCopy.setText(Strings.get("복사"));
+			
+			miOpenFile .setText(Strings.get("열기"       ));
+			miRename   .setText(Strings.get("이름 바꾸기")); 
+			miRemove   .setText(Strings.get("파일 삭제"  ));
+			miAddFile  .setText(Strings.get("파일 추가"  ));
+			miSelectAll.setText(Strings.get("전체 선택"  ));
+			miIfError  .setText(Strings.get("해석 오류"  ));
 		}
 		
 		{	// 레이아웃 구성
@@ -1393,18 +1437,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			
 		} else if (target == btnAddFile) {
 			// 파일 추가
-			if (pngFile != null) {
-				// 현재 열려있는 파일이 있을 경우 해당 경로에서 열기
-				String path = pngFile.getAbsolutePath().replace("\\", "/");
-				path = path.substring(0, path.lastIndexOf("/"));
-				fcFile.setCurrentDirectory(new File(path));
-			}
-			fcFile.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
-			fcFile.setMultiSelectionEnabled(true);
-			int result = fcFile.showOpenDialog(this);
-			if (result == JFileChooser.APPROVE_OPTION) {
-				addFiles(fcFile.getSelectedFiles());
-			}
+			addFileWithDialog();
 			
 		} else if (target == btnSelectAll) {
 			// 전체 선택
@@ -1444,6 +1477,20 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			}
 			// 이미지 사용 여부 선택하면 재생성
 			updateOutput();
+		}
+	}
+	private void addFileWithDialog() {
+		if (pngFile != null) {
+			// 현재 열려있는 파일이 있을 경우 해당 경로에서 열기
+			String path = pngFile.getAbsolutePath().replace("\\", "/");
+			path = path.substring(0, path.lastIndexOf("/"));
+			fcFile.setCurrentDirectory(new File(path));
+		}
+		fcFile.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
+		fcFile.setMultiSelectionEnabled(true);
+		int result = fcFile.showOpenDialog(this);
+		if (result == JFileChooser.APPROVE_OPTION) {
+			addFiles(fcFile.getSelectedFiles());
 		}
 	}
 	private JFileChooser fcFile = new JFileChooser();
@@ -1593,6 +1640,30 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	@Override
 	public void onUpdate() {
 		updateOutput();
+	}
+	
+	@Override
+	public void onPopup(MouseEvent e, String dir, List<FileItem> items) {
+		JPopupMenu menu = new JPopupMenu();
+		
+		if (items.size() > 0) {
+			if (items.size() == 1) {
+				menu.add(miOpenFile);
+				menu.add(miRename);
+			}
+			menu.add(miRemove);
+			menu.add(new JPopupMenu.Separator());
+		}
+		menu.add(miAddFile);
+		if (!explorer.isEmpty()) {
+			menu.add(miSelectAll);
+		}
+		if (openedImage != null && explorer.getAllContainers().size() == 1) {
+			menu.add(new JPopupMenu.Separator());
+			menu.add(miIfError);
+		}
+		
+		menu.show(explorer, e.getX() + explorer.getDirWidth(), e.getY());
 	}
 
 	@Override

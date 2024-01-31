@@ -146,6 +146,7 @@ public class Explorer extends JPanel {
 		public void runFile(Container cont);
 		public void requestCheckError();
 		public void onUpdate();
+		public void onPopup(MouseEvent evt, String dir, List<FileItem> items);
 	}
 	
 	private static class DirTreeNode extends DefaultMutableTreeNode {
@@ -250,14 +251,16 @@ public class Explorer extends JPanel {
 			add(spf, BorderLayout.CENTER);
 			
 			setDirWidth(120);
-			bar.setPreferredSize(new Dimension(5, 0));
+			bar.setPreferredSize(new Dimension(7, 0));
 			bar.setBackground(new Color(221, 221, 221));
 			bar.setCursor(new Cursor(Cursor.E_RESIZE_CURSOR));
+			bar.setBorder(BorderFactory.createMatteBorder(0, 1, 0, 1, new Color(255, 255, 255)));
 			spd.setBorder(null);
 			spf.setBorder(null);
 
 			dlv.setRowHeight(19);
 			flv.setFixedCellHeight(19);
+			flv.setFocusable(true);
 		}
 		
 		{	// 폴더/파일 아이콘
@@ -330,20 +333,21 @@ public class Explorer extends JPanel {
 			flv.addMouseListener(new MouseAdapter() {
 				@Override
 				public void mouseClicked(MouseEvent evt) {
-					logger.info("mouseClicked");
+					int button = evt.getButton();
+					logger.info("mouseClicked: " + button);
 					if (evt.getClickCount() == 1) {
-						if (evt.getButton() == 4) { // 뒤로가기 대신 상위폴더로 작동
+						if (button == MouseEvent.BUTTON3 || button == 0) { // Android JRE의 RMB가 0이 나옴
+							// 우클릭 메뉴
+							listener.onPopup(evt, currentDir, flv.getSelectedValuesList());
+						} else if (button == 4) {
+							// 뒤로가기 대신 상위폴더로 작동
 							cd("..");
 						}
 						
 					} else if (evt.getClickCount() == 2) {
-						if (evt.getButton() == MouseEvent.BUTTON1) {
+						if (button == MouseEvent.BUTTON1) {
 							logger.debug("더블 클릭");
 							openSelectedFile(); // 실행
-							
-						} else if (evt.getButton() == MouseEvent.BUTTON3) {
-							logger.debug("우측 더블 클릭");
-							listener.requestCheckError(); // 파싱 오류 보완책
 						}
 					}
 				}
@@ -589,8 +593,7 @@ public class Explorer extends JPanel {
 	}
 	public void selectAll() {
 		logger.info("Explorer.selectAll");
-		FileItem firstItem = flModel.get(0);
-		if (firstItem == null) {
+		if (flModel.isEmpty()) {
 			return;
 		}
 		int[] indices = new int[flModel.size()];
