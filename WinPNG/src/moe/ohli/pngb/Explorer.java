@@ -12,6 +12,7 @@ import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.dnd.*;
 import java.awt.event.*;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.*;
 
@@ -36,6 +37,30 @@ public class Explorer extends JPanel {
 	private static final String TMP_DIR = System.getProperty("java.io.tmpdir").replace('\\', '/') + "WinPNG/";
 	private static final Color SELECTED_COLOR = new Color(204, 232, 255);
 	private static final Border FOCUS_BORDER = BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(153, 209, 255));
+	
+	// 구버전에서 잘못 생성된 아이콘 임시파일 삭제
+	static {
+		try {
+			File[] files = new File(System.getProperty("java.io.tmpdir")).listFiles();
+			for (File file : files) {
+				if (file.isDirectory()) {
+					continue;
+				}
+				String name = file.getName();
+				if (!name.startsWith("icon")) {
+					continue;
+				}
+				try {
+					Integer.parseInt(name.substring(4, 10));
+					file.delete();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
 	
 	/**
 	 * 파일 드래그 객체
@@ -158,6 +183,34 @@ public class Explorer extends JPanel {
 		return result;
 	}
 	
+	/**
+	 * 시스템 파일 아이콘 구해오기
+	 * @param name
+	 * @return
+	 * @throws IOException
+	 */
+	public static Icon getSystemIcon(String name) throws IOException {
+		String ext = name;
+		if (ext.indexOf(".") > 0) {
+			ext = ext.substring(ext.lastIndexOf("."));
+		}
+
+		String path = TMP_DIR + "icon/icon" + ext;
+		File file = new File(path);
+		if (!file.exists()) {
+			new File(TMP_DIR + "icon").mkdirs();
+			
+			FileOutputStream fos = new FileOutputStream(file);
+			// fos.write 할 거 없음
+			
+			if (fos != null) try { fos.close(); } catch (Exception e) { }
+		}
+		if (file.exists()) {
+			return FileSystemView.getFileSystemView().getSystemIcon(file);
+		}
+		return null;
+	}
+	
 	private List<FileItem> list = new ArrayList<>();
 	private Logger logger;
 	private Listener listener;
@@ -238,7 +291,7 @@ public class Explorer extends JPanel {
 					Icon icon = item.container == null ? dIcon : fIcon;
 					if (item.container != null) {
 						try {
-							Icon systemIcon = FileSystemView.getFileSystemView().getSystemIcon(File.createTempFile(TMP_DIR + "icon", item.getName()));
+							Icon systemIcon = getSystemIcon(item.getName());
 							if (systemIcon != null) {
 								icon = systemIcon;
 							}
