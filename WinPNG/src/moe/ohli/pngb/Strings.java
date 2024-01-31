@@ -22,6 +22,7 @@ public class Strings {
 		EN.put("닫기"                                                   , "Close");
 		
 		EN.put("파일 {count}개 / {size}"                                , "{count} file(s) / {size}");
+		EN.put("{count} 파일 선택됨 / {size}"                           , "{count} file(s) selected / {size}");
 		EN.put("추가"                                                   , "Add");
 		EN.put("전체 선택"                                              , "Select All");
 		EN.put("삭제"                                                   , "Delete");
@@ -38,6 +39,14 @@ public class Strings {
 		EN.put("최소 폭"                                                , "Min-Width");
 		EN.put("저장"                                                   , "Save");
 		EN.put("복사"                                                   , "Copy");
+		
+		EN.put("이름 바꾸기"                                            , "Rename"); 
+		EN.put("파일 삭제"                                              , "Delete file(s)");
+		EN.put("파일 추가"                                              , "Add file(s)");
+		EN.put("해석 오류"                                              , "Is it error?");
+		
+		EN.put("붙여넣기"                                               , "Paste");
+		EN.put("이미지 복사"                                            , "Copy Image");
 
 		EN.put("PNG 파일(*.png)"                                        , "PNG File(*.png)");
 
@@ -84,6 +93,7 @@ public class Strings {
 		JP.put("닫기"                                                   , "閉じる");
 
 		JP.put("파일 {count}개 / {size}"                                , "ファイル {count}個 / {size}");
+		JP.put("{count} 파일 선택됨 / {size}"                           , "{count} ファイルを選択 / {size}");
 		JP.put("추가"                                                   , "追加");
 		JP.put("전체 선택"                                              , "全て選択");
 		JP.put("삭제"                                                   , "削除");
@@ -100,6 +110,14 @@ public class Strings {
 		JP.put("최소 폭"                                                , "最低の幅");
 		JP.put("저장"                                                   , "保存");
 		JP.put("복사"                                                   , "コピー");
+		
+		JP.put("이름 바꾸기"                                            , "改名"); 
+		JP.put("파일 삭제"                                              , "ファイル削除");
+		JP.put("파일 추가"                                              , "ファイル追加");
+		JP.put("해석 오류"                                              , "間違った解析？");
+		
+		JP.put("붙여넣기"                                               , "ペースト");
+		JP.put("이미지 복사"                                            , "画像をコピー");
 
 		JP.put("PNG 파일(*.png)"                                        , "PNGファイル(*.png)");
 
