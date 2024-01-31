@@ -5,7 +5,6 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FileDialog;
-import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.GridLayout;
@@ -146,7 +145,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	// 좌측 내용물
 	private JPanel panelFilesEdit = new JPanel(new BorderLayout());
 	private Explorer explorer = new Explorer(logger, this);
-	private JButton btnAddFile = new MyButton(this), btnSelectAll = new MyButton(this), btnDelete = new MyButton(this);
+//	private JButton btnAddFile = new MyButton(this), btnSelectAll = new MyButton(this), btnDelete = new MyButton(this);
 	private JLabel labelInfo = new JLabel("", SwingConstants.RIGHT);
 	private JPanel panelExport = new JPanel(new BorderLayout());
 	private JTextField tfExportDir = new JTextField();
@@ -345,9 +344,9 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			btnOpen .setText(Strings.get("열기"));
 			btnClose.setText(Strings.get("닫기"));
 			
-			btnAddFile.setText(Strings.get("추가"));
-			btnSelectAll.setText(Strings.get("전체 선택"));
-			btnDelete .setText(Strings.get("삭제"));
+//			btnAddFile.setText(Strings.get("추가"));
+//			btnSelectAll.setText(Strings.get("전체 선택"));
+//			btnDelete .setText(Strings.get("삭제"));
 			if (exportDir != null && exportDir.length() > 0) {
 				tfExportDir.setText(exportDir);
 			} else {
@@ -397,11 +396,11 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 				{	// 파일 리스트 영역
 					panelFilesEdit.add(explorer, BorderLayout.CENTER);
 					JPanel panelStatus = new JPanel(new BorderLayout());
-					JPanel panelFilesBtn = new JPanel(new FlowLayout(FlowLayout.LEFT));
-					panelFilesBtn.add(btnAddFile);
-					panelFilesBtn.add(btnSelectAll);
-					panelFilesBtn.add(btnDelete);
-					panelStatus.add(panelFilesBtn, BorderLayout.WEST);
+//					JPanel panelFilesBtn = new JPanel(new FlowLayout(FlowLayout.LEFT));
+//					panelFilesBtn.add(btnAddFile);
+//					panelFilesBtn.add(btnSelectAll);
+//					panelFilesBtn.add(btnDelete);
+//					panelStatus.add(panelFilesBtn, BorderLayout.WEST);
 					panelStatus.add(labelInfo, BorderLayout.EAST);
 					panelFilesEdit.add(panelStatus , BorderLayout.SOUTH);
 					panelFiles.add(panelFilesEdit, BorderLayout.CENTER);
@@ -471,6 +470,16 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 					panelSave.add(panelSaveBtn, BorderLayout.EAST);
 					
 					panelRight.add(panelSave, BorderLayout.SOUTH);
+				}
+				{	// 우클릭 메뉴 단축키... 왜 안 됨?
+					/*
+					miOpenFile .setAccelerator(KeyStroke.getKeyStroke('O'));
+					miRename   .setAccelerator(KeyStroke.getKeyStroke('R')); 
+					miRemove   .setAccelerator(KeyStroke.getKeyStroke('D'));
+					miAddFile  .setAccelerator(KeyStroke.getKeyStroke('N'));
+					miSelectAll.setAccelerator(KeyStroke.getKeyStroke('A'));
+					miIfError  .setAccelerator(KeyStroke.getKeyStroke('E'));
+					*/
 				}
 				
 				panelTarget.setMaximumSize(new Dimension(IMAGE_VIEW_WIDTH, IMAGE_VIEW_HEIGHT + 40));
@@ -1435,6 +1444,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			updateTarget(JUNK_IMAGE);
 			updateOutput();
 			
+			/*
 		} else if (target == btnAddFile) {
 			// 파일 추가
 			addFileWithDialog();
@@ -1446,6 +1456,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		} else if (target == btnDelete) {
 			// 선택된 파일 삭제
 			deleteSelected();
+			*/
 			
 		} else if (target == btnExport) {
 			exportSelected();
