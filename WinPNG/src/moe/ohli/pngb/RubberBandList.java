@@ -29,6 +29,8 @@ class RubberBandList<E> extends JList<E> {
 		MouseAdapter ma = new MouseAdapter() {
 			@Override
 			public void mousePressed(MouseEvent e) {
+//				if (e.getButton() != 1) return;
+				
 				Point pt = e.getPoint();
 				
 				// 마우스 누른 위치 상태 확인
@@ -85,6 +87,7 @@ class RubberBandList<E> extends JList<E> {
 				repaint();
 				setDragEnabled(true);
 				using = false;
+				requestFocus();
 			}
 		};
 		addMouseListener(ma);
