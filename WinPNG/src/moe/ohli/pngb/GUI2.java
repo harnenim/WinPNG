@@ -182,7 +182,36 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	private JMenuItem miAddFile   = new MyMenuItem();
 	private JMenuItem miSelectAll = new MyMenuItem();
 	private JMenuItem miIfError   = new MyMenuItem();
-
+	
+	/**
+	 * 우클릭 리스너
+	 * 
+	 * @author harne_
+	 *
+	 */
+	private class ImageActionListener implements ActionListener {
+		private Transferable tr;
+		private Component c;
+		
+		public void setAction(Transferable tr, Component c) {
+			this.tr = tr;
+			this.c = c;
+		}
+		
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			if (e.getSource() == miCopyImage) {
+				copyToClipboard(targetImage);
+			} else {
+				pasteFromClipboard(tr, c, true);
+			}
+		}
+	}
+	private ImageActionListener ial = new ImageActionListener();
+	private JMenuItem miPasteText  = new JMenuItem();
+	private JMenuItem miPasteImage = new JMenuItem();
+	private JMenuItem miCopyImage  = new JMenuItem();
+	
 	// 윗줄 PNG 파일 읽기
 	private JPanel panelPngFile = new JPanel(new BorderLayout());
 	private JTextField tfPngFile = new JTextField();
@@ -421,6 +450,10 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			miAddFile  .setText(Strings.get("파일 추가"  ));
 			miSelectAll.setText(Strings.get("전체 선택"  ));
 			miIfError  .setText(Strings.get("해석 오류"  ));
+			
+			miPasteText .setText(Strings.get("붙여넣기"));
+			miPasteImage.setText(Strings.get("이미지 붙여넣기"));
+			miCopyImage .setText(Strings.get("이미지 복사"));
 		}
 		
 		{	// 레이아웃 구성
@@ -580,28 +613,47 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			panelTarget   .setDropTarget(new FileDropTarget(this, panelTarget   ));
 			ivTarget      .setDropTarget(new FileDropTarget(this, panelTarget   ));
 			
-			// 클릭으로 이미지 붙여넣기
-			MouseAdapter mouseRightAdapter = new MouseAdapter() {
-				@Override
-				public void mouseClicked(MouseEvent evt) {
-					Component c = evt.getComponent();
-					if (c == tfPngFile || evt.getButton() == MouseEvent.BUTTON3) {
-						try {
-							Transferable tr = Toolkit.getDefaultToolkit().getSystemClipboard().getContents(null);
-							if (tr.isDataFlavorSupported(DataFlavor.imageFlavor)) {
-								if (confirm(Strings.get("클립보드의 이미지를 가져올까요?"), Strings.get("이미지 붙여넣기"))) {
-									pasteFromClipboard(tr, c, true);
+			{	// 우클릭 이미지 붙여넣기
+				miPasteText .addActionListener(ial);
+				miPasteImage.addActionListener(ial);
+				miCopyImage .addActionListener(ial);
+				miPasteText .setAccelerator(KeyStroke.getKeyStroke("P"));
+				miPasteImage.setAccelerator(KeyStroke.getKeyStroke("I"));
+				miCopyImage .setAccelerator(KeyStroke.getKeyStroke("C"));
+				
+				MouseAdapter mouseRightAdapter = new MouseAdapter() {
+					@Override
+					public void mouseClicked(MouseEvent evt) {
+						int button = evt.getButton();
+						logger.info("mouseClicked: " + button);
+						if (button == MouseEvent.BUTTON3 || button == 0) { // Android JRE의 RMB가 0이 나옴
+							try {
+								Component c = evt.getComponent();
+								Transferable tr = Toolkit.getDefaultToolkit().getSystemClipboard().getContents(null);
+								ial.setAction(tr, c);
+								
+								JPopupMenu menu = new JPopupMenu();
+								if (c == tfPngFile) {
+									miPasteText.setEnabled(tr.isDataFlavorSupported(DataFlavor.stringFlavor));
+									menu.add(miPasteText);
+								} else {
+									menu.add(miCopyImage);
 								}
+								miPasteImage.setEnabled(tr.isDataFlavorSupported(DataFlavor.imageFlavor));
+								menu.add(miPasteImage);
+								
+								menu.show(c, evt.getX(), evt.getY());
+								
+							} catch (Exception e) {
+								logger.error(e);
 							}
-						} catch (Exception e) {
-							logger.error(e);
 						}
 					}
-				}
-			};
-			tfPngFile  .addMouseListener(mouseRightAdapter);
-			panelTarget.addMouseListener(mouseRightAdapter);
-			ivTarget   .addMouseListener(mouseRightAdapter);
+				};
+				tfPngFile  .addMouseListener(mouseRightAdapter);
+				panelTarget.addMouseListener(mouseRightAdapter);
+				ivTarget   .addMouseListener(mouseRightAdapter);
+			}
 			
 			// 종료 이벤트 시 설정 저장
 			addWindowListener(new WindowAdapter() {
@@ -1317,9 +1369,11 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	 * 출력 이미지 클립보드로 복사
 	 */
 	private void copyToClipboard() {
-		logger.info("copyToClipboard");
-		final Image image = outputImage;
-		if (outputImage == null) {
+		copyToClipboard(outputImage);
+	}
+	private void copyToClipboard(Image image) {
+		logger.info("copyToClipboard: " + image);
+		if (image == null) {
 			alert(Strings.get("이미지로 저장할 내용이 없습니다."));
 		} else {
 			try {
