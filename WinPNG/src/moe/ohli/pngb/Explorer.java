@@ -18,6 +18,8 @@ import java.util.*;
 
 import javax.swing.*;
 import javax.swing.border.Border;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.filechooser.FileSystemView;
@@ -145,6 +147,7 @@ public class Explorer extends JPanel {
 	public static interface Listener {
 		public void runFile(Container cont);
 		public void requestCheckError();
+		public void onSelectionChanged();
 		public void onUpdate();
 		public void onPopup(MouseEvent evt, String dir, List<FileItem> items);
 	}
@@ -429,6 +432,12 @@ public class Explorer extends JPanel {
 				@Override
 				public int getSourceActions(JComponent c) {
 					return MOVE;
+				}
+			});
+			flv.addListSelectionListener(new ListSelectionListener() {
+				@Override
+				public void valueChanged(ListSelectionEvent e) {
+					listener.onSelectionChanged();
 				}
 			});
 			

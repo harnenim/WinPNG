@@ -44,6 +44,17 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	private static final Border DRAG_BORDER = BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(0, 120, 215));
 	
 	private static Logger logger = new Logger(Logger.L.DEBUG); // 로그 파일 로깅 수준 기본값 디버그
+
+	private static String strSize(int size) {
+		String strSize = size + "Bytes";
+		if (size > 10240) { // 10.0kB 이상
+			strSize = "" + ((size * 10 + 512) / 1024);
+			strSize = strSize.substring(0, strSize.length() - 1) + "." + strSize.substring(strSize.length() - 1) + "kB";
+		} else if (size > 1000) { // 1,000B 이상
+			strSize = (size / 1000) + "," + (size % 1000) + "Bytes";
+		}
+		return strSize;
+	}
 	
 	private File pngFile = null;
 	private BufferedImage openedImage = null;
@@ -181,6 +192,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	private JPanel panelFilesEdit = new JPanel(new BorderLayout());
 	private Explorer explorer = new Explorer(logger, this);
 //	private JButton btnAddFile = new MyButton(this), btnSelectAll = new MyButton(this), btnDelete = new MyButton(this);
+	private JLabel labelStatus = new MyLabel("", SwingConstants.LEFT);
 	private JLabel labelInfo = new MyLabel("", SwingConstants.RIGHT);
 	private JPanel panelExport = new JPanel(new BorderLayout());
 	private JTextField tfExportDir = new JTextField();
@@ -436,6 +448,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 //					panelFilesBtn.add(btnSelectAll);
 //					panelFilesBtn.add(btnDelete);
 //					panelStatus.add(panelFilesBtn, BorderLayout.WEST);
+					panelStatus.add(labelStatus, BorderLayout.WEST);
 					panelStatus.add(labelInfo, BorderLayout.EAST);
 					panelFilesEdit.add(panelStatus , BorderLayout.SOUTH);
 					panelFiles.add(panelFilesEdit, BorderLayout.CENTER);
@@ -686,14 +699,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		for (Container cont : conts) {
 			size += cont.binary.length;
 		}
-		String strSize = size + "B";
-		if (size > 10240) { // 10.0kB 이상
-			strSize = "" + ((size * 10 + 512) / 1024);
-			strSize = strSize.substring(0, strSize.length() - 1) + "." + strSize.substring(strSize.length() - 1) + "kB";
-		} else if (size > 1000) { // 1,000B 이상
-			strSize = (size / 1000) + "," + (size % 1000) + "B";
-		}
-		labelInfo.setText(Strings.get("파일 {count}개 / {size}").replace("{count}", ""+conts.size()).replace("{size}", strSize) + "   ");
+		labelInfo.setText(Strings.get("파일 {count}개 / {size}").replace("{count}", ""+conts.size()).replace("{size}", strSize(size)));
 	}
 	
 	private static ImageIcon makeImageIcon(BufferedImage image) {
@@ -1681,6 +1687,19 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		if (openedImage != null) {
 			String key = JOptionPane.showInputDialog(GUI2.this, Strings.get("비밀번호 걸린 이미지가 잘못 해석된 것 같다면\n비밀번호 키를 입력하세요."));
 			openBitmap(openedImage, pngFile, key, false);
+		}
+	}
+	@Override
+	public void onSelectionChanged() {
+		List<Container> conts = explorer.getSelectedContainers();
+		if (conts.size() == 0) {
+			labelStatus.setText("");
+		} else {
+			int size = 0;
+			for (Container cont : conts) {
+				size += cont.binary.length;
+			}
+			labelStatus.setText(Strings.get("{count} 파일 선택됨 / {size}").replace("{count}", ""+conts.size()).replace("{size}", strSize(size)));
 		}
 	}
 	@Override
