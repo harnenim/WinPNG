@@ -782,6 +782,7 @@ public class Explorer extends JPanel {
 	
 	public void cd(String dir) {
 		logger.info("Explorer/" + currentDir + "> cd " + dir);
+		boolean isEntering = false;
 		if (dir.startsWith("/")) {
 			if (dir.equals("/")) {
 				currentDir = "";
@@ -799,6 +800,7 @@ public class Explorer extends JPanel {
 			return;
 		} else {
 			currentDir += dir + "/";
+			isEntering = true;
 		}
 		while (currentDir.endsWith("//")) {
 			currentDir = currentDir.substring(0, currentDir.length() - 1);
@@ -807,6 +809,36 @@ public class Explorer extends JPanel {
 		if (currentDir.length() == 0) {
 			dlv.setSelectionRow(0);
 			return;
+		}
+		
+		if (isEntering) {
+			// 폴더 엔터/더블클릭 진입일 때 내용물이 한 폴더만 있는 경우 하위 폴더 자동으로 열기
+			String path = null;
+			for (FileItem item : list) {
+				// 공통된 상위 폴더 중 최하위를 찾음
+				if (item.container.path.startsWith(currentDir)) {
+					if (path == null) {
+						// 파일 하나 찾음
+						path = item.container.path;
+						path = path.substring(0, path.lastIndexOf("/") + 1);
+					} else {
+						// 파일 2개 이상 찾음
+						while (!item.container.path.startsWith(path)) {
+							path = path.substring(0, path.length() - 1);
+							path.substring(0, path.lastIndexOf("/") + 1);
+						}
+						if (path.equals(currentDir)) {
+							// 더 찾을 게 없음
+							path = null;
+							break;
+						}
+					}
+				}
+			}
+			if (path != null) {
+				cd("/" + path);
+				return;
+			}
 		}
 		
 		TreePath path = null;
@@ -818,12 +850,12 @@ public class Explorer extends JPanel {
 	public void openDir(String dir, boolean byTree) {
 		logger.info("Explorer.openDir: " + dir);
 		if (dir.equals("/")) {
-			this.currentDir = "";
+			currentDir = "";
 		} else {
-			this.currentDir = dir.substring(1) + "/";
+			currentDir = dir.substring(1) + "/";
 		}
 		
-		int cut = this.currentDir.length();
+		int cut = currentDir.length();
 		
 		flModel.clear();
 		if (cut > 0) {
@@ -833,7 +865,7 @@ public class Explorer extends JPanel {
 		for (FileItem item : list) {
 			String path = item.container.path;
 			if (cut > 0) {
-				if (!path.startsWith(this.currentDir)) {
+				if (!path.startsWith(currentDir)) {
 					// 현재 디렉토리 내용물 아니면 제외
 					continue;
 				}
