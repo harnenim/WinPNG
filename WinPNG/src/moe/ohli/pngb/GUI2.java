@@ -40,8 +40,8 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		graphics.fillRect(0, 0, 16, 9);
 		graphics.dispose();
 	}
-	private static final Border BORDER = BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(204, 204, 204));
-	private static final Border DRAG_BORDER = BorderFactory.createMatteBorder(2, 2, 2, 2, new Color(0f, 0f, 1f, 0.25f));
+	private static final Color BORDER_COLOR = new Color(204, 204, 204);
+	private static final Border DRAG_BORDER = BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(0, 120, 215));
 	
 	private static Logger logger = new Logger(Logger.L.DEBUG); // 로그 파일 로깅 수준 기본값 디버그
 	
@@ -60,7 +60,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
      */
     private static class MyButton extends JButton {
     	private static final Border BTN_MARGIN = new EmptyBorder(4, 8, 4, 8);
-    	private static final Border BTN_BORDER = BorderFactory.createCompoundBorder(BORDER, BTN_MARGIN);
+    	private static final Border BTN_BORDER = BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(1, 1, 1, 1, BORDER_COLOR), BTN_MARGIN);
     	private static final Color COLOR_DEFAULT = new Color(0xEEEEEE);
     	private static final Color COLOR_HOVERED = new Color(0xDDDDDD);
     	public MyButton(GUI2 gui) {
@@ -98,6 +98,41 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			return isWindows;
 		}
     }
+	
+    /**
+     * 기본 여백 라벨
+     * 
+     * @author harne_
+     *
+     */
+	private static class MyLabel extends JLabel {
+		private static final EmptyBorder BORDER = new EmptyBorder(2, 8, 2, 8);
+		
+		public MyLabel() {
+			super();
+			init();
+		}
+		public MyLabel(String text) {
+			super(text);
+			init();
+		}
+		public MyLabel(String text, int align) {
+			super(text, align);
+			init();
+		}
+		private void init() {
+			setBorder(BORDER);
+		}
+		
+		public static MyLabel withoutBorder() {
+			return withoutBorder("");
+		}
+		public static MyLabel withoutBorder(String text) {
+			MyLabel label = new MyLabel(text);
+			label.setBorder(null);
+			return label;
+		}
+	}
 	
 	/**
 	 * 리스너 적용된 메뉴 아이템
@@ -146,7 +181,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	private JPanel panelFilesEdit = new JPanel(new BorderLayout());
 	private Explorer explorer = new Explorer(logger, this);
 //	private JButton btnAddFile = new MyButton(this), btnSelectAll = new MyButton(this), btnDelete = new MyButton(this);
-	private JLabel labelInfo = new JLabel("", SwingConstants.RIGHT);
+	private JLabel labelInfo = new MyLabel("", SwingConstants.RIGHT);
 	private JPanel panelExport = new JPanel(new BorderLayout());
 	private JTextField tfExportDir = new JTextField();
 	private JButton btnExport = new MyButton(this);
@@ -155,8 +190,8 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	private JPanel panelRight  = new JPanel(new BorderLayout()), panelPreview = new JPanel()
 	             , panelTarget = new JPanel(new BorderLayout()), panelRatio   = new JPanel()
 	             , panelOutput = new JPanel(new BorderLayout());
-	private JLabel ivTarget = new JLabel(), jlTarget = new JLabel(), jlRatio = new JLabel()
-	             , ivOutput = new JLabel(), jlOutput = new JLabel(), jlPw = new JLabel(), jlWidth = new JLabel();
+	private JLabel ivTarget = MyLabel.withoutBorder(), jlTarget = new MyLabel(), jlRatio = MyLabel.withoutBorder()
+	             , ivOutput = MyLabel.withoutBorder(), jlOutput = new MyLabel(), jlPw = MyLabel.withoutBorder(), jlWidth = MyLabel.withoutBorder();
 	private JRadioButton rbTarget114  = new JRadioButton();
 	private JRadioButton rbTarget238  = new JRadioButton();
 	private JRadioButton rbTarget124  = new JRadioButton();
@@ -404,7 +439,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 					panelStatus.add(labelInfo, BorderLayout.EAST);
 					panelFilesEdit.add(panelStatus , BorderLayout.SOUTH);
 					panelFiles.add(panelFilesEdit, BorderLayout.CENTER);
-					explorer.setBorder(BORDER);
+					explorer.setBorder(BorderFactory.createMatteBorder(1, 0, 1, 1, BORDER_COLOR));
 				}
 				{	// 버튼 영역
 					panelExport.add(tfExportDir, BorderLayout.CENTER);
@@ -440,7 +475,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 						
 						panelRatio.add(jlRatio);
 						panelRatio.add(tfRatioW);
-						panelRatio.add(new JLabel(":"));
+						panelRatio.add(MyLabel.withoutBorder(":"));
 						panelRatio.add(tfRatioH);
 						tfRatioW.setColumns(3);
 						tfRatioH.setColumns(3);
