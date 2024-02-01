@@ -162,6 +162,9 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 					explorer.renameSelected();
 				} else if (source == miRemove) {
 					explorer.removeSelected();
+				} else if (source == miCopyFiles) {
+					Transferable contents = explorer.createTransferable();
+					Toolkit.getDefaultToolkit().getSystemClipboard().setContents(contents, null);
 				} else if (source == miAddFile) {
 					addFileWithDialog();
 				} else if (source == miSelectAll) {
@@ -179,6 +182,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	private JMenuItem miOpenFile  = new MyMenuItem();
 	private JMenuItem miRename    = new MyMenuItem();
 	private JMenuItem miRemove    = new MyMenuItem();
+	private JMenuItem miCopyFiles = new MyMenuItem();
 	private JMenuItem miAddFile   = new MyMenuItem();
 	private JMenuItem miSelectAll = new MyMenuItem();
 	private JMenuItem miIfError   = new MyMenuItem();
@@ -201,7 +205,11 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		@Override
 		public void actionPerformed(ActionEvent e) {
 			if (e.getSource() == miCopyImage) {
-				copyToClipboard(targetImage);
+				if (c == ivTarget) {
+					copyToClipboard(targetImage);
+				} else if (c == ivOutput) {
+					copyToClipboard(outputImage);
+				}
 			} else {
 				pasteFromClipboard(tr, c, true);
 			}
@@ -219,8 +227,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	
 	// 좌측 내용물
 	private JPanel panelFilesEdit = new JPanel(new BorderLayout());
-	private Explorer explorer = new Explorer(logger, this);
-//	private JButton btnAddFile = new MyButton(this), btnSelectAll = new MyButton(this), btnDelete = new MyButton(this);
+	private Explorer explorer = new Explorer(logger, this, ".png");
 	private JLabel labelStatus = new MyLabel("", SwingConstants.LEFT);
 	private JLabel labelInfo = new MyLabel("", SwingConstants.RIGHT);
 	private JPanel panelExport = new JPanel(new BorderLayout());
@@ -233,10 +240,10 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	             , panelOutput = new JPanel(new BorderLayout());
 	private JLabel ivTarget = MyLabel.withoutBorder(), jlTarget = new MyLabel(), jlRatio = MyLabel.withoutBorder()
 	             , ivOutput = MyLabel.withoutBorder(), jlOutput = new MyLabel(), jlPw = MyLabel.withoutBorder(), jlWidth = MyLabel.withoutBorder();
-	private JRadioButton rbTarget114  = new JRadioButton();
-	private JRadioButton rbTarget238  = new JRadioButton();
-	private JRadioButton rbTarget124  = new JRadioButton();
-	private JRadioButton rbTarget011  = new JRadioButton();
+	private JRadioButton rbTarget114 = new JRadioButton();
+	private JRadioButton rbTarget238 = new JRadioButton();
+	private JRadioButton rbTarget124 = new JRadioButton();
+	private JRadioButton rbTarget011 = new JRadioButton();
 	private ButtonGroup rbGroupTarget = new ButtonGroup();
 	private JTextField tfRatioW = new JTextField("16"), tfRatioH = new JTextField("9"), tfPw = new JTextField(""), tfWidth = new JTextField("0");
 	private JButton btnSave = new MyButton(this), btnCopy = new MyButton(this);
@@ -420,9 +427,6 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			btnOpen .setText(Strings.get("열기"));
 			btnClose.setText(Strings.get("닫기"));
 			
-//			btnAddFile.setText(Strings.get("추가"));
-//			btnSelectAll.setText(Strings.get("전체 선택"));
-//			btnDelete .setText(Strings.get("삭제"));
 			if (exportDir != null && exportDir.length() > 0) {
 				tfExportDir.setText(exportDir);
 			} else {
@@ -441,12 +445,13 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			jlOutput.setText(Strings.get("출력 이미지"));
 			jlPw.setText(Strings.get("비밀번호 걸기") + " ");
 			jlWidth.setText(Strings.get("최소 폭") + " ");
-			btnSave.setText(Strings.get("저장"));
-			btnCopy.setText(Strings.get("복사"));
+			btnSave.setText(Strings.get("이미지 저장"));
+			btnCopy.setText(Strings.get("이미지 복사"));
 			
 			miOpenFile .setText(Strings.get("열기"       ));
 			miRename   .setText(Strings.get("이름 바꾸기")); 
 			miRemove   .setText(Strings.get("파일 삭제"  ));
+			miCopyFiles.setText(Strings.get("파일 복사"  ));
 			miAddFile  .setText(Strings.get("파일 추가"  ));
 			miSelectAll.setText(Strings.get("전체 선택"  ));
 			miIfError  .setText(Strings.get("해석 오류"  ));
@@ -476,11 +481,6 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 				{	// 파일 리스트 영역
 					panelFilesEdit.add(explorer, BorderLayout.CENTER);
 					JPanel panelStatus = new JPanel(new BorderLayout());
-//					JPanel panelFilesBtn = new JPanel(new FlowLayout(FlowLayout.LEFT));
-//					panelFilesBtn.add(btnAddFile);
-//					panelFilesBtn.add(btnSelectAll);
-//					panelFilesBtn.add(btnDelete);
-//					panelStatus.add(panelFilesBtn, BorderLayout.WEST);
 					panelStatus.add(labelStatus, BorderLayout.WEST);
 					panelStatus.add(labelInfo, BorderLayout.EAST);
 					panelFilesEdit.add(panelStatus , BorderLayout.SOUTH);
@@ -552,15 +552,14 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 					
 					panelRight.add(panelSave, BorderLayout.SOUTH);
 				}
-				{	// 우클릭 메뉴 단축키... 왜 안 됨?
-					/*
-					miOpenFile .setAccelerator(KeyStroke.getKeyStroke('O'));
-					miRename   .setAccelerator(KeyStroke.getKeyStroke('R')); 
-					miRemove   .setAccelerator(KeyStroke.getKeyStroke('D'));
-					miAddFile  .setAccelerator(KeyStroke.getKeyStroke('N'));
-					miSelectAll.setAccelerator(KeyStroke.getKeyStroke('A'));
-					miIfError  .setAccelerator(KeyStroke.getKeyStroke('E'));
-					*/
+				{	// 우클릭 메뉴 단축키
+					miOpenFile .setAccelerator(KeyStroke.getKeyStroke("O"));
+					miRename   .setAccelerator(KeyStroke.getKeyStroke("R")); 
+					miRemove   .setAccelerator(KeyStroke.getKeyStroke("D"));
+					miCopyFiles.setAccelerator(KeyStroke.getKeyStroke("C"));
+					miAddFile  .setAccelerator(KeyStroke.getKeyStroke("N"));
+					miSelectAll.setAccelerator(KeyStroke.getKeyStroke("A"));
+					miIfError  .setAccelerator(KeyStroke.getKeyStroke("E"));
 				}
 				
 				panelTarget.setMaximumSize(new Dimension(IMAGE_VIEW_WIDTH, IMAGE_VIEW_HEIGHT + 40));
@@ -639,8 +638,10 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 								} else {
 									menu.add(miCopyImage);
 								}
-								miPasteImage.setEnabled(tr.isDataFlavorSupported(DataFlavor.imageFlavor));
-								menu.add(miPasteImage);
+								if (c != ivOutput) {
+									miPasteImage.setEnabled(tr.isDataFlavorSupported(DataFlavor.imageFlavor));
+									menu.add(miPasteImage);
+								}
 								
 								menu.show(c, evt.getX(), evt.getY());
 								
@@ -653,6 +654,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 				tfPngFile  .addMouseListener(mouseRightAdapter);
 				panelTarget.addMouseListener(mouseRightAdapter);
 				ivTarget   .addMouseListener(mouseRightAdapter);
+				ivOutput   .addMouseListener(mouseRightAdapter);
 			}
 			
 			// 종료 이벤트 시 설정 저장
@@ -1415,7 +1417,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			}
 		}
 	}
-
+	
 	/**
 	 * 파일 추가
 	 * @param files
@@ -1538,20 +1540,6 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			openedImage = null;
 			updateTarget(JUNK_IMAGE);
 			updateOutput();
-			
-			/*
-		} else if (target == btnAddFile) {
-			// 파일 추가
-			addFileWithDialog();
-			
-		} else if (target == btnSelectAll) {
-			// 전체 선택
-			explorer.selectAll();
-			
-		} else if (target == btnDelete) {
-			// 선택된 파일 삭제
-			deleteSelected();
-			*/
 			
 		} else if (target == btnExport) {
 			exportSelected();
@@ -1771,6 +1759,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 				menu.add(miRename);
 			}
 			menu.add(miRemove);
+			menu.add(miCopyFiles);
 			menu.add(new JPopupMenu.Separator());
 		}
 		menu.add(miAddFile);

@@ -5,7 +5,6 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
@@ -194,12 +193,16 @@ public class Explorer extends JPanel {
 	 * @throws IOException
 	 */
 	public static Icon getSystemIcon(String name) throws IOException {
-		String ext = name;
-		if (ext.indexOf(".") > 0) {
-			ext = ext.substring(ext.lastIndexOf("."));
+		String path = TMP_DIR;
+		
+		if (name != null) { // null: 폴더 / not null: 파일
+			String ext = name;
+			if (ext.indexOf(".") > 0) {
+				ext = ext.substring(ext.indexOf("."));
+			}
+			path += "icon/icon" + ext;
 		}
 
-		String path = TMP_DIR + "icon/icon" + ext;
 		File file = new File(path);
 		if (!file.exists()) {
 			new File(TMP_DIR + "icon").mkdirs();
@@ -218,7 +221,7 @@ public class Explorer extends JPanel {
 	private List<FileItem> list = new ArrayList<>();
 	private Logger logger;
 	private Listener listener;
-	private Font font;
+	private Icon rootIcon, dirIcon, fileIcon;
 	
 	private DirTreeNode dlRoot = new DirTreeNode("/");
 	private JTree dlv = new JTree(dlRoot);
@@ -242,6 +245,9 @@ public class Explorer extends JPanel {
 	 * @param listener
 	 */
 	public Explorer(Logger logger, Listener listener) {
+		this(logger, listener, null);
+	}
+	public Explorer(Logger logger, Listener listener, String root) {
 		super(new BorderLayout());
 		this.logger = logger;
 		this.listener = listener;
@@ -266,36 +272,56 @@ public class Explorer extends JPanel {
 			flv.setFocusable(true);
 		}
 		
-		{	// 폴더/파일 아이콘
-			DefaultTreeCellRenderer renderer = (DefaultTreeCellRenderer) dlv.getCellRenderer();
-			Icon closedIcon = renderer.getClosedIcon();
-			Icon fIcon = renderer.getLeafIcon();
-			try {
-				closedIcon = FileSystemView.getFileSystemView().getSystemIcon(new File(TMP_DIR));
-				renderer.setClosedIcon(closedIcon);
-				renderer.setOpenIcon(closedIcon);
-			} catch (Exception e) {
-				logger.debug(e);
-			}
-			final Icon dIcon = closedIcon;
-			renderer.setLeafIcon(closedIcon);
+		{	// 디렉토리/파일 리스트 렌더러 설정
+			DefaultTreeCellRenderer renderer = new DefaultTreeCellRenderer() {
+				@Override
+				public Component getTreeCellRendererComponent(JTree tree, Object value, boolean selected, boolean expanded, boolean leaf, int row, boolean hasFocus) {
+					Component c = null;
+					if (value == dlRoot) { // 루트는 아이콘 예외처리
+						openIcon = closedIcon = rootIcon;
+						c = super.getTreeCellRendererComponent(tree, value, selected, expanded, leaf, row, hasFocus);
+						openIcon = closedIcon = dirIcon;
+					} else {
+						c = super.getTreeCellRendererComponent(tree, value, selected, expanded, leaf, row, hasFocus);
+					}
+					return c;
+				}
+			};
 			renderer.setBackgroundSelectionColor(SELECTED_COLOR);
 			renderer.setBorderSelectionColor(SELECTED_COLOR);
 			renderer.setTextSelectionColor(Color.BLACK);
-
-			font = renderer.getFont();
-			String os = System.getProperty("os.name");
-			if (os.toLowerCase().startsWith("windows")) {
-				font = new Font("맑은 고딕", Font.PLAIN, 12);
-				renderer.setFont(font);
+			dlv.setCellRenderer(renderer);
+			
+			{	// 폴더/파일 아이콘
+				dirIcon = renderer.getClosedIcon();
+				fileIcon = renderer.getLeafIcon();
+				renderer.setLeafIcon(dirIcon);
+				try {
+					dirIcon = getSystemIcon(null);
+					renderer.setClosedIcon(dirIcon);
+					renderer.setOpenIcon(dirIcon);
+				} catch (Exception e) {
+					logger.debug(e);
+				}
+				
+				// 루트 아이콘
+				rootIcon = dirIcon;
+				if (root != null) {
+					try {
+						rootIcon = getSystemIcon(root);
+					} catch (Exception e) {
+						logger.debug(e);
+					}
+				}
 			}
 			
 			flv.setCellRenderer(new DefaultListCellRenderer() {
 				@Override
 				public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected, boolean hasFocus) {
 					FileItem item = (FileItem) value;
-					Icon icon = item.container == null ? dIcon : fIcon;
+					Icon icon = dirIcon;
 					if (item.container != null) {
+						icon = fileIcon;
 						try {
 							Icon systemIcon = getSystemIcon(item.getName());
 							if (systemIcon != null) {
@@ -308,7 +334,6 @@ public class Explorer extends JPanel {
 					JLabel label = new JLabel(item.label);
 					label.setOpaque(true);
 					label.setIcon(icon);
-					label.setFont(font);
 					label.setBackground(selected ? SELECTED_COLOR : Color.WHITE);
 				    label.setBorder(hasFocus ? FOCUS_BORDER : noFocusBorder);
 					return label;
@@ -392,41 +417,7 @@ public class Explorer extends JPanel {
 			flv.setTransferHandler(new TransferHandler() {
 				@Override
 				protected Transferable createTransferable(JComponent c) {
-					logger.debug("createTransferable");
-					final List<File> rootFiles = new ArrayList<>();
-					
-					List<Container> containers = getSelectedContainers();
-					if (containers.size() == 0) {
-						return null;
-					}
-					
-					// 임시 파일 생성
-					String rootDir = TMP_DIR + Calendar.getInstance().getTimeInMillis();
-					List<File> files = Container.containersToFiles(containers, rootDir);
-					
-					// 하위 디렉토리가 있는 경우 최상위 경로만 선택
-					List<String> primaryNames = new ArrayList<>();
-					for (File subFile : files) {
-						// 최상위 경로 찾기
-						String primaryName = subFile.getAbsolutePath().substring(rootDir.length() + 1).replace('\\', '/');
-						int index = primaryName.indexOf('/');
-						if (index > 0) {
-							primaryName = primaryName.substring(0, index);
-						}
-						if (!primaryNames.contains(primaryName)) {
-							primaryNames.add(primaryName);
-						}
-					}
-					
-					// 최상위 객체 리스트 전달
-					for (String name : primaryNames) {
-						rootFiles.add(new File(rootDir, name));
-					}
-					
-					if (rootFiles.size() > 0) {
-						return new FileTransferable(rootFiles);
-					}
-					return null;
+					return Explorer.this.createTransferable();
 				}
 				
 				@Override
@@ -484,6 +475,43 @@ public class Explorer extends JPanel {
 	@Override
 	public synchronized void addKeyListener(KeyListener kl) {
 		flv.addKeyListener(kl);
+	}
+	public Transferable createTransferable() {
+		logger.debug("createTransferable");
+		final List<File> rootFiles = new ArrayList<>();
+		
+		List<Container> containers = getSelectedContainers();
+		if (containers.size() == 0) {
+			return null;
+		}
+		
+		// 임시 파일 생성
+		String rootDir = TMP_DIR + Calendar.getInstance().getTimeInMillis();
+		List<File> files = Container.containersToFiles(containers, rootDir);
+		
+		// 하위 디렉토리가 있는 경우 최상위 경로만 선택
+		List<String> primaryNames = new ArrayList<>();
+		for (File subFile : files) {
+			// 최상위 경로 찾기
+			String primaryName = subFile.getAbsolutePath().substring(rootDir.length() + 1).replace('\\', '/');
+			int index = primaryName.indexOf('/');
+			if (index > 0) {
+				primaryName = primaryName.substring(0, index);
+			}
+			if (!primaryNames.contains(primaryName)) {
+				primaryNames.add(primaryName);
+			}
+		}
+		
+		// 최상위 객체 리스트 전달
+		for (String name : primaryNames) {
+			rootFiles.add(new File(rootDir, name));
+		}
+		
+		if (rootFiles.size() > 0) {
+			return new FileTransferable(rootFiles);
+		}
+		return null;
 	}
 	
 	public void setDirWidth(int width) {
