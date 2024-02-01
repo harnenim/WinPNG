@@ -86,7 +86,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
     			attributes.put(TextAttribute.WEIGHT, TextAttribute.WEIGHT_REGULAR);
     			font = new Font(attributes);
     		}
-    		setBorder(isWindows() ? BTN_MARGIN : BTN_BORDER);
+    		setBorder(isWindows ? BTN_MARGIN : BTN_BORDER);
     		addActionListener(gui);
     		addKeyListener(gui);
     		addMouseListener(maHover);
@@ -101,13 +101,6 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
     			e.getComponent().setBackground(COLOR_DEFAULT);
     		};
 		};
-		private static Boolean isWindows = null;
-		private static boolean isWindows() {
-			if (isWindows == null) {
-				isWindows = os.toLowerCase().startsWith("windows");
-			}
-			return isWindows;
-		}
     }
 	
     /**
@@ -250,8 +243,11 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 
 	private static final int IMAGE_VIEW_WIDTH = 280, IMAGE_VIEW_HEIGHT = 158;
 	
-	private static String os = "";
+	private static final String OS = System.getProperty("os.name");
 	private static boolean USE_JFC = false;
+	private static boolean isWindows = OS.toLowerCase().startsWith("windows");
+	private static boolean isLinux   = OS.toLowerCase().startsWith("linux");
+	private static boolean isMac     = OS.toLowerCase().startsWith("mac");
 	private boolean isAndroid = false;
 	
 	private JFileChooser fcPng = new JFileChooser();
@@ -261,7 +257,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
 		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-		isAndroid = "Linux".equals(os) && (screenSize.width < 800);//confirm("Is this Android?", "OS Check");
+		isAndroid = isLinux && (screenSize.width < 800);
 		
 		String exportDir = null;
 		
@@ -440,7 +436,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			rbTarget114.setText("1:1:4");
 			rbTarget238.setText("2:3:8");
 			rbTarget124.setText("1:2:4");
-			rbTarget011.setText(Strings.get("사용 안 함"));
+			rbTarget011.setText(isWindows ? Strings.get("사용 안 함") : "X");
 			jlRatio.setText("  " + Strings.get("비율") + ": ");
 			jlOutput.setText(Strings.get("출력 이미지"));
 			jlPw.setText(Strings.get("비밀번호 걸기") + " ");
@@ -541,6 +537,9 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 					}
 					panelPreview.add(new JPanel());
 					panelRight.add(panelPreview, BorderLayout.CENTER);
+					
+					panelPreview.setBorder(null);
+					panelRight.setBorder(null);
 				}
 				{	// 버튼 영역
 					JPanel panelSave = new JPanel(new BorderLayout());
@@ -564,6 +563,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 				
 				panelTarget.setMaximumSize(new Dimension(IMAGE_VIEW_WIDTH, IMAGE_VIEW_HEIGHT + 40));
 				panelOutput.setMaximumSize(new Dimension(IMAGE_VIEW_WIDTH, IMAGE_VIEW_HEIGHT + 20));
+				panelRight.setPreferredSize(new Dimension(IMAGE_VIEW_WIDTH, 0));
 				
 				updateTarget(JUNK_IMAGE);
 				updateOutput();
@@ -1698,21 +1698,21 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			
 			try {
 				// OS와 파일 유형에 따른 실행 명령어 설정
-				logger.debug("os: " + os);
+				logger.debug("os: " + OS);
 				String cmd = null;
-				if (os.toLowerCase().startsWith("windows")) {
+				if (isWindows) {
 					if ("image?".equals(type)) {
 						cmd = "mspaint";
 					} else {
 						cmd = "notepad";
 					}
-				} else if (os.toLowerCase().startsWith("linux")) {
+				} else if (isLinux) {
 					if ("image?".equals(type)) {
 						cmd = "eog";
 					} else {
 						cmd = "cat";
 					}
-				} else if (os.toLowerCase().startsWith("mac")) {
+				} else if (isMac) {
 					cmd = "open";
 				}
 				if (cmd != null) {
@@ -2350,7 +2350,6 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		Container.setLogger(logger);
 		
 		try {
-			os = System.getProperty("os.name");
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		} catch (Exception e) {
 			e.printStackTrace();

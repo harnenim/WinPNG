@@ -42,11 +42,13 @@ public class Strings {
 		
 		EN.put("이름 바꾸기"                                            , "Rename"); 
 		EN.put("파일 삭제"                                              , "Delete file(s)");
+		EN.put("파일 복사"                                              , "Copy file(s)");
 		EN.put("파일 추가"                                              , "Add file(s)");
 		EN.put("해석 오류"                                              , "Is it error?");
 		
 		EN.put("붙여넣기"                                               , "Paste");
 		EN.put("이미지 복사"                                            , "Copy Image");
+		EN.put("이미지 저장"                                            , "Save Image");
 
 		EN.put("PNG 파일(*.png)"                                        , "PNG File(*.png)");
 
@@ -113,11 +115,13 @@ public class Strings {
 		
 		JP.put("이름 바꾸기"                                            , "改名"); 
 		JP.put("파일 삭제"                                              , "ファイル削除");
+		JP.put("파일 복사"                                              , "ファイルをコピー");
 		JP.put("파일 추가"                                              , "ファイル追加");
 		JP.put("해석 오류"                                              , "間違った解析？");
 		
 		JP.put("붙여넣기"                                               , "ペースト");
 		JP.put("이미지 복사"                                            , "画像をコピー");
+		EN.put("이미지 저장"                                            , "画像保存");
 
 		JP.put("PNG 파일(*.png)"                                        , "PNGファイル(*.png)");
 
