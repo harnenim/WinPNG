@@ -31,7 +31,7 @@ import sun.awt.image.AbstractMultiResolutionImage;
 @SuppressWarnings("serial")
 public class GUI2 extends JFrame implements ActionListener, KeyListener, Explorer.Listener {
 	
-	private static final String TMP_DIR = System.getProperty("java.io.tmpdir").replace('\\', '/') + "WinPNG/";
+	private static final String TMP_DIR = (System.getProperty("java.io.tmpdir").replace('\\', '/') + "/WinPNG/").replace("//", "/");
 	private static final String CONFIG_FILE_PATH = TMP_DIR + "config.properties";
 	private static final BufferedImage JUNK_IMAGE = new BufferedImage(16, 9, BufferedImage.TYPE_3BYTE_BGR);
 	static {
