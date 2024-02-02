@@ -2814,7 +2814,7 @@ public class Container {
 				}
 				List<Container> containers = Container.fromBitmap(dataImage, shift, xors);
 				if (containers.size() > 0) {
-					return new WithTarget(targetImage, containers, TYPE_114v2);
+					return new WithTarget(targetImage, containers, TYPE_114v3);
 				}
 				
 			} catch (Exception e) {
