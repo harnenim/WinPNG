@@ -209,9 +209,8 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		}
 	}
 	private ImageActionListener ial = new ImageActionListener();
-	private JMenuItem miPasteText  = new JMenuItem();
-	private JMenuItem miPasteImage = new JMenuItem();
-	private JMenuItem miCopyImage  = new JMenuItem();
+	private JMenuItem miPasteText     = new JMenuItem();
+	private JMenuItem miCopyImage = new JMenuItem();
 	
 	// 윗줄 PNG 파일 읽기
 	private JPanel panelPngFile = new JPanel(new BorderLayout());
@@ -452,8 +451,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			miSelectAll.setText(Strings.get("전체 선택"  ));
 			miIfError  .setText(Strings.get("해석 오류"  ));
 			
-			miPasteText .setText(Strings.get("붙여넣기"));
-			miPasteImage.setText(Strings.get("이미지 붙여넣기"));
+			miPasteText.setText(Strings.get("붙여넣기"));
 			miCopyImage .setText(Strings.get("이미지 복사"));
 		}
 		
@@ -613,12 +611,10 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			ivTarget      .setDropTarget(new FileDropTarget(this, panelTarget   ));
 			
 			{	// 우클릭 이미지 붙여넣기
-				miPasteText .addActionListener(ial);
-				miPasteImage.addActionListener(ial);
-				miCopyImage .addActionListener(ial);
-				miPasteText .setAccelerator(KeyStroke.getKeyStroke("P"));
-				miPasteImage.setAccelerator(KeyStroke.getKeyStroke("I"));
-				miCopyImage .setAccelerator(KeyStroke.getKeyStroke("C"));
+				miPasteText.addActionListener(ial);
+				miCopyImage.addActionListener(ial);
+				miPasteText.setAccelerator(KeyStroke.getKeyStroke("P"));
+				miCopyImage.setAccelerator(KeyStroke.getKeyStroke("C"));
 				
 				MouseAdapter mouseRightAdapter = new MouseAdapter() {
 					@Override
@@ -632,15 +628,14 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 								ial.setAction(tr, c);
 								
 								JPopupMenu menu = new JPopupMenu();
-								if (c == tfPngFile) {
-									miPasteText.setEnabled(tr.isDataFlavorSupported(DataFlavor.stringFlavor));
-									menu.add(miPasteText);
-								} else {
+								if (c != tfPngFile) {
 									menu.add(miCopyImage);
 								}
 								if (c != ivOutput) {
-									miPasteImage.setEnabled(tr.isDataFlavorSupported(DataFlavor.imageFlavor));
-									menu.add(miPasteImage);
+									miPasteText.setEnabled(tr.isDataFlavorSupported(DataFlavor.stringFlavor)
+									                    || tr.isDataFlavorSupported(DataFlavor.imageFlavor)
+									                    || tr.isDataFlavorSupported(DataFlavor.javaFileListFlavor));
+									menu.add(miPasteText);
 								}
 								
 								menu.show(c, evt.getX(), evt.getY());
@@ -1224,8 +1219,42 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		if (tr.isDataFlavorSupported(DataFlavor.imageFlavor)) {
 			logger.info("이미지일 경우 -> 출력물에 활용할 이미지로 붙여넣기");
 			try {
-				BufferedImage image = (BufferedImage) tr.getTransferData(DataFlavor.imageFlavor);
+				BufferedImage image = null;
+				
+				Object data = tr.getTransferData(DataFlavor.imageFlavor);
+				if (data instanceof BufferedImage) {
+					image = (BufferedImage) data;
+				} else if (data instanceof AbstractMultiResolutionImage) {
+					AbstractMultiResolutionImage mrci = (AbstractMultiResolutionImage) data;
+					for (Image img : mrci.getResolutionVariants()) {
+						if (img instanceof BufferedImage) {
+							image = (BufferedImage) img;
+							break;
+						}
+					}
+				}
+				if (image == null) {
+					throw new Exception("BufferedImage from DataFlavor failed.");
+				}
+				int type = image.getType();
+				logger.info("Image type: " + type);
+				if (type != BufferedImage.TYPE_INT_RGB && type != BufferedImage.TYPE_3BYTE_BGR) {
+					logger.info("Remake image");
+					int w = image.getWidth();
+					int h = image.getHeight();
+					BufferedImage tmp = new BufferedImage(w, h, BufferedImage.TYPE_3BYTE_BGR);
+					for (int x = 0; x < w; x++) {
+						for (int y = 0; y < h; y++) {
+							tmp.setRGB(x, y, image.getRGB(x, y) & 0xFFFFFF);
+						}
+					}
+					image = tmp;
+					// TODO: 맥에선 이걸로 해결 안 되는 것 같음...
+					// 일단 BufferedImage.TYPE_4BYTE_ABGR_PRE 인 건 확인
+				}
+				
 				if (c == tfPngFile) {
+					tfPngFile.setText("[Clipboard Image]");
 					openBitmap(image);
 				} else {
 					updateTarget(image);
@@ -1242,7 +1271,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 		} else if (tr.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
 			logger.info("파일일 경우 -> 파일 목록 or 출력물 이미지로 붙여넣기");
 			try {
-				dropFiles((List<File>) tr.getTransferData(DataFlavor.javaFileListFlavor), ((c == explorer) ? explorer : panelPreview));
+				dropFiles((List<File>) tr.getTransferData(DataFlavor.javaFileListFlavor), (JComponent) c);
 			} catch (Exception e) {
 				logger.warn("파일 붙여넣기 실패");
 				logger.debug(e);
@@ -1641,6 +1670,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 					}
 					// Ctrl+V: 이미지 붙여넣기
 					pasteFromClipboard(e.getComponent());
+					e.consume();
 				}
 				break;
 			}
@@ -2167,7 +2197,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 				if (index < 1) break; // 확장자 못 찾으면 무시
 				String ext = name.substring(index + 1, name.length()).toLowerCase();
 				
-				if (c == panelTarget) {
+				if (c == panelTarget || c == ivTarget) {
 					// 이미지 파일 열기
 					if (!ext.equals("png")
 					 && !ext.equals("bmp")
@@ -2190,7 +2220,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 				} else {
 					// PNG 파일 열기
 					if (!ext.equals("png")) {
-						if (c == panelPngFile) {
+						if (c == panelPngFile || c == tfPngFile) {
 							alert(Strings.get("해석할 수 없는 파일입니다."));
 						}
 						break;
