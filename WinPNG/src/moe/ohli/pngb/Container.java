@@ -415,10 +415,15 @@ public class Container {
 	 */
 	public File toFile(String dirPath) {
 		logger.info("\nContainer.toFile: " + path);
+		
 		File file = null;
 		FileOutputStream fos = null;
 		try {
-			String filePath = dirPath + "/" + path;
+			String filePath = dirPath + "/" + path.replace('\\', '/');
+			
+			// 잘못된 경로로 파일 생성 금지
+			filePath.replace("/../", "/").replaceAll("[*?\"<>|]", "_");
+			
 			file = new File(filePath);
 			String absolutePath = file.getAbsolutePath();
 			logger.debug("absolute path: " + absolutePath);
