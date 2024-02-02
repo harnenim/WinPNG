@@ -575,19 +575,23 @@ public class Explorer extends JPanel {
 		}
 		refresh(withUpdate);
 	}
-	private static final char[] antiChars = "\\/:*?\"<>|".toCharArray();
+	private static final char[] antiChars = "\\/:*?\"<>|".toCharArray(); // 파일명 비허용 문자
 	public static boolean isValidFileName(String name) {
 		if (name == null || name.length() == 0) {
 			return false;
 		}
+		boolean notOnlyDots = false; // 점만 있는 파일명도 안 됨
 		for (char c : name.toCharArray()) {
 			for (char anti : antiChars) {
 				if (c == anti) {
 					return false;
 				}
+				if (c != '.') {
+					notOnlyDots = true;
+				}
 			}
 		}
-		return true;
+		return notOnlyDots;
 	}
 	public void renameSelected() {
 		logger.info("Explorer.renameSelected");
