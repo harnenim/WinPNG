@@ -1,0 +1,1233 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Canvas 샘플</title>
+<style>
+* {
+	margin: 0;
+	padding: 0;
+	white-space: nowrap;
+}
+</style>
+<script>
+// BufferedImage
+var BufferedImage = function(canvas, h) {
+	if (typeof canvas == "object") {
+		this.canvas = canvas;
+		this.width = canvas.width;
+		this.height = canvas.height;
+	} else {
+		var w = this.width = canvas;
+		this.height = h;
+		this.canvas = canvas = document.createElement("canvas");
+		canvas.style.width  = (canvas.width  = w) + "px";
+		canvas.style.height = (canvas.height = h) + "px";
+	}
+	this.context = this.canvas.getContext("2d");
+	this.data = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+}
+BufferedImage.prototype.getWidth  = function() { return this.width ; }
+BufferedImage.prototype.getHeight = function() { return this.height; }
+BufferedImage.prototype.getRGB = function(x, y) {
+	var index = 4 * ((this.width * y) + x);
+	return (this.data.data[index] << 16) | (this.data.data[index+1] << 8) | (this.data.data[index+2]);
+}
+BufferedImage.prototype.setRGB = function(x, y, rgb) {
+	var index = 4 * ((this.width * y) + x);
+	this.data.data[index  ] = (rgb >> 16) & 0xFF;
+	this.data.data[index+1] = (rgb >>  8) & 0xFF;
+	this.data.data[index+2] = (rgb      ) & 0xFF;
+	this.data.data[index+3] = 0xFF;
+}
+BufferedImage.prototype.getRGBs = function(offsetX, offsetY, width, height) {
+	var result = [];
+	for (var x = 0; x < width; x++) {
+		for (var y = 0; y < height; y++) {
+			result[(width * y) + x] = this.getRGB(offsetX + x, offsetY + y);
+		}
+	}
+	return result;
+}
+BufferedImage.prototype.update = function() {
+	this.context.putImageData(this.data, 0, 0);
+}
+</script>
+<script>
+// Container
+function pad0(str, len) {
+	return pad(str, len, '0');
+}
+function toHex(value, len) {
+	return pad(value.toString(16), len, '0');
+}
+function pad(str, len, pad) {
+	while (str.length < len) {
+		str = pad + str;
+	}
+	return str;
+}
+
+function pathLengthFromRGB(rgb) {
+	if ((rgb&0xFFFF00) == 0) {
+		return rgb & 0xFF; // 레거시 지원
+	}
+	return ((rgb&0x070000) >> 11) | ((rgb&0x000300) >> 5) | (rgb&0x000007);
+}
+
+var Container = function(rgbs, shift=0, xors=[]) {
+	console.log("pathLength  : " + toHex(rgbs[ shift    % rgbs.length], 8));
+	console.log("binaryLength: " + toHex(rgbs[(shift+1) % rgbs.length], 8));
+	// xor 연산 수행
+	if (xors.length > 0) {
+		console.log("xors0       : " + toHex(xors[ shift    % xors.length], 8));
+		console.log("xors1       : " + toHex(xors[(shift+1) % xors.length], 8));
+		for (var i = 0; i < rgbs.length; i++) {
+			rgbs[i] ^= xors[i % xors.length];
+		}
+	}
+	var pathLength = pathLengthFromRGB(rgbs[ shift    % rgbs.length]);
+	var binaryLength = 0xFFFFFF &      rgbs[(shift+1) % rgbs.length];
+	console.log("pathLength  : " + pathLength);
+	console.log("binaryLength: " + binaryLength);
+	
+	this.setDataFromRGBs(rgbs, shift, pathLength, binaryLength);
+	
+};
+Container.prototype.setDataFromRGBs = function(rgbs, shift, pathLength, binaryLength) {
+	if (binaryLength > 20971520) {
+		throw new Exception("이미지 해석 오류");
+	}
+	
+	var offset = shift + 2;
+	
+	// RGB
+	console.log("RGB");
+	var bytes = new Uint8Array(pathLength);
+	for (var i = 0; i < pathLength; i++) {
+		bytes[i] = ((rgbs[(offset + Math.floor(i/3)) % rgbs.length] >> (8 * (2-(i%3)))) & 0xFF);
+	}
+	console.log("pathBytes: " + bytes.length);
+	this.path = new TextDecoder("UTF-8").decode(bytes);
+	offset += Math.floor((pathLength + 2) / 3);
+	
+	this.binary = new Uint8Array(binaryLength);
+	for (var i = 0; i < binaryLength; i++) {
+		this.binary[i] = ((rgbs[(offset + Math.floor(i/3)) % rgbs.length] >> (8 * (2-(i%3)))) & 0xFF);
+	}
+}
+/**
+ * 비트맵 이미지를 컨테이너 목록으로 변환
+ * @param bmp
+ * @param shift: 출력물 픽셀 밀기
+ * @param xors: 출력물 xor 연산 수행
+ * @return 컨테이너 목록
+ * @throws Exception
+ */
+Container.fromBitmap = function(bmp, shift, xors, afterParse) {
+	console.log("\nContainer.fromBitmap: " + bmp);
+	
+	var offsetY = 0;
+	var width = bmp.getWidth();
+	var height = bmp.getHeight();
+	shift = shift % width;
+	console.log("input size: " + width + " x " + height);
+	
+	while (offsetY < height) {
+		console.log("shift: " + shift);
+		console.log("xors.length: " + xors.length);
+		var pathLength   = 0xFFFFFF & bmp.getRGB( shift    % width, offsetY);
+		var binaryLength = 0xFFFFFF & bmp.getRGB((shift+1) % width, offsetY);
+		console.log("pathLength  : " + toHex(pathLength  , 8));
+		console.log("binaryLength: " + toHex(binaryLength, 8));
+		if (xors.length > 0) {
+			console.log("xors0       : " + toHex(xors[ shift    % xors.length], 8));
+			console.log("xors1       : " + toHex(xors[(shift+1) % xors.length], 8));
+			pathLength   = (pathLength   ^ xors[ shift    % xors.length]) & 0xFFFFFF;
+			binaryLength = (binaryLength ^ xors[(shift+1) % xors.length]) & 0xFFFFFF;
+		}
+		pathLength = pathLengthFromRGB(pathLength);
+		var pixelCount = 2 + Math.ceil(pathLength / 3) + Math.ceil(binaryLength / 3);
+		var contHeight = Math.floor((pixelCount + width - 1) / width);
+		console.log("");
+		console.log("pathLength  : " + pathLength);
+		console.log("binaryLength: " + binaryLength);
+		console.log("pixelCount: " + pixelCount);
+		console.log("contHeight: " + contHeight);
+		if (pathLength > 255) { // pathLengthFromRGB 적용하면서 이렇게 나올 일이 없음...
+			logger.error("잘못된 경로 길이: " + pathLength);
+			break;
+		}
+		
+		var rgbs = bmp.getRGBs(0, offsetY, width, contHeight);
+		var cont = new Container(rgbs, shift, xors);
+		console.log("path: " + cont.path);
+		
+		if (pathLength == 0) {
+			// 경로가 없음: 이중 변환 or 정크 영역
+			try {
+				// 이중 변환으로 가정하고 해석 시도
+				var blob = new Blob([cont.binary], { type: "image/png" });
+				var url = URL.createObjectURL(blob);
+				var tmpImg = new Image();
+				tmpImg.onload = function() {
+					console.log("tmpImg.onload");
+					var w = this.naturalWidth;
+					var h = this.naturalHeight;
+					console.log("tmp: " + w + ", " + h);
+					if (w == 0) return;
+
+					var canvas = document.createElement("canvas");
+					canvas.style.width  = (canvas.width  = w) + "px";
+					canvas.style.height = (canvas.height = h) + "px";
+				
+					var context = canvas.getContext("2d");
+					context.drawImage(this, 0, 0);
+	
+					var data = context.getImageData(0, 0, w, h);
+	
+					var bmp = new BufferedImage(canvas);
+					Container.fromBitmap(bmp, 0, [], afterParse);
+				};
+				tmpImg.src = url;
+				tmps.push(tmpImg);
+			} catch (e) {
+				console.log(e);
+				console.log("JUNK DATA");
+			}
+		} else {
+			// 잘못된 경로: 해석 실패 - 이것만으론 불충분할 수도...
+			if (cont.path.indexOf("*") >= 0
+			 || cont.path.indexOf("?") >= 0
+			 || cont.path.indexOf('"') >= 0
+			 || cont.path.indexOf("<") >= 0
+			 || cont.path.indexOf(">") >= 0
+			 || cont.path.indexOf("|") >= 0
+			 || cont.path.indexOf("\\") >= 0 // 모두 /으로 치환돼있어야 함
+			 || cont.path.indexOf("�") >= 0
+					) {
+				//throw new Exception("잘못된 경로");
+				break;
+			}
+			// 경로가 있음: 일반 파일
+			afterParse(cont);
+		}
+		
+		offsetY += contHeight;
+	}
+}
+var tmps = [];
+</script>
+<script>
+// WithTarget
+var TYPE_114v1 = 1;
+var TYPE_149   = 2;
+var TYPE_238   = 3;
+var TYPE_429   = 4;
+var TYPE_114v2 = 5;
+var TYPE_114v3 = 6;
+var TYPE_124   = 7;
+var TYPE_114 = TYPE_114v3;
+
+var CHECKSUM_SAMPLE_COUNT = 10; // 패리티 검증 체크섬 샘플 개수
+var CAN_PROTOTYPE = 1;
+var CAN_114v1 = 1 << TYPE_114v1;
+var CAN_149   = 1 << TYPE_149;
+var CAN_238   = 1 << TYPE_238;
+var CAN_429   = 1 << TYPE_429;
+var CAN_114v2 = 1 << TYPE_114v2;
+var CAN_114v3 = 1 << TYPE_114v3;
+var CAN_124   = 1 << TYPE_124;
+
+var WithTarget = function(targetImage, containers, type) {
+	this.targetImage = targetImage;
+	this.containers = containers;
+	this.type = type;
+};
+
+/**
+ * 패리티 검증으로 해석 가능한 알고리즘 확인
+ * @param bmp
+ * @return 가능한 알고리즘
+ */
+WithTarget.possibility = function(bmp) {
+	var result = 0;
+	if (WithTarget.canPrototype(bmp)) { result |= CAN_PROTOTYPE; }
+	if (WithTarget.can114v3    (bmp)) { result |= CAN_114v3;     }
+	if (WithTarget.can114v2    (bmp)) { result |= CAN_114v2;     }
+	if (WithTarget.can114      (bmp)) { result |= CAN_114v1;     }
+	if (WithTarget.can149      (bmp)) { result |= CAN_149;       }
+	if (WithTarget.can238      (bmp)) { result |= CAN_238;       }
+	if (WithTarget.can429      (bmp)) { result |= CAN_429;       }
+	if (WithTarget.can124      (bmp)) { result |= CAN_124;       }
+	return result;
+}
+
+// b = (a+d)/₂
+function getB(a, d) {
+	//     (                a           +  d                        ) / 2
+	return ( ((            (a&0xFF0000) + (d&0xFF0000)) & 0x1FE0000)
+	       | ((            (a&0x00FF00) + (d&0x00FF00)) & 0x001FE00)
+	       | ((            (a&0x0000FF) + (d&0x0000FF)) & 0x00001FE)) >> 1;
+}
+// c = (1+a-d)/₂
+function getC(a, d) {
+	//     (     1       +  a           -  d                        ) / 2
+	return ( ((0x1000000 + (a&0xFF0000) - (d&0xFF0000)) & 0x1FE0000)
+	       | ((0x0010000 + (a&0x00FF00) - (d&0x00FF00)) & 0x001FE00)
+	       | ((0x0000100 + (a&0x0000FF) - (d&0x0000FF)) & 0x00001FE)) >> 1;
+}
+// {½ + b - c} = {½ + (a+d)/₂ - (1+a-d)/₂} = {(1+a+d-1-a+d)/₂} = d
+function getD(b, c) {
+	//      1/2      +  b           -  c
+	return (0x800000 + (b&0xFF0000) - (c&0xFF0000))
+	     | (0x008000 + (b&0x00FF00) - (c&0x00FF00))
+	     | (0x000080 + (b&0x0000FF) - (c&0x0000FF));
+	
+}
+// {½ + a - b - c} = {½ + 2a/₂ - (a+d)/₂ - (1+a-d)/₂} = {(1+2a-a-d-1-a+d)/₂} = 0
+function isValid(a, b, c, d) {
+	//              1/2      +  a           -  b           -  c
+	var checksum = (0x800000 + (a&0xFF0000) - (b&0xFF0000) - (c&0xFF0000))
+	             + (0x008000 + (a&0x00FF00) - (b&0x00FF00) - (c&0x00FF00))
+	             + (0x000080 + (a&0x0000FF) - (b&0x0000FF) - (c&0x0000FF));
+
+	console.log("{ " + a
+	         + " / " + b
+	         + " / " + c
+	         + " / " + d
+	         + " } -> checksum: " + checksum);
+	console.log("{ " + toHex(a, 6)
+	         + " / " + toHex(b, 6)
+	         + " / " + toHex(c, 6)
+	         + " / " + toHex(d, 6)
+	         + " } -> checksum: " + toHex(checksum, 6));
+	
+	var compare = (((a&0x010101)+(d&0x010101))&0x010101); // 정수연산 한계로 a+d가 홀수일 땐 1이 나옴
+	
+	if (checksum == compare) {
+		return true;
+	} else {
+		console.log("is not " + toHex(compare, 6));
+		return false;
+	}
+}
+
+function getBp2x(ax, dx, bx) {
+	return (ax < 0x80 == dx < 0x80) ? 0x80 : ((0x280 + ax - 2*dx) / 8 * 2 + 1);
+}
+function getCp2x(ax, dx, cx) {
+	return (ax < 0x80 != dx < 0x80) ? 0x80 : ((0x80 + ax + 2*dx) / 8 * 2);
+}
+function getAp2x(ax, bx, cx, dx) {
+	return 0x180 - getBp2x(ax, dx, bx) - getCp2x(ax, dx, cx);
+}
+function getBv2(a, d, b) {
+	return ( ((b&0xFF0000) + (getBp2x((a >> 16) & 0xFF, (d >> 16) & 0xFF, (b >> 16) & 0xFF) << 16) - 0x800000)
+	       | ((b&0x00FF00) + (getBp2x((a >>  8) & 0xFF, (d >>  8) & 0xFF, (b >>  8) & 0xFF) <<  8) - 0x008000)
+	       | ((b&0x0000FF) + (getBp2x((a >>  0) & 0xFF, (d >>  0) & 0xFF, (b >>  0) & 0xFF) <<  0) - 0x000080) );
+}
+function getCv2(a, d, c) {
+	return ( ((c&0xFF0000) + (getCp2x((a >> 16) & 0xFF, (d >> 16) & 0xFF, (c >> 16) & 0xFF) << 16) - 0x800000)
+	       | ((c&0x00FF00) + (getCp2x((a >>  8) & 0xFF, (d >>  8) & 0xFF, (c >>  8) & 0xFF) <<  8) - 0x008000)
+	       | ((c&0x0000FF) + (getCp2x((a >>  0) & 0xFF, (d >>  0) & 0xFF, (c >>  0) & 0xFF) <<  0) - 0x000080) );
+}
+function getAv2(a, b, c, d) {
+	return ( ((a&0xFF0000) + (getAp2x((a >> 16) & 0xFF, (b >> 16) & 0xFF, (c >> 16) & 0xFF, (d >> 16) & 0xFF) << 16) - 0x800000)
+	       | ((a&0x00FF00) + (getAp2x((a >>  8) & 0xFF, (b >>  8) & 0xFF, (c >>  8) & 0xFF, (d >>  8) & 0xFF) <<  8) - 0x008000)
+	       | ((a&0x0000FF) + (getAp2x((a >>  0) & 0xFF, (b >>  0) & 0xFF, (c >>  0) & 0xFF, (d >>  0) & 0xFF) <<  0) - 0x000080) );
+}
+function getAp(a, an) {
+	return 0x808080 + an - a;
+}
+function b2toB(bn, ap) {
+	return 0x808080 + bn
+			- (((ap&0x010000) == 0x000000) ? 0x800000 : (0x1000000 - (ap&0xFF0000)))
+			- (((ap&0x000100) == 0x000000) ? 0x008000 : (0x0010000 - (ap&0x00FF00)))
+			- (((ap&0x000001) == 0x000000) ? 0x000080 : (0x0000100 - (ap&0x0000FF)));
+}
+function c2toC(cn, ap) {
+	return 0x808080 + cn
+			- (((ap&0x010000) == 0x010000) ? 0x800000 : (0x1000000 - (ap&0xFF0000)))
+			- (((ap&0x000100) == 0x000100) ? 0x008000 : (0x0010000 - (ap&0x00FF00)))
+			- (((ap&0x000001) == 0x000001) ? 0x000080 : (0x0000100 - (ap&0x0000FF)));
+}
+
+// for 1:1:4 v3
+function getBp3(a, d) {
+	return ( ((((a&0x800000) ^ (d&0x800000)) == 0x000000) ? (0xC00000 - (((0x0800000 + (a&0xFF0000) + 2*(d&0xFF0000)) >> 3) & 0xFE0000)) : (((0x2800000 + (a&0xFF0000) - 2*(d&0xFF0000)) >> 2) & 0xFC0000) | 0x010000)
+	       | ((((a&0x008000) ^ (d&0x008000)) == 0x000000) ? (0x00C000 - (((0x0008000 + (a&0x00FF00) + 2*(d&0x00FF00)) >> 3) & 0x00FE00)) : (((0x0028000 + (a&0x00FF00) - 2*(d&0x00FF00)) >> 2) & 0x00FC00) | 0x000100)
+	       | ((((a&0x000080) ^ (d&0x000080)) == 0x000000) ? (0x0000C0 - (((0x0000080 + (a&0x0000FF) + 2*(d&0x0000FF)) >> 3) & 0x0000FE)) : (((0x0000280 + (a&0x0000FF) - 2*(d&0x0000FF)) >> 2) & 0x0000FC) | 0x000001) );
+}
+function getCp3(a, d) {
+	return ( ((((a&0x800000) ^ (d&0x800000)) == 0x800000) ? (0xC00000 - (((0x2800000 + (a&0xFF0000) - 2*(d&0xFF0000)) >> 3) & 0xFE0000)) : (((0x0800000 + (a&0xFF0000) + 2*(d&0xFF0000)) >> 2) & 0xFC0000))
+	       | ((((a&0x008000) ^ (d&0x008000)) == 0x008000) ? (0x00C000 - (((0x0028000 + (a&0x00FF00) - 2*(d&0x00FF00)) >> 3) & 0x00FE00)) : (((0x0008000 + (a&0x00FF00) + 2*(d&0x00FF00)) >> 2) & 0x00FC00))
+	       | ((((a&0x000080) ^ (d&0x000080)) == 0x000080) ? (0x0000C0 - (((0x0000280 + (a&0x0000FF) - 2*(d&0x0000FF)) >> 3) & 0x0000FE)) : (((0x0000080 + (a&0x0000FF) + 2*(d&0x0000FF)) >> 2) & 0x0000FC)) );
+}
+function getBv3(b, bp) { return b + bp - 0x808080; }
+function getCv3(c, cp) { return c + cp - 0x808080; }
+function getAv3(a, bp, cp) { return a + 0x1010100 - bp - cp; }
+function b3toB(bn, ap) {
+	return 0x808080 + bn
+			- (((ap&0x010000) == 0) ? (ap&0xFF0000) : (0x17F0000 - ((ap&0xFF0000)<<1)))
+			- (((ap&0x000100) == 0) ? (ap&0x00FF00) : (0x0017F00 - ((ap&0x00FF00)<<1)))
+			- (((ap&0x000001) == 0) ? (ap&0x0000FF) : (0x000017F - ((ap&0x0000FF)<<1)));
+}
+function c3toC(cn, ap) {
+	return 0x808080 + cn
+			- (((ap&0x010000) == 0) ? (0x1800000 - ((ap&0xFF0000)<<1)) : ((ap&0xFF0000) + 0x010000))
+			- (((ap&0x000100) == 0) ? (0x0018000 - ((ap&0x00FF00)<<1)) : ((ap&0x00FF00) + 0x000100))
+			- (((ap&0x000001) == 0) ? (0x0000180 - ((ap&0x0000FF)<<1)) : ((ap&0x0000FF) + 0x000001));
+}
+
+// for 1:2:4
+function getA124(a, ad1, ad2, a1) {
+	return (getA124x(((a>>16)&0xFF) * 3, (((ad1>>16)&0xFF) + ((ad2>>16)&0xFF) + ((a1>>16)&0xFF)), (a1>>16)&0xFF) << 16)
+	     | (getA124x(((a>> 8)&0xFF) * 3, (((ad1>> 8)&0xFF) + ((ad2>> 8)&0xFF) + ((a1>> 8)&0xFF)), (a1>> 8)&0xFF) <<  8)
+	     | (getA124x(((a>> 0)&0xFF) * 3, (((ad1>> 0)&0xFF) + ((ad2>> 0)&0xFF) + ((a1>> 0)&0xFF)), (a1>> 0)&0xFF) <<  0);
+}
+function getA124x(ax, nx, a1x) {
+	return (Math.max(0, Math.min(0xF0, a1x + ax - nx)) & 0xF0) | (a1x & 0x0F);
+}
+
+function padRGB(value) {
+	var str = pad0(Integer.toBinaryString(value), 24);
+	return str.substring(0, 8) + " " + str.substring(8, 16) + " " + str.substring(16, 24);
+}
+
+/**
+ * 1:1:4 레거시 형식 해석이 가능한지 패리티 검증
+ * @param bmp
+ * @return
+ * @throws Exception
+ */
+WithTarget.canPrototype = function(bmp) {
+	console.log("\nis it prototype?");
+	
+	var width = bmp.getWidth();
+	var height = bmp.getHeight();
+	console.log("input size: " + width + " x " + height);
+	
+	// 1:1:4 결합 이미지일 경우 크기는 짝수여야 함
+	if (width % 2 > 0 || height % 2 > 0) {
+		return false;
+	};
+	
+	var checkFailed = false;
+	
+	for (var i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
+		var x = Math.floor(Math.random() * width  / 2);
+		var y = Math.floor(Math.random() * height / 2);
+		
+		// (2x,2y)와 (2x+1,2y+1)은 둘 다 출력물 이미지의 원본 픽셀로 같은 값이어야 함
+		if ((bmp.getRGB(2*x, 2*y  ) & 0xFFFFFF) != (bmp.getRGB(2*x+1, 2*y+1) & 0xFFFFFF)) {
+			checkFailed = true;
+			break;
+		}
+		
+		// (2x+1,2y)와 (2x,2y+1)은 합쳐서 0xFFFFFF가 나와야 함
+		if ((bmp.getRGB(2*x, 2*y+1) & 0xFFFFFF)  + (bmp.getRGB(2*x+1, 2*y  ) & 0xFFFFFF) != 0xFFFFFF) {
+			checkFailed = true;
+			break;
+		}
+	}
+	if (checkFailed) {
+		console.log("체크섬 오류 - 레거시 WithTarget 1:1:4 형식 이미지가 아님");
+		return false;
+	}
+	
+	console.log("체크섬 통과 - 레거시 WithTarget 1:1:4 형식 가능");
+	return true;
+}
+/**
+ * 1:1:4 형식 해석이 가능한지 패리티 검증
+ * @param bmp
+ * @return
+ * @throws Exception
+ */
+WithTarget.can114 = function(bmp) {
+	console.log("\nis it 1:1:4?");
+	
+	var width = bmp.getWidth();
+	var height = bmp.getHeight();
+	console.log("input size: " + width + " x " + height);
+	
+	// 1:1:4 결합 이미지일 경우 크기는 짝수여야 함
+	if (width % 2 > 0 || height % 2 > 0) {
+		return false;
+	}
+	
+	var a, b, c, d;
+	
+	var checkFailed = false;
+	
+	for (var i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
+		var x = Math.floor(Math.random() * width  / 2);
+		var y = Math.floor(Math.random() * height / 2);
+		console.log("sample(" + pad(x, 4) + ", " + pad(y, 4) + ")");
+		
+		// (2x,2y)와 (2x+1,2y+1)은 둘 다 출력물 이미지의 원본 픽셀로 같은 값이어야 함
+		a = bmp.getRGB(2*x  , 2*y  );
+		d = bmp.getRGB(2*x+1, 2*y+1);
+		if (a != d) {
+			console.log("a != d");
+			checkFailed = true;
+			break;
+		}
+		
+		// 패리티 검증
+		b = bmp.getRGB(2*x+1, 2*y  );
+		c = bmp.getRGB(2*x  , 2*y+1);
+		
+		if (!isValid(a, b, c, getD(b, c))) {
+			checkFailed = true;
+			break;
+		}
+	}
+	if (checkFailed) {
+		console.log("체크섬 오류 - WithTarget 1:1:4 v1 형식 이미지가 아님");
+		return false;
+	}
+	
+	console.log("체크섬 통과 - WithTarget 1:1:4 v1 형식 가능");
+	return true;
+}
+/**
+ * 1:1:4 v2 형식 해석이 가능한지 패리티 검증
+ * @param bmp
+ * @return
+ * @throws Exception
+ */
+WithTarget.can114v2 = function(bmp) {
+	console.log("\nis it 1:1:4 v2?");
+	
+	var width = bmp.getWidth();
+	var height = bmp.getHeight();
+	console.log("input size: " + width + " x " + height);
+	
+	// 1:1:4 결합 이미지일 경우 크기는 짝수여야 함
+	if (width % 2 > 0 || height % 2 > 0) {
+		return false;
+	}
+	
+	var a, bn, cn, an, ap, b, c;
+	
+	var checkFailed = false;
+	
+	for (var i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
+		var x = Math.floor(Math.random() * width  / 2);
+		var y = Math.floor(Math.random() * height / 2);
+		console.log("sample(" + pad(x, 4) + ", " + pad(y, 4) + ")");
+		
+		a  = bmp.getRGB(2*x  , 2*y  );
+		bn = bmp.getRGB(2*x+1, 2*y  );
+		cn = bmp.getRGB(2*x  , 2*y+1);
+		an = bmp.getRGB(2*x+1, 2*y+1);
+		ap = getAp(a, an);
+		
+		b = b2toB(bn, ap);
+		c = c2toC(cn, ap);
+		
+		if (!isValid(a, b, c, getD(b, c))) {
+			checkFailed = true;
+			break;
+		}
+	}
+	if (checkFailed) {
+		console.log("체크섬 오류 - WithTarget 1:1:4 v2 형식 이미지가 아님");
+		return false;
+	}
+	
+	console.log("체크섬 통과 - WithTarget 1:1:4 v2 형식 가능");
+	return true;
+}
+/**
+ * 1:1:4 v3 형식 해석이 가능한지 패리티 검증
+ * @param bmp
+ * @return
+ * @throws Exception
+ */
+WithTarget.can114v3 = function(bmp) {
+	console.log("\nis it 1:1:4 v3?");
+	
+	var width  = bmp.getWidth();
+	var height = bmp.getHeight();
+	
+	// 1:1:4 결합 이미지일 경우 크기는 짝수여야 함
+	if (width % 2 > 0 || height % 2 > 0) {
+		return false;
+	}
+	
+	var a, bn, cn, an, ap, b, c;
+	
+	var checkFailed = false;
+	
+	for (var i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
+		var x = Math.floor(Math.random() * width  / 2);
+		var y = Math.floor(Math.random() * height / 2);
+		console.log("sample(" + pad(x, 4) + ", " + pad(y, 4) + ")");
+		
+		a  = bmp.getRGB(2*x  , 2*y  );
+		bn = bmp.getRGB(2*x+1, 2*y  );
+		cn = bmp.getRGB(2*x  , 2*y+1);
+		an = bmp.getRGB(2*x+1, 2*y+1);
+		ap = getAp(a, an);
+		b = b3toB(bn, ap);
+		c = c3toC(cn, ap);
+		
+		if (!isValid(a, b, c, getD(b, c))) {
+			checkFailed = true;
+			break;
+		}
+	}
+	if (checkFailed) {
+		console.log("체크섬 오류 - WithTarget 1:1:4 v3 형식 이미지가 아님");
+		return false;
+	}
+	
+	console.log("체크섬 통과 - WithTarget 1:1:4 v3 형식 가능");
+	return true;
+}
+/**
+ * 1:4:9 형식 해석이 가능한지 패리티 검증
+ * @param bmp
+ * @return
+ * @throws Exception
+ */
+WithTarget.can149 = function(bmp) {
+	console.log("\nis it 1:4:9?");
+	
+	var width = bmp.getWidth();
+	var height = bmp.getHeight();
+	console.log("input size: " + width + " x " + height);
+	
+	// 1:4:9 결합 이미지일 경우 크기는 3의 배수여야 함
+	if (width % 3 > 0 || height % 3 > 0) {
+		return false;
+	}
+	
+	var b1, c1, b2
+	  , c4, a , c2
+	  , b4, c3, b3;
+	
+	var checkFailed = false;
+	
+	for (var i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
+		var x = Math.floor(Math.random() * width  / 3);
+		var y = Math.floor(Math.random() * height / 3);
+		console.log("sample(" + pad(x, 4) + ", " + pad(y, 4) + "):");
+		
+		a  = bmp.getRGB(3*x+1, 3*y+1);
+		b1 = bmp.getRGB(3*x  , 3*y  );
+		c1 = bmp.getRGB(3*x+1, 3*y  );
+		b2 = bmp.getRGB(3*x+2, 3*y  );
+		c2 = bmp.getRGB(3*x+2, 3*y+1);
+		b3 = bmp.getRGB(3*x+2, 3*y+2);
+		c3 = bmp.getRGB(3*x+1, 3*y+2);
+		b4 = bmp.getRGB(3*x  , 3*y+2);
+		c4 = bmp.getRGB(3*x  , 3*y+1);
+		
+		// 패리티 검증
+		if (!isValid(a, b1, c1, getD(b1, c1))) { checkFailed = true; break; }
+		if (!isValid(a, b2, c2, getD(b2, c2))) { checkFailed = true; break; }
+		if (!isValid(a, b3, c3, getD(b3, c3))) { checkFailed = true; break; }
+		if (!isValid(a, b4, c4, getD(b4, c4))) { checkFailed = true; break; }
+	}
+	if (checkFailed) {
+		console.log("체크섬 오류 - WithTarget 1:4:9 형식 이미지가 아님");
+		return false;
+	}
+	
+	console.log("체크섬 통과 - WithTarget 1:4:9 형식 가능");
+	return true;
+}
+/**
+ * 2:3:8 형식 해석이 가능한지 패리티 검증
+ * @param bmp
+ * @return
+ * @throws Exception
+ */
+WithTarget.can238 = function(bmp) {
+	console.log("\nis it 2:3:8?");
+	
+	var width = bmp.getWidth();
+	var height = bmp.getHeight();
+	console.log("input size: " + width + " x " + height);
+	
+	// 2:3:8 결합 이미지일 경우 크기는 6x4의 배수여야 함
+	if (width % 6 > 0 || height % 4 > 0) {
+		return false;
+	}
+	
+	var b1, a1
+	  , c1, b2
+	  , a2, c2
+	  , b3, c3, a3;
+	
+	var checkFailed = false;
+	
+	for (var i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
+		var x = Math.floor(Math.random() * width  / 2);
+		var y = Math.floor(Math.random() * height / 4);
+		console.log("sample(" + pad(x, 4) + ", " + pad(y, 4) + "):");
+		
+		a1 = bmp.getRGB(2*x+1, 4*y  );
+		a2 = bmp.getRGB(2*x  , 4*y+2);
+		b1 = bmp.getRGB(2*x  , 4*y  );
+		c1 = bmp.getRGB(2*x  , 4*y+1);
+		b2 = bmp.getRGB(2*x+1, 4*y+1);
+		c2 = bmp.getRGB(2*x+1, 4*y+2);
+		b3 = bmp.getRGB(2*x  , 4*y+3);
+		c3 = bmp.getRGB(2*x+1, 4*y+3);
+		a3 = ((((a1&0xFF0000) + (a2&0xFF0000)) >> 1) & 0xFF0000)
+		   | ((((a1&0x00FF00) + (a2&0x00FF00)) >> 1) & 0x00FF00)
+		   | ((((a1&0x0000FF) + (a2&0x0000FF)) >> 1) & 0x0000FF);
+		
+		// 패리티 검증
+		if (!isValid(a1, b1, c1, getD(b1, c1))) { checkFailed = true; break; }
+		if (!isValid(a3, b2, c2, getD(b2, c2))) { checkFailed = true; break; }
+		if (!isValid(a2, b3, c3, getD(b3, c3))) { checkFailed = true; break; }
+	}
+	if (checkFailed) {
+		console.log("체크섬 오류 - WithTarget 2:3:8 형식 이미지가 아님");
+		return false;
+	}
+	
+	console.log("체크섬 통과 - WithTarget 2:3:8 형식 가능");
+	return true;
+}
+/**
+ * 4:2:9 형식 해석이 가능한지 패리티 검증
+ * @param bmp
+ * @return
+ * @throws Exception
+ */
+WithTarget.can429 = function(bmp) {
+	console.log("\nis it 4:2:9?");
+	
+	var width = bmp.getWidth();
+	var height = bmp.getHeight();
+	console.log("input size: " + width + " x " + height);
+	
+	// 4:2:9 결합 이미지일 경우 크기는 3의 배수여야 함
+	if (width % 3 > 0 || height % 3 > 0) {
+		return false;
+	}
+	
+	var a1, b1, aA
+	  , c1,aAB, c2
+	  , aB, b2, a2;
+	
+	var checkFailed = false;
+	
+	for (var i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
+		var x = Math.floor(Math.random() * width  / 3);
+		var y = Math.floor(Math.random() * height / 3);
+		console.log("sample(" + pad(x, 4) + ", " + pad(y, 4) + "):");
+		
+		a1 = bmp.getRGB(3*x  , 3*y  );
+		aA = bmp.getRGB(3*x+2, 3*y  );
+		aB = bmp.getRGB(3*x  , 3*y+2);
+		a2 = bmp.getRGB(3*x+2, 3*y+2);
+		aAB= bmp.getRGB(3*x+1, 3*y+1) & 0xFFFFFF;
+		b1 = bmp.getRGB(3*x+1, 3*y  );
+		c1 = bmp.getRGB(3*x  , 3*y+1);
+		b2 = bmp.getRGB(3*x+1, 3*y+2);
+		c2 = bmp.getRGB(3*x+2, 3*y+1);
+		
+		// 패리티 검증
+		if (!isValid(a1, b1, c1, getD(b1, c1))) { checkFailed = true; break; }
+		if (!isValid(a2, b2, c2, getD(b2, c2))) { checkFailed = true; break; }
+		if (aAB != ( ((((aA&0xFF0000) + (aB&0xFF0000)) >> 1) & 0xFF0000)
+		           | ((((aA&0x00FF00) + (aB&0x00FF00)) >> 1) & 0x00FF00)
+		           | ((((aA&0x0000FF) + (aB&0x0000FF)) >> 1) & 0x0000FF) )) {
+			console.log("aAB != (aA+aB)/2");
+			checkFailed = true; break;
+		}
+	}
+	if (checkFailed) {
+		console.log("체크섬 오류 - WithTarget 4:2:9 형식 이미지가 아님");
+		return false;
+	}
+	
+	console.log("체크섬 통과 - WithTarget 4:2:9 형식 가능");
+	return true;
+}
+/**
+ * 1:2:4 형식 해석이 가능한지 검증 (패리티 없음)
+ * @param bmp
+ * @return
+ * @throws Exception
+ */
+WithTarget.can124 = function(bmp) {
+	console.log("\nis it 1:2:4?");
+	
+	var width = bmp.getWidth();
+	var height = bmp.getHeight();
+	console.log("input size: " + width + " x " + height);
+	
+	// 1:2:4 결합 이미지일 경우 크기는 2의 배수여야 함
+	if (width % 2 > 0 || height % 2 > 0) {
+		return false;
+	}
+	
+	var a, ad1, ad2;
+	
+	var checkFailed = false;
+	
+	for (var i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
+		var x = Math.floor(Math.random() * width  / 2);
+		var y = Math.floor(Math.random() * height / 2);
+		console.log("sample(" + pad(x, 4) + ", " + pad(y, 4) + "):");
+
+		a   = bmp.getRGB(2*x  , 2*y  );
+		ad1 = bmp.getRGB(2*x+1, 2*y  );
+		ad2 = bmp.getRGB(2*x  , 2*y+1);
+		
+		// 값 범위 검증, 별도 패리티 검사 없음
+		if ((a&0xC0C0C0) != (ad1&0xC0C0C0)) { checkFailed = true; break; }
+		if ((a&0xC0C0C0) != (ad2&0xC0C0C0)) { checkFailed = true; break; }
+	}
+	if (checkFailed) {
+		console.log("체크섬 오류 - WithTarget 1:2:4 형식 이미지가 아님");
+		return false;
+	}
+	
+	console.log("체크섬 통과 - WithTarget 1:2:4 형식 가능");
+	return true;
+}
+/**
+ * 1:1:4 형식 비트맵 이미지를 해석
+ * @param bmp
+ * @param shift: 출력물 픽셀 밀기
+ * @param xors: 출력물 xor 연산 수행
+ * @return
+ * @throws Exception
+ */
+WithTarget.fromBitmap114 = function(bmp, shift, xors, afterParse) {
+	console.log("\nWithTarget.fromBitmap 1:1:4");
+	
+	var width  = bmp.getWidth();
+	var height = bmp.getHeight();
+	console.log("input size: " + width + " x " + height);
+	
+	var xSize = width / 2, ySize = height / 2;
+	
+	var a, b, c;
+	
+	var targetImage = new BufferedImage(xSize, ySize);
+	var dataImage   = new BufferedImage(xSize, ySize);
+	
+	for (var y = 0; y < ySize; y++) {
+		for (var x = 0; x < xSize; x++) {
+			a = bmp.getRGB(2*x  , 2*y  );
+			b = bmp.getRGB(2*x+1, 2*y  );
+			c = bmp.getRGB(2*x  , 2*y+1);
+			
+			targetImage.setRGB(x, y, a);
+			dataImage  .setRGB(x, y, getD(b, c));
+		}
+	}
+	targetImage.update();
+	dataImage.update();
+	showTargetImage(targetImage);
+	Container.fromBitmap(dataImage, shift, xors, afterParse);
+}
+/**
+ * 1:1:4 v2 형식 비트맵 이미지를 해석
+ * @param bmp
+ * @param shift: 출력물 픽셀 밀기
+ * @param xors: 출력물 xor 연산 수행
+ * @return
+ * @throws Exception
+ */
+WithTarget.fromBitmap114v2 = function(bmp, shift, xors, afterParse) {
+	console.log("\nWithTarget.fromBitmap 1:1:4 v2");
+	
+	var width  = bmp.getWidth();
+	var height = bmp.getHeight();
+	console.log("input size: " + width + " x " + height);
+	
+	var xSize = width / 2, ySize = height / 2;
+	
+	var a, an, bn, cn, ap;
+	
+	var targetImage = new BufferedImage(xSize, ySize);
+	var dataImage   = new BufferedImage(xSize, ySize);
+	
+	for (var y = 0; y < ySize; y++) {
+		for (var x = 0; x < xSize; x++) {
+			a  = bmp.getRGB(2*x  , 2*y  );
+			bn = bmp.getRGB(2*x+1, 2*y  );
+			cn = bmp.getRGB(2*x  , 2*y+1);
+			an = bmp.getRGB(2*x+1, 2*y+1);
+			ap = getAp(a, an);
+			
+			targetImage.setRGB(x, y, a);
+			dataImage  .setRGB(x, y, getD(b2toB(bn, ap), c2toC(cn, ap)));
+		}
+	}
+	targetImage.update();
+	dataImage.update();
+	showTargetImage(targetImage);
+	Container.fromBitmap(dataImage, shift, xors, afterParse);
+}
+/**
+ * 1:1:4 v3 형식 비트맵 이미지를 해석
+ * @param bmp
+ * @param shift: 출력물 픽셀 밀기
+ * @param xors: 출력물 xor 연산 수행
+ * @return
+ * @throws Exception
+ */
+WithTarget.fromBitmap114v3 = function(bmp, shift, xors, afterParse) {
+	console.log("\nWithTarget.fromBitmap 1:1:4 v3");
+	
+	var width  = bmp.getWidth();
+	var height = bmp.getHeight();
+	console.log("input size: " + width + " x " + height);
+	
+	var xSize = width / 2, ySize = height / 2;
+	
+	var a, an, bn, cn, ap;
+	
+	var targetImage = new BufferedImage(xSize, ySize);
+	var dataImage   = new BufferedImage(xSize, ySize);
+	
+	for (var y = 0; y < ySize; y++) {
+		for (var x = 0; x < xSize; x++) {
+			a  = bmp.getRGB(2*x  , 2*y  );
+			bn = bmp.getRGB(2*x+1, 2*y  );
+			cn = bmp.getRGB(2*x  , 2*y+1);
+			an = bmp.getRGB(2*x+1, 2*y+1);
+			ap = getAp(a, an);
+			
+			targetImage.setRGB(x, y, a);
+			dataImage  .setRGB(x, y, getD(b3toB(bn, ap), c3toC(cn, ap)));
+		}
+	}
+	targetImage.update();
+	dataImage.update();
+	showTargetImage(targetImage);
+	Container.fromBitmap(dataImage, shift, xors, afterParse);
+}
+/**
+ * 1:4:9 형식 비트맵 이미지를 해석
+ * @param bmp
+ * @param shift: 출력물 픽셀 밀기
+ * @param xors: 출력물 xor 연산 수행
+ * @return
+ * @throws Exception
+ */
+WithTarget.fromBitmap149 = function(bmp, shift, xors, afterParse) {
+	console.log("\nWithTarget.fromBitmap 1:4:9");
+	
+	var width  = bmp.getWidth();
+	var height = bmp.getHeight();
+	console.log("input size: " + width + " x " + height);
+	
+	var xSize = width / 3, ySize = height / 3;
+	
+	var b1, c1, b2
+	  , c4, a , c2
+	  , b4, c3, b3;
+	
+	var targetImage = new BufferedImage(xSize  , ySize  , BufferedImage.TYPE_3BYTE_BGR);
+	var dataImage   = new BufferedImage(xSize*2, ySize*2, BufferedImage.TYPE_3BYTE_BGR);
+	
+	for (var y = 0; y < ySize; y++) {
+		for (var x = 0; x < xSize; x++) {
+			a  = bmp.getRGB(3*x+1, 3*y+1);
+			b1 = bmp.getRGB(3*x  , 3*y  );
+			c1 = bmp.getRGB(3*x+1, 3*y  );
+			b2 = bmp.getRGB(3*x+2, 3*y  );
+			c2 = bmp.getRGB(3*x+2, 3*y+1);
+			b3 = bmp.getRGB(3*x+2, 3*y+2);
+			c3 = bmp.getRGB(3*x+1, 3*y+2);
+			b4 = bmp.getRGB(3*x  , 3*y+2);
+			c4 = bmp.getRGB(3*x  , 3*y+1);
+			
+			targetImage.setRGB(x, y, a);
+			dataImage.setRGB(2*x  , 2*y  , getD(b1, c1));
+			dataImage.setRGB(2*x+1, 2*y  , getD(b2, c2));
+			dataImage.setRGB(2*x+1, 2*y+1, getD(b3, c3));
+			dataImage.setRGB(2*x  , 2*y+1, getD(b4, c4));
+		}
+	}
+	targetImage.update();
+	dataImage.update();
+	showTargetImage(targetImage);
+	Container.fromBitmap(dataImage, shift, xors, afterParse);
+}
+/**
+ * 2:3:8 형식 비트맵 이미지를 해석
+ * @param bmp
+ * @param shift: 출력물 픽셀 밀기
+ * @param xors: 출력물 xor 연산 수행
+ * @return
+ * @throws Exception
+ */
+WithTarget.fromBitmap238 = function(bmp, shift, xors, afterParse) {
+	console.log("\nWithTarget.fromBitmap 2:3:8");
+	
+	var width  = bmp.getWidth();
+	var height = bmp.getHeight();
+	console.log("input size: " + width + " x " + height);
+	
+	var xSize = width / 2, ySize = height / 4;
+	
+	var b1, a1
+	  , c1, b2
+	  , a2, c2
+	  , b3, c3;
+	
+	var targetImage = new BufferedImage(xSize, ySize*2, BufferedImage.TYPE_3BYTE_BGR);
+	var dataImage   = new BufferedImage(xSize, ySize*3, BufferedImage.TYPE_3BYTE_BGR);
+	
+	for (var y = 0; y < ySize; y++) {
+		for (var x = 0; x < xSize; x++) {
+			a1 = bmp.getRGB(2*x+1, 4*y  );
+			a2 = bmp.getRGB(2*x  , 4*y+2);
+			b1 = bmp.getRGB(2*x  , 4*y  );
+			c1 = bmp.getRGB(2*x  , 4*y+1);
+			b2 = bmp.getRGB(2*x+1, 4*y+1);
+			c2 = bmp.getRGB(2*x+1, 4*y+2);
+			b3 = bmp.getRGB(2*x  , 4*y+3);
+			c3 = bmp.getRGB(2*x+1, 4*y+3);
+			
+			targetImage.setRGB(x, 2*y  , a1);
+			targetImage.setRGB(x, 2*y+1, a2);
+			dataImage.setRGB(x, 3*y  , getD(b1, c1));
+			dataImage.setRGB(x, 3*y+1, getD(b2, c2));
+			dataImage.setRGB(x, 3*y+2, getD(b3, c3));
+		}
+	}
+	targetImage.update();
+	dataImage.update();
+	showTargetImage(targetImage);
+	Container.fromBitmap(dataImage, shift, xors, afterParse);
+}
+/**
+ * 4:2:9 형식 비트맵 이미지를 해석
+ * @param bmp
+ * @param shift: 출력물 픽셀 밀기
+ * @param xors: 출력물 xor 연산 수행
+ * @return
+ * @throws Exception
+ */
+WithTarget.fromBitmap429 = function(bmp, shift, xors, afterParse) {
+	console.log("\nWithTarget.fromBitmap 4:2:9");
+	
+	var width  = bmp.getWidth();
+	var height = bmp.getHeight();
+	console.log("input size: " + width + " x " + height);
+	
+	var xSize = width / 3, ySize = height / 3;
+	
+	var a1, b1, aA
+	  , c1,     c2
+	  , aB, b2, a2;
+	
+	var targetImage = new BufferedImage(xSize*2, ySize*2, BufferedImage.TYPE_3BYTE_BGR);
+	var dataImage   = new BufferedImage(xSize  , ySize*2, BufferedImage.TYPE_3BYTE_BGR);
+	
+	for (var y = 0; y < ySize; y++) {
+		for (var x = 0; x < xSize; x++) {
+			a1 = bmp.getRGB(3*x  , 3*y  );
+			aA = bmp.getRGB(3*x+2, 3*y  );
+			aB = bmp.getRGB(3*x  , 3*y+2);
+			a2 = bmp.getRGB(3*x+2, 3*y+2);
+			b1 = bmp.getRGB(3*x+1, 3*y  );
+			c1 = bmp.getRGB(3*x  , 3*y+1);
+			b2 = bmp.getRGB(3*x+1, 3*y+2);
+			c2 = bmp.getRGB(3*x+2, 3*y+1);
+
+			targetImage.setRGB(2*x  , 2*y  , a1);
+			targetImage.setRGB(2*x+1, 2*y  , aA);
+			targetImage.setRGB(2*x  , 2*y+1, aB);
+			targetImage.setRGB(2*x+1, 2*y+1, a2);
+			dataImage.setRGB(x, 2*y  , getD(b1, c1));
+			dataImage.setRGB(x, 2*y+1, getD(b2, c2));
+		}
+	}
+	targetImage.update();
+	dataImage.update();
+	showTargetImage(targetImage);
+	Container.fromBitmap(dataImage, shift, xors, afterParse);
+}
+/**
+ * 1:2:4 형식 비트맵 이미지를 해석
+ * @param bmp
+ * @param shift: 출력물 픽셀 밀기
+ * @param xors: 출력물 xor 연산 수행
+ * @return
+ * @throws Exception
+ */
+WithTarget.fromBitmap124 = function(bmp, shift, xors, afterParse) {
+	console.log("\nWithTarget.fromBitmap 1:2:4");
+	
+	var width  = bmp.getWidth();
+	var height = bmp.getHeight();
+	console.log("input size: " + width + " x " + height);
+	
+	var xSize = width / 2, ySize = height / 2;
+	
+	var a, ad1, ad2, a1;
+	
+	var targetImage = new BufferedImage(xSize, ySize  , BufferedImage.TYPE_3BYTE_BGR);
+	var dataImage   = new BufferedImage(xSize, ySize*2, BufferedImage.TYPE_3BYTE_BGR);
+	
+	for (var y = 0; y < ySize; y++) {
+		for (var x = 0; x < xSize; x++) {
+			a   = bmp.getRGB(2*x  , 2*y  );
+			ad1 = bmp.getRGB(2*x+1, 2*y  );
+			ad2 = bmp.getRGB(2*x  , 2*y+1);
+			a1  = bmp.getRGB(2*x+1, 2*y+1);
+			
+			targetImage.setRGB(x  , y  , a);
+			dataImage.setRGB(x, 2*y  , ((a1<<4)&0xC0C0C0) | (ad1&0x3F3F3F));
+			dataImage.setRGB(x, 2*y+1, ((a1<<6)&0xC0C0C0) | (ad2&0x3F3F3F));
+		}
+	}
+	targetImage.update();
+	dataImage.update();
+	showTargetImage(targetImage);
+	Container.fromBitmap(dataImage, shift, xors, afterParse);
+}
+/**
+ * 비트맵 이미지를 주어진 값에 따라 변환 후, 주어진 알고리즘으로 차례로 해석 시도
+ *
+ * TODO: Java에선 각각에서 리턴을 해줬는데
+ * js는 onload를 쓰다 보니 리턴이 되지 않아 일단 전체 진행시킴
+ *
+ * @param bmp
+ * @param possibility
+ * @param shift
+ * @param xors
+ * @return
+ * @throws Exception
+ */
+WithTarget.fromBitmap = function(bmp, possibility, shift, xors, afterParse) {
+	console.log("\nWithTarget.fromBitmap");
+	
+	// 1:1:4 v3 형식으로 시도
+	if (((possibility & CAN_114v3) > 0) && (result = WithTarget.fromBitmap114v3(bmp, shift, xors, afterParse)) != null) {
+		//return result;
+	}
+	// 1:1:4 v2 형식으로 시도
+	if (((possibility & CAN_114v2) > 0) && (result = WithTarget.fromBitmap114v2(bmp, shift, xors, afterParse)) != null) {
+		//return result;
+	}
+	// 1:1:4 v1 형식으로 시도
+	if (((possibility & CAN_114v1) > 0) && (result = WithTarget.fromBitmap114(bmp, shift, xors, afterParse)) != null) {
+		//return result;
+	}
+	// 1:4:9 형식으로 시도
+	if (((possibility & CAN_149) > 0) && (result = WithTarget.fromBitmap149(bmp, shift, xors, afterParse)) != null) {
+		//return result;
+	}
+	// 2:3:8 형식으로 시도
+	if (((possibility & CAN_238) > 0) && (result = WithTarget.fromBitmap238(bmp, shift, xors, afterParse)) != null) {
+		//return result;
+	}
+	// 4:2:9 형식으로 시도
+	if (((possibility & CAN_429) > 0) && (result = WithTarget.fromBitmap429(bmp, shift, xors, afterParse)) != null) {
+		//return result;
+	}
+	// 1:2:4 형식으로 시도
+	if (((possibility & CAN_124) > 0) && (result = WithTarget.fromBitmap124(bmp, shift, xors, afterParse)) != null) {
+		//return result;
+	}
+	// 레거시 1:1:4 형식으로 시도
+	if ((possibility & CAN_PROTOTYPE) > 0) {
+		console.log("현행 방식으로 해석 실패했을 경우, 개발 도중 레거시 형식으로 재시도");
+		/*return*/ WithTarget.fromBitmapPrototype(bmp, false, afterParse);
+	}
+	
+	console.log("Without target 해석 시도");
+	Container.fromBitmap(bmp, shift, xors, afterParse);
+}
+
+
+
+</script>
+<script>
+var input = new Image();
+input.crossOrigin = "anonymous";
+var canvas = document.createElement("canvas");
+var ul;
+input.onload = function() {
+	ul = document.getElementById("ul");
+	ul.innerHTML = "";
+	
+	var w = input.naturalWidth;
+	var h = input.naturalHeight;
+	canvas.style.width  = (canvas.width  = w) + "px";
+	canvas.style.height = (canvas.height = h) + "px";
+	
+	var context = canvas.getContext("2d");
+	context.drawImage(input, 0, 0);
+	
+	var data = context.getImageData(0, 0, w, h);
+	console.log(data);
+	
+	var bmp = new BufferedImage(canvas);
+	var possibility = WithTarget.possibility(bmp);
+	WithTarget.fromBitmap(bmp, possibility, 0, [], function(cont) {
+		console.log(cont);
+		addFile(cont);
+	});
+}
+function parse() {
+	input.src = document.getElementById("inputUrl").value;
+	return false;
+}
+function addFile(cont) {
+	var path = cont.path.split("/");
+	var file = new File([cont.binary], path[path.length - 1]);
+	
+	var li = document.createElement("li");
+	li.append(cont.path.substring(0, cont.path.lastIndexOf('/') + 1));
+	var a = document.createElement("a");
+	a.href = URL.createObjectURL(file);
+	a.download = a.innerText = path[path.length - 1];
+	li.append(a);
+	ul.append(li);
+}
+function showTargetImage(bmp) {
+	var ivTarget = document.getElementById("ivTarget");
+	ivTarget.innerHTML = "";
+	ivTarget.append(bmp.canvas);
+}
+
+document.addEventListener("paste", async (e) => {
+	var clipboardItems = await navigator.clipboard.read();
+	for (var i = 0; i < clipboardItems.length; i++) {
+		var item = clipboardItems[i];
+		var blob = null;
+		if (item.type && item.type.startsWith('image/')) {
+			blob = clipboardItem;
+		} else if (item.types) {
+			for (var i = 0; i < item.types.length; i++) {
+				if (item.types[i].startsWith("image/")) {
+					blob = await item.getType(item.types[i]);
+					break;
+				}
+			}
+		}
+		if (blob) {
+			input.src = URL.createObjectURL(blob);
+		}
+	}
+});
+</script>
+</head>
+<body>
+<form onsubmit="return parse();">
+	<input type="text" id="inputUrl" style="width: 300px;" value="" />
+	<button type="submit">해석</button>
+</form>
+<div id="ivTarget"></div>
+<ul id="ul"></ul>
+</body>
+</html>
