@@ -1170,50 +1170,58 @@ WithTarget.fromBitmap = async function(bmp, possibility, shift=0, xors=[]) {
 </script>
 <script>
 var input = new Image();
-input.crossOrigin = "anonymous";
+input.crossorigin = "anonymous";
 var canvas = document.createElement("canvas");
 var viewFileList;
 input.onload = async () => {
-	viewFileList = document.getElementById("viewFileList");
-	viewFileList.innerHTML = "";
-	viewFileList.style.minWidth = "";
-	
-	var w = input.naturalWidth;
-	var h = input.naturalHeight;
-	canvas.style.width  = (canvas.width  = w) + "px";
-	canvas.style.height = (canvas.height = h) + "px";
-	
-	var context = canvas.getContext("2d");
-	context.drawImage(input, 0, 0);
-	
-	var data = context.getImageData(0, 0, w, h);
-	
-	var bmp = new BufferedImage(canvas);
-	var possibility = WithTarget.possibility(bmp);
-	var result = await WithTarget.fromBitmap(bmp, possibility);
-	if (!result) {
-		alert("해석 실패");
-		return;
-	}
-	showTargetImage(result.targetImage);
-	result.containers.sort((cont1, cont2) => {
-		return compare(cont1.path, cont2.path);
-	});
-	for (var i = 0; i < result.containers.length; i++) {
-		addFile(result.containers[i]);
-	}
-	setTimeout(function() {
-		var minWidth = 0;
-		for (var i = 0; i < viewFileList.children.length; i++) {
-			var aWidth = 20;
-			var a = viewFileList.children[i];
-			for (var j = 0; j < a.children.length; j++) {
-				aWidth += a.children[j].offsetWidth;
-			}
-			minWidth = Math.max(minWidth, aWidth);
+	try {
+		viewFileList = document.getElementById("viewFileList");
+		viewFileList.innerHTML = "";
+		viewFileList.style.minWidth = "";
+		
+		var w = input.naturalWidth;
+		var h = input.naturalHeight;
+		canvas.style.width  = (canvas.width  = w) + "px";
+		canvas.style.height = (canvas.height = h) + "px";
+		
+		var context = canvas.getContext("2d");
+		context.drawImage(input, 0, 0);
+		
+		var data = context.getImageData(0, 0, w, h);
+		
+		var bmp = new BufferedImage(canvas);
+		var possibility = WithTarget.possibility(bmp);
+		var result = await WithTarget.fromBitmap(bmp, possibility);
+		if (!result) {
+			alert("해석 실패");
+			return;
 		}
-		viewFileList.style.minWidth = minWidth + "px";
-	}, 1);
+		showTargetImage(result.targetImage);
+		result.containers.sort((cont1, cont2) => {
+			return compare(cont1.path, cont2.path);
+		});
+		for (var i = 0; i < result.containers.length; i++) {
+			addFile(result.containers[i]);
+		}
+		setTimeout(function() {
+			var minWidth = 0;
+			for (var i = 0; i < viewFileList.children.length; i++) {
+				var aWidth = 20;
+				var a = viewFileList.children[i];
+				for (var j = 0; j < a.children.length; j++) {
+					aWidth += a.children[j].offsetWidth;
+				}
+				minWidth = Math.max(minWidth, aWidth);
+			}
+			viewFileList.style.minWidth = minWidth + "px";
+		}, 1);
+		
+	} catch (e) {
+		console.log(e);
+		if (e.message.indexOf("cross-origin") > 0) {
+			alert("이미지 서버에서 외부 접속을 허용하지 않습니다.\n주소 이외의 방식으로 여시기 바랍니다.");
+		}
+	}
 }
 function compare(path1, path2) {
 	var index1 = path1.indexOf("/");
@@ -1244,7 +1252,12 @@ function compare(path1, path2) {
 	}
 };
 function parse() {
-	input.src = document.getElementById("inputUrl").value;
+	try {
+		input.src = document.getElementById("inputUrl").value;
+	} catch (e) {
+		console.log("e?");
+		console.log(e);
+	}
 	return false;
 }
 function addFile(cont) {
@@ -1506,8 +1519,11 @@ fieldset button[type=submit] {
 #viewFileList a:hover {
 	background: linear-gradient(#cef, #bde);
 }
+#viewFileList a > span {
+	color: #aaa;
+}
 #viewFileList a > span.file {
-	color: #00f;
+	color: #038;
 	text-decoration: underline;
 }
 </style>
