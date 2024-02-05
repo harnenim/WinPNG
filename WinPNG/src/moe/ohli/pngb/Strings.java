@@ -121,7 +121,7 @@ public class Strings {
 		
 		JP.put("붙여넣기"                                               , "ペースト");
 		JP.put("이미지 복사"                                            , "画像をコピー");
-		EN.put("이미지 저장"                                            , "画像保存");
+		JP.put("이미지 저장"                                            , "画像保存");
 
 		JP.put("PNG 파일(*.png)"                                        , "PNGファイル(*.png)");
 
