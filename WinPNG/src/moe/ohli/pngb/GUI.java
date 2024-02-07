@@ -29,7 +29,7 @@ import moe.ohli.pngb.Explorer.*;
 import sun.awt.image.AbstractMultiResolutionImage;
 
 @SuppressWarnings("serial")
-public class GUI2 extends JFrame implements ActionListener, KeyListener, Explorer.Listener {
+public class GUI extends JFrame implements ActionListener, KeyListener, Explorer.Listener {
 	
 	private static final String TMP_DIR = (System.getProperty("java.io.tmpdir").replace('\\', '/') + "/WinPNG/").replace("//", "/");
 	private static final String CONFIG_FILE_PATH = TMP_DIR + "config.properties";
@@ -74,12 +74,12 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
     	private static final Border BTN_BORDER = BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(1, 1, 1, 1, BORDER_COLOR), BTN_MARGIN);
     	private static final Color COLOR_DEFAULT = new Color(0xEEEEEE);
     	private static final Color COLOR_HOVERED = new Color(0xDDDDDD);
-    	public MyButton(GUI2 gui) {
+    	public MyButton(GUI gui) {
     		super();
     		init(gui);
     	}
     	private static Font font;
-    	private void init(GUI2 gui) {
+    	private void init(GUI gui) {
     		if (font == null) {
     			@SuppressWarnings("unchecked")
 				Map<TextAttribute, Object> attributes = (Map<TextAttribute, Object>) getFont().getAttributes();
@@ -1757,7 +1757,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	@Override
 	public void requestCheckError() {
 		if (openedImage != null) {
-			String key = JOptionPane.showInputDialog(GUI2.this, Strings.get("비밀번호 걸린 이미지가 잘못 해석된 것 같다면\n비밀번호 키를 입력하세요."));
+			String key = JOptionPane.showInputDialog(GUI.this, Strings.get("비밀번호 걸린 이미지가 잘못 해석된 것 같다면\n비밀번호 키를 입력하세요."));
 			openBitmap(openedImage, pngFile, key, false);
 		}
 	}
@@ -1965,7 +1965,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 	 */
     private static class FileDropTarget extends DropTarget {
     	private Border normalBorder;
-    	private GUI2 gui;
+    	private GUI gui;
     	protected JComponent c;
     	
     	/**
@@ -1973,7 +1973,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
     	 * @param gui
     	 * @param c
     	 */
-    	public FileDropTarget(GUI2 gui, JComponent c) {
+    	public FileDropTarget(GUI gui, JComponent c) {
     		this.gui = gui;
 			normalBorder = (this.c = c).getBorder();
 		}
@@ -2385,7 +2385,7 @@ public class GUI2 extends JFrame implements ActionListener, KeyListener, Explore
 			e.printStackTrace();
 		}
 		
-		GUI2 gui = new GUI2();
+		GUI gui = new GUI();
 		
 		// 3번 인자: 비밀번호, 있으면 바로 종료
 		boolean disposeAfterExport = (args.length > 2);
