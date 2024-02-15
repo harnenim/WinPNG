@@ -225,7 +225,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 	private JRadioButton rbTarget011 = new JRadioButton();
 	private ButtonGroup rbGroupTarget = new ButtonGroup();
 	private JTextField tfRatioW = new JTextField("16"), tfRatioH = new JTextField("9"), tfPw = new JTextField(""), tfWidth = new JTextField("0");
-	private JButton btnSave = new MyButton(this), btnCopy = new MyButton(this);
+	private JButton btnSave = new MyButton(this), btnCopy = new MyButton(this), btnLog = new MyButton(this);
 
 	private static final int IMAGE_VIEW_WIDTH = 280, IMAGE_VIEW_HEIGHT = 158;
 	
@@ -429,6 +429,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 			jlWidth.setText(Strings.get("최소 폭") + " ");
 			btnSave.setText(Strings.get("이미지 저장"));
 			btnCopy.setText(Strings.get("이미지 복사"));
+			btnLog .setText("Show Log");
 			
 			miOpenFile .setText(Strings.get("열기"       ));
 			miRename   .setText(Strings.get("이름 바꾸기")); 
@@ -529,7 +530,13 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 				{	// 버튼 영역
 					JPanel panelSave = new JPanel(new BorderLayout());
 					
+					btnLog.setOpaque(false);
+					btnLog.setContentAreaFilled(false);
+					btnLog.setBorderPainted(false);
+					btnLog.setForeground(Color.WHITE);
+					
 					JPanel panelSaveBtn = new JPanel(new GridLayout(1, 2));
+					panelSaveBtn.add(btnLog);
 					panelSaveBtn.add(btnCopy);
 					panelSaveBtn.add(btnSave);
 					panelSave.add(panelSaveBtn, BorderLayout.EAST);
@@ -1573,6 +1580,29 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 		} else if (target == btnCopy) {
 			// 이미지 클립보드 복사
 			copyToClipboard();
+			
+		} else if (target == btnLog) {
+			// 로그 폴더 열기
+			logger.debug("os: " + OS);
+			String cmd = null;
+			String dir = TMP_DIR + "log";
+			if (isWindows) {
+				cmd = "explorer";
+				dir = dir.replace('/', '\\');
+			} else if (isMac) {
+				cmd = "open";
+			} else if (isLinux) {
+				cmd = "open";
+			}
+			if (cmd != null) {
+				try {
+					System.out.println(TMP_DIR + "log");
+					Runtime.getRuntime().exec(new String[] { cmd, dir });
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
 			
 		} else if (target == rbTarget114
 				|| target == rbTarget238
