@@ -670,6 +670,28 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
+					
+					// 일정 기간 이상 지난 로그는 삭제
+					try {
+						File[] files = new File(TMP_DIR + "log").listFiles();
+						if (files != null) { // 로그 폴더는 없을 수도 있음 - 어차피 try-catch 안에 있긴 한데...
+							long now = Calendar.getInstance().getTimeInMillis();
+							
+							for (File file : files) {
+								if (file.isFile()) {
+									String name = file.getName();
+									try {
+										long time = Long.parseLong(name.substring(0, name.indexOf(".")));
+										if (now - time > 1000000000) { // 100만 초 ≒ 11.57일
+											file.delete();
+										}
+									} catch (Exception e) {}
+								}
+							}
+						}
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
 				}
 			});
 		}
@@ -1592,7 +1614,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 			} else if (isMac) {
 				cmd = "open";
 			} else if (isLinux) {
-				cmd = "open";
+				// ??
 			}
 			if (cmd != null) {
 				try {
