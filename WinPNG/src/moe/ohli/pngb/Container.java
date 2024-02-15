@@ -2027,7 +2027,35 @@ public class Container {
 			return result;
 		}
 		
-		private static final int CHECKSUM_SAMPLE_COUNT = 10; // 패리티 검증 체크섬 샘플 개수
+		private static final int SAMPLING_UNIT = 7; // 패리티 검증 체크섬 샘플링 단위
+		private static final int MIN_SAMPLE_COUNT = 10; // 패리티 검증 체크섬 샘플 최소 갯수
+		private static int[][] getChecksumPoints(int w, int h) {
+			int[][] points;
+			int xCount = (w + SAMPLING_UNIT - 1) / SAMPLING_UNIT;
+			int yCount = (h + SAMPLING_UNIT - 1) / SAMPLING_UNIT;
+			int count = xCount * yCount;
+			
+			if (count < MIN_SAMPLE_COUNT) {
+				points = new int[MIN_SAMPLE_COUNT][];
+				for (int i = 0; i < MIN_SAMPLE_COUNT; i++) {
+					points[i] = new int[] {
+							(int) (Math.random() * w) / 2
+						,	(int) (Math.random() * h) / 2
+					};
+				}
+			} else {
+				points = new int[count][];
+				for (int y = 0; y < yCount; y++) {
+					for (int x = 0; x < xCount; x++) {
+						points[y * xCount + x] = new int[] {
+								x * SAMPLING_UNIT + (int) (Math.random() * Math.min(SAMPLING_UNIT, w - (x * SAMPLING_UNIT)))
+							,	y * SAMPLING_UNIT + (int) (Math.random() * Math.min(SAMPLING_UNIT, h - (y * SAMPLING_UNIT)))
+						};
+					}
+				}
+			}
+			return points;
+		}
 		public static final int CAN_PROTOTYPE = 1;
 		public static final int CAN_114v1 = 1 << TYPE_114v1;
 		public static final int CAN_149   = 1 << TYPE_149;
@@ -2075,9 +2103,9 @@ public class Container {
 				
 				boolean checkFailed = false;
 				
-				for (int i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
-					int x = (int) (Math.random() * width ) / 2;
-					int y = (int) (Math.random() * height) / 2;
+				for (int[] point : getChecksumPoints(width / 2, height / 2)) {
+					int x = point[0];
+					int y = point[1];
 					
 					// (2x,2y)와 (2x+1,2y+1)은 둘 다 출력물 이미지의 원본 픽셀로 같은 값이어야 함
 					if ((bmp.getRGB(2*x, 2*y  ) & 0xFFFFFF) != (bmp.getRGB(2*x+1, 2*y+1) & 0xFFFFFF)) {
@@ -2128,10 +2156,10 @@ public class Container {
 				int a, b, c, d;
 				
 				boolean checkFailed = false;
-				
-				for (int i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
-					int x = (int) (Math.random() * width ) / 2;
-					int y = (int) (Math.random() * height) / 2;
+
+				for (int[] point : getChecksumPoints(width / 2, height / 2)) {
+					int x = point[0];
+					int y = point[1];
 					logger.debug("sample(" + pad(x, 4) + ", " + pad(y, 4) + ")");
 					
 					// (2x,2y)와 (2x+1,2y+1)은 둘 다 출력물 이미지의 원본 픽셀로 같은 값이어야 함
@@ -2190,9 +2218,9 @@ public class Container {
 				
 				boolean checkFailed = false;
 				
-				for (int i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
-					int x = (int) (Math.random() * width ) / 2;
-					int y = (int) (Math.random() * height) / 2;
+				for (int[] point : getChecksumPoints(width / 2, height / 2)) {
+					int x = point[0];
+					int y = point[1];
 					logger.debug("sample(" + pad(x, 4) + ", " + pad(y, 4) + ")");
 					
 					a  = bmp.getRGB(2*x  , 2*y  );
@@ -2246,9 +2274,9 @@ public class Container {
 				
 				boolean checkFailed = false;
 				
-				for (int i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
-					int x = (int) (Math.random() * width ) / 2;
-					int y = (int) (Math.random() * height) / 2;
+				for (int[] point : getChecksumPoints(width / 2, height / 2)) {
+					int x = point[0];
+					int y = point[1];
 					logger.debug("sample(" + pad(x, 4) + ", " + pad(y, 4) + ")");
 					
 					a  = bmp.getRGB(2*x  , 2*y  );
@@ -2303,10 +2331,10 @@ public class Container {
 				  , b4, c3, b3;
 				
 				boolean checkFailed = false;
-				
-				for (int i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
-					int x = (int) (Math.random() * width  / 3);
-					int y = (int) (Math.random() * height / 3);
+
+				for (int[] point : getChecksumPoints(width / 3, height / 3)) {
+					int x = point[0];
+					int y = point[1];
 					logger.debug("sample(" + pad(x, 4) + ", " + pad(y, 4) + "):");
 					
 					a  = bmp.getRGB(3*x+1, 3*y+1);
@@ -2365,10 +2393,10 @@ public class Container {
 				  , b3, c3, a3;
 				
 				boolean checkFailed = false;
-				
-				for (int i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
-					int x = (int) (Math.random() * width  / 2);
-					int y = (int) (Math.random() * height / 4);
+
+				for (int[] point : getChecksumPoints(width / 2, height / 4)) {
+					int x = point[0];
+					int y = point[1];
 					logger.debug("sample(" + pad(x, 4) + ", " + pad(y, 4) + "):");
 					
 					a1 = bmp.getRGB(2*x+1, 4*y  );
@@ -2427,10 +2455,10 @@ public class Container {
 				  , aB, b2, a2;
 				
 				boolean checkFailed = false;
-				
-				for (int i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
-					int x = (int) (Math.random() * width  / 3);
-					int y = (int) (Math.random() * height / 3);
+
+				for (int[] point : getChecksumPoints(width / 3, height / 3)) {
+					int x = point[0];
+					int y = point[1];
 					logger.debug("sample(" + pad(x, 4) + ", " + pad(y, 4) + "):");
 					
 					a1 = bmp.getRGB(3*x  , 3*y  );
@@ -2490,10 +2518,10 @@ public class Container {
 				int a, ad1, ad2;
 				
 				boolean checkFailed = false;
-				
-				for (int i = 0; i < CHECKSUM_SAMPLE_COUNT; i++) {
-					int x = (int) (Math.random() * width  / 2);
-					int y = (int) (Math.random() * height / 2);
+
+				for (int[] point : getChecksumPoints(width / 2, height / 2)) {
+					int x = point[0];
+					int y = point[1];
 					logger.debug("sample(" + pad(x, 4) + ", " + pad(y, 4) + "):");
 
 					a   = bmp.getRGB(2*x  , 2*y  );
