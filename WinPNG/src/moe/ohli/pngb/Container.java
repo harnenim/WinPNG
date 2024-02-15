@@ -160,36 +160,19 @@ public class Container {
 			
 			int offset = shift + 2;
 			
-			if (((rgbs[shift] >> 24) & 0xFF) == 0xFF) {
-				// RGB
-				logger.debug("RGB");
-				byte[] bytes = new byte[pathLength];
-				for (int i = 0; i < pathLength; i++) {
-					bytes[i] = (byte) ((rgbs[(offset + (i/3)) % rgbs.length] >> (8 * (2-(i%3)))) & 0xFF);
-				}
-				logger.debug("pathBytes: " + bytes.length);
-				this.path = new String(bytes, "UTF-8");
-				offset += (pathLength + 2) / 3;
-				
-				this.binary = new byte[binaryLength];
-				for (int i = 0; i < binaryLength; i++) {
-					this.binary[i] = (byte) ((rgbs[(offset + (i/3)) % rgbs.length] >> (8 * (2-(i%3)))) & 0xFF);
-				}
-			} else {
-				// RGBA: 처음 개발했던 RGBA에 대해 레거시 지원 - shift 쓴 적 없음
-				logger.debug("RGBA");
-				byte[] bytes = new byte[pathLength];
-				for (int i = 0; i < pathLength; i++) {
-					bytes[i] = (byte) ((rgbs[offset + (i/4)] >> (8 * (3-(i%4)))) & 0xFF);
-				}
-				this.path = new String(bytes, "UTF-8");
-				offset += (pathLength + 3) / 4;
-				
-				this.binary = new byte[binaryLength];
-				for (int i = 0; i < binaryLength; i++) {
-					this.binary[i] = (byte) ((rgbs[offset + (i/4)] >> (8 * (3-(i%4)))) & 0xFF);
-				}
+			byte[] bytes = new byte[pathLength];
+			for (int i = 0; i < pathLength; i++) {
+				bytes[i] = (byte) ((rgbs[(offset + (i/3)) % rgbs.length] >> (8 * (2-(i%3)))) & 0xFF);
 			}
+			logger.debug("pathBytes: " + bytes.length);
+			this.path = new String(bytes, "UTF-8");
+			offset += (pathLength + 2) / 3;
+			
+			this.binary = new byte[binaryLength];
+			for (int i = 0; i < binaryLength; i++) {
+				this.binary[i] = (byte) ((rgbs[(offset + (i/3)) % rgbs.length] >> (8 * (2-(i%3)))) & 0xFF);
+			}
+			
 		} catch (Exception e) {
 			logger.warn("이미지 해석 오류");
 			logger.debug(e);
@@ -280,65 +263,6 @@ public class Container {
 		return rgbs;
 	}
 	
-	@Deprecated
-	private int getRGBAPixelCount() {
-		return 2 + ((getPathBytes().length + 3) / 4) + ((binary.length + 3) / 4);
-	}
-	@SuppressWarnings("unused")
-	@Deprecated
-	private int[] toRGBAs(int width) {
-		byte[] pathBytes = getPathBytes();
-		int[] argbs = new int[(getRGBAPixelCount() + width - 1) / width * width];
-		int offset = 0;
-		
-		argbs[offset++] = pathBytes.length;
-		argbs[offset++] = binary.length;
-
-		int i = 0;
-		for (; i < pathBytes.length / 4; i++) {
-			argbs[offset++] = bytesToInt(pathBytes, i * 4);
-		}
-		if (pathBytes.length % 4 > 0) {
-			byte[] last = new byte[] { pathBytes[i*4], 0, 0, 0 };
-			if (pathBytes.length % 4 > 1) {
-				last[1] = pathBytes[i*4+1];
-				if (pathBytes.length % 4 > 2) {
-					last[2] = pathBytes[i*4+2];
-				}
-			}
-			argbs[offset++] = bytesToInt(last, 0);
-		}
-		
-		i = 0;
-		for (; i < binary.length / 4; i++) {
-			argbs[offset++] = bytesToInt(binary, i * 4);
-		}
-		if (binary.length % 4 > 0) {
-			byte[] last = new byte[] { binary[i*4], 0, 0, 0 };
-			if (binary.length % 4 > 1) {
-				last[1] = binary[i*4+1];
-				if (binary.length % 4 > 2) {
-					last[2] = binary[i*4+2];
-				}
-			}
-			argbs[offset++] = bytesToInt(last, 0);
-		}
-		
-		return argbs;
-	}
-	
-	/**
-	 * 4바이트를 int로 변환
-	 * @param bytes
-	 * @param offset
-	 * @return
-	 */
-	private static int bytesToInt(byte[] bytes, int offset) {
-		return (((int) bytes[offset + 0]) & 0xFF) << 24
-		    |  (((int) bytes[offset + 1]) & 0xFF) << 16
-		    |  (((int) bytes[offset + 2]) & 0xFF) <<  8
-		    |  (((int) bytes[offset + 3]) & 0xFF);
-	}
 	/**
 	 * 3바이트를 int로 변환
 	 * @param bytes
@@ -929,104 +853,67 @@ public class Container {
 		logger.info("input size: " + width + " x " + height);
 		
 		try {
-			if ((bmp.getRGB(shift, offsetY) & 0xFF000000) == 0xFF000000) {
-				// RGB
-				logger.debug("RGB");
-				while (offsetY < height) {
-					logger.debug("shift: " + shift);
-					logger.debug("xors.length: " + xors.length);
-					int pathLength   = 0xFFFFFF & bmp.getRGB( shift    % width, offsetY);
-					int binaryLength = 0xFFFFFF & bmp.getRGB((shift+1) % width, offsetY);
-					logger.debug("pathLength  : " + toHex(pathLength  , 8));
-					logger.debug("binaryLength: " + toHex(binaryLength, 8));
-					if (xors.length > 0) {
-						logger.debug("xors0       : " + toHex(xors[ shift    % xors.length], 8));
-						logger.debug("xors1       : " + toHex(xors[(shift+1) % xors.length], 8));
-						pathLength   = (pathLength   ^ xors[ shift    % xors.length]) & 0xFFFFFF;
-						binaryLength = (binaryLength ^ xors[(shift+1) % xors.length]) & 0xFFFFFF;
-					}
-					pathLength = pathLengthFromRGB(pathLength);
-					int pixelCount = 2 + ((pathLength + 2) / 3) + ((binaryLength + 2) / 3);
-					int contHeight = (pixelCount + width - 1) / width;
-					logger.debug("");
-					logger.debug("pathLength  : " + pathLength);
-					logger.debug("binaryLength: " + binaryLength);
-					logger.debug("pixelCount: " + pixelCount);
-					logger.debug("contHeight: " + contHeight);
-					if (pathLength > 255) { // pathLengthFromRGB 적용하면서 이렇게 나올 일이 없음...
-						logger.error("잘못된 경로 길이: " + pathLength);
-						break;
-					}
-					
-					int[] rgbs = bmp.getRGB(0, offsetY, width, contHeight, new int[width * contHeight], 0, width);
-					Container cont = new Container(rgbs, shift, xors);
-					logger.debug("path: " + cont.path);
-					
-					if (pathLength == 0) {
-						// 경로가 없음: 이중 변환 or 정크 영역
-						try {
-							// 이중 변환으로 가정하고 해석 시도
-							cont.path = "temp.png";
-							File file = cont.toFile(System.getProperty("java.io.tmpdir"));
-							file.deleteOnExit();
-							containers.addAll(fromBitmap(ImageIO.read(file)));
-						} catch (Exception e) {
-							logger.info("JUNK DATA");
-							offsetY += contHeight;
-							continue;
-						}
-					} else {
-						// 잘못된 경로: 해석 실패 - 이것만으론 불충분할 수도...
-						if (cont.path.indexOf("*") >= 0
-						 || cont.path.indexOf("?") >= 0
-						 || cont.path.indexOf('"') >= 0
-						 || cont.path.indexOf("<") >= 0
-						 || cont.path.indexOf(">") >= 0
-						 || cont.path.indexOf("|") >= 0
-								) {
-							throw new Exception("잘못된 경로");
-						}
-						// 경로가 있음: 일반 파일
-						containers.add(cont);
-					}
-					
-					offsetY += contHeight;
+			while (offsetY < height) {
+				logger.debug("shift: " + shift);
+				logger.debug("xors.length: " + xors.length);
+				int pathLength   = 0xFFFFFF & bmp.getRGB( shift    % width, offsetY);
+				int binaryLength = 0xFFFFFF & bmp.getRGB((shift+1) % width, offsetY);
+				logger.debug("pathLength  : " + toHex(pathLength  , 8));
+				logger.debug("binaryLength: " + toHex(binaryLength, 8));
+				if (xors.length > 0) {
+					logger.debug("xors0       : " + toHex(xors[ shift    % xors.length], 8));
+					logger.debug("xors1       : " + toHex(xors[(shift+1) % xors.length], 8));
+					pathLength   = (pathLength   ^ xors[ shift    % xors.length]) & 0xFFFFFF;
+					binaryLength = (binaryLength ^ xors[(shift+1) % xors.length]) & 0xFFFFFF;
 				}
-			
-			} else {
-				// RGBA: 처음 개발했던 RGBA에 대해 레거시 지원
-				logger.debug("RGBA");
-				logger.warn("개발 도중 레거시 형식 지원");
-				while (offsetY < height) {
-					int pathLength = bmp.getRGB(0, offsetY) & 0xFF;
-					int binaryLength = bmp.getRGB(1, offsetY);
-					int pixelCount = 2 + ((pathLength + 3) / 4) + ((binaryLength + 3) / 4);
-					int contHeight = (pixelCount + width - 1) / width;
-					logger.debug("");
-					logger.debug("pathLength  : " + pathLength);
-					logger.debug("binaryLength: " + binaryLength);
-					logger.debug("pixelCount: " + pixelCount);
-					logger.debug("contHeight: " + contHeight);
-					
-					int[] argbs = bmp.getRGB(0, offsetY, width, contHeight, new int[width * contHeight], 0, width);
-					Container cont = new Container(argbs);
-					logger.debug("path: " + cont.path);
-					
-					if (pathLength == 0) {
-						// 경로가 없음: 이중 변환
+				pathLength = pathLengthFromRGB(pathLength);
+				int pixelCount = 2 + ((pathLength + 2) / 3) + ((binaryLength + 2) / 3);
+				int contHeight = (pixelCount + width - 1) / width;
+				logger.debug("");
+				logger.debug("pathLength  : " + pathLength);
+				logger.debug("binaryLength: " + binaryLength);
+				logger.debug("pixelCount: " + pixelCount);
+				logger.debug("contHeight: " + contHeight);
+				if (pathLength > 255) { // pathLengthFromRGB 적용하면서 이렇게 나올 일이 없음...
+					logger.error("잘못된 경로 길이: " + pathLength);
+					break;
+				}
+				
+				int[] rgbs = bmp.getRGB(0, offsetY, width, contHeight, new int[width * contHeight], 0, width);
+				Container cont = new Container(rgbs, shift, xors);
+				logger.debug("path: " + cont.path);
+				
+				if (pathLength == 0) {
+					// 경로가 없음: 이중 변환 or 정크 영역
+					try {
+						// 이중 변환으로 가정하고 해석 시도
 						cont.path = "temp.png";
 						File file = cont.toFile(System.getProperty("java.io.tmpdir"));
 						file.deleteOnExit();
-						bmp = ImageIO.read(file);
-						containers.addAll(fromBitmap(bmp));
-					} else {
-						// 경로가 있음: 일반 파일
-						containers.add(cont);
+						containers.addAll(fromBitmap(ImageIO.read(file)));
+					} catch (Exception e) {
+						logger.info("JUNK DATA");
+						offsetY += contHeight;
+						continue;
 					}
-					
-					offsetY += contHeight;
+				} else {
+					// 잘못된 경로: 해석 실패 - 이것만으론 불충분할 수도...
+					if (cont.path.indexOf("*") >= 0
+					 || cont.path.indexOf("?") >= 0
+					 || cont.path.indexOf('"') >= 0
+					 || cont.path.indexOf("<") >= 0
+					 || cont.path.indexOf(">") >= 0
+					 || cont.path.indexOf("|") >= 0
+							) {
+						throw new Exception("잘못된 경로");
+					}
+					// 경로가 있음: 일반 파일
+					containers.add(cont);
 				}
+				
+				offsetY += contHeight;
 			}
+			
 		} catch (Exception e) {
 			logger.info("이미지 해석 실패");
 			logger.debug(e);
@@ -2158,7 +2045,8 @@ public class Container {
 			int result = 0;
 			try { if (canPrototype(bmp)) { result |= CAN_PROTOTYPE; } } catch (Exception e) { logger.debug(e); }
 			try { if (can114v3    (bmp)) { result |= CAN_114v3;     } } catch (Exception e) { logger.debug(e); }
-			try { if (can114v2    (bmp)) { result |= CAN_114v2;     } } catch (Exception e) { logger.debug(e); }
+			try { if (((result & CAN_114v3) > 0) // 114v3가 가능할 경우 114v2는 자동으로 가능해짐
+			       || can114v2    (bmp)) { result |= CAN_114v2;     } } catch (Exception e) { logger.debug(e); }
 			try { if (can114      (bmp)) { result |= CAN_114v1;     } } catch (Exception e) { logger.debug(e); }
 			try { if (can149      (bmp)) { result |= CAN_149;       } } catch (Exception e) { logger.debug(e); }
 			try { if (can238      (bmp)) { result |= CAN_238;       } } catch (Exception e) { logger.debug(e); }
@@ -2312,7 +2200,6 @@ public class Container {
 					cn = bmp.getRGB(2*x  , 2*y+1);
 					an = bmp.getRGB(2*x+1, 2*y+1);
 					ap = getAp(a, an);
-					
 					b = b2toB(bn, ap);
 					c = c2toC(cn, ap);
 					
