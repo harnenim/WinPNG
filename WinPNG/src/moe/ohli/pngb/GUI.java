@@ -72,8 +72,6 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
     private static class MyButton extends JButton {
     	private static final Border BTN_MARGIN = new EmptyBorder(4, 8, 4, 8);
     	private static final Border BTN_BORDER = BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(1, 1, 1, 1, BORDER_COLOR), BTN_MARGIN);
-    	private static final Color COLOR_DEFAULT = new Color(0xEEEEEE);
-    	private static final Color COLOR_HOVERED = new Color(0xDDDDDD);
     	public MyButton(GUI gui) {
     		super();
     		init(gui);
@@ -89,18 +87,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
     		setBorder(isWindows ? BTN_MARGIN : BTN_BORDER);
     		addActionListener(gui);
     		addKeyListener(gui);
-    		addMouseListener(maHover);
     	}
-    	private static final MouseAdapter maHover = new MouseAdapter() {
-    		@Override
-    		public void mouseEntered(MouseEvent e) {
-    			e.getComponent().setBackground(COLOR_HOVERED);
-    		};
-    		@Override
-    		public void mouseExited(MouseEvent e) {
-    			e.getComponent().setBackground(COLOR_DEFAULT);
-    		};
-		};
     }
 	
     /**
