@@ -702,16 +702,14 @@ public class Explorer extends JPanel {
 		}
 	}
 	public void setContainers(List<Container> containers, boolean withUpdate) {
-		logger.info("Explorer.setContainers" + (withUpdate ? " with update" : ""));
-		list.clear();
-		for (Container cont : containers) {
-			cont.path = cont.path.replace('\\', '/');
-			list.add(new FileItem(cont));
-		}
-		refresh(withUpdate);
+		setContainers(containers, "/", withUpdate);
 	}
 	public void setContainers(List<Container> containers, String name, boolean withUpdate) {
 		logger.info("Explorer.setContainers " + name + (withUpdate ? " with update" : ""));
+		// 전체 초기화일 경우 트리 모두 접기
+		for (int i = dlv.getRowCount() - 1; i > 0; i--) {
+			dlv.collapseRow(i);
+		}
 		list.clear();
 		for (Container cont : containers) {
 			cont.path = cont.path.replace('\\', '/');
@@ -748,9 +746,20 @@ public class Explorer extends JPanel {
 	private Map<String, TreePath> pathMap = new HashMap<>();
 	public void refreshTree() {
 		logger.info("Explorer.refreshTree");
+		
+		// 열려있었던 것들 기억
+		List<String> wasExpanded = new ArrayList<>();
+		for (int i = 0; i < dlv.getRowCount(); i++) {
+			String path = strPath(dlv.getPathForRow(i));
+			if (dlv.isExpanded(i)) {
+				wasExpanded.add(path);
+			}
+			dlv.expandRow(i);
+		}
+		
 		dlRoot.removeAllChildren();
 		pathMap.clear();
-		List<String> paths = new ArrayList<String>();
+		List<String> paths = new ArrayList<>();
 		paths.add("/");
 		
 		for (FileItem item : list) {
@@ -773,15 +782,15 @@ public class Explorer extends JPanel {
 		}
 		((DefaultTreeModel) dlv.getModel()).reload();
 		
-		List<Boolean> wasExpandedList = new ArrayList<Boolean>();
-		for (int i = 0; i < paths.size(); i++) {
-			wasExpandedList.add(dlv.isExpanded(i));
+		// 전부 열어서 경로 기억
+		for (int i = 0; i < dlv.getRowCount(); i++) {
 			dlv.expandRow(i);
-			
 			pathMap.put(paths.get(i), dlv.getPathForRow(i));
 		}
-		for (int i = wasExpandedList.size() - 1; i > 0; i--) {
-			if (!wasExpandedList.get(i)) {
+		// 원래 열려있었던 게 아니면 닫기
+		for (int i = dlv.getRowCount() - 1; i > 0; i--) {
+			String path = strPath(dlv.getPathForRow(i));
+			if (wasExpanded.indexOf(path) < 0) {
 				dlv.collapseRow(i);
 			}
 		}
@@ -820,6 +829,14 @@ public class Explorer extends JPanel {
 			}
 		}
 	};
+	private static String strPath(TreePath path) {
+		Object[] paths = path.getPath();
+		String result = paths[0].toString();
+		for (int i = 1; i < paths.length; i++) {
+			result += "/" + paths[i];
+		}
+		return result;
+	}
 	
 	public void cd(String dir) {
 		logger.info("Explorer/" + currentDir + "> cd " + dir);
