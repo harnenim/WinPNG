@@ -46,12 +46,12 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 	private static Logger logger = new Logger(Logger.L.DEBUG); // 로그 파일 로깅 수준 기본값 디버그
 
 	private static String strSize(int size) {
-		String strSize = size + "Bytes";
+		String strSize = size + " Bytes";
 		if (size > 10240) { // 10.0kB 이상
 			strSize = "" + ((size * 10 + 512) / 1024);
 			strSize = strSize.substring(0, strSize.length() - 1) + "." + strSize.substring(strSize.length() - 1) + "kB";
 		} else if (size > 1000) { // 1,000B 이상
-			strSize = (size / 1000) + "," + (size % 1000) + "Bytes";
+			strSize = (size / 1000) + "," + (size % 1000) + " Bytes";
 		}
 		return strSize;
 	}
@@ -1469,11 +1469,9 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 	 */
 	private void addFiles(File[] files) {
 		logger.info("addFiles");
-		List<FileItem> items = new ArrayList<>();
+		List<FileItem> items = explorer.getDirItems();
 		List<String> paths = new ArrayList<>();
-		String dir = explorer.getDir();
-		for (FileItem item : explorer.getDirItems()) {
-			items.add(item);
+		for (FileItem item : items) {
 			paths.add(item.container.path);
 		}
 		if (files.length > 0) {
@@ -1483,6 +1481,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 				return;
 			}
 		}
+		String dir = explorer.getDir();
 		int count = 0;
 		for (File file : files) {
 			try {
@@ -1495,6 +1494,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 							for (FileItem item : items) {
 								if (cont.path.equals(item.container.path)) {
 									removeItem = item;
+									break;
 								}
 							}
 						} else {
@@ -1621,7 +1621,6 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 					System.out.println(TMP_DIR + "log");
 					Runtime.getRuntime().exec(new String[] { cmd, dir });
 				} catch (IOException e1) {
-					// TODO Auto-generated catch block
 					e1.printStackTrace();
 				}
 			}
@@ -1746,56 +1745,99 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 	
 	@Override
 	public void runFile(Container cont) {
-		List<Container> containers = new ArrayList<>();
-		containers.add(cont);
-		
 		// 임시 파일 생성
 		String rootDir = TMP_DIR + Calendar.getInstance().getTimeInMillis();
-		List<File> files = Container.containersToFiles(containers, rootDir);
+		File file = cont.toFile(rootDir);
+		String path = file.getAbsolutePath();
 		
-		if (files.size() > 0) {
-			String path = files.get(0).getAbsolutePath();
-			
-			// 파일 유형 확인
-			String type = null;
-			int index = path.lastIndexOf('.');
-			if (index > 0) {
-				type = path.substring(index + 1).toLowerCase();
-			}
-			if ("bmp".equals(type)
-			 || "png".equals(type)
-			 || "gif".equals(type)
-			 || "jpg".equals(type)
-			 || "jpeg".equals(type)
-			) {
-				type = "image?";
-			}
-			
-			try {
-				// OS와 파일 유형에 따른 실행 명령어 설정
-				logger.debug("os: " + OS);
-				String cmd = null;
-				if (isWindows) {
-					if ("image?".equals(type)) {
-						cmd = "mspaint";
-					} else {
-						cmd = "notepad";
-					}
-				} else if (isLinux) {
-					if ("image?".equals(type)) {
-						cmd = "eog";
-					} else {
-						cmd = "cat";
-					}
-				} else if (isMac) {
-					cmd = "open";
+		// 파일 유형 확인
+		String type = null;
+		int index = path.lastIndexOf('.');
+		if (index > 0) {
+			type = path.substring(index + 1).toLowerCase();
+		}
+		if ("bmp".equals(type)
+		 || "png".equals(type)
+		 || "gif".equals(type)
+		 || "jpg".equals(type)
+		 || "jpeg".equals(type)
+		) {
+			type = "image?";
+		}
+		
+		try {
+			// OS와 파일 유형에 따른 실행 명령어 설정
+			logger.debug("os: " + OS);
+			String cmd = null;
+			if (isWindows) {
+				if ("image?".equals(type)) {
+					cmd = "mspaint";
+				} else {
+					cmd = "notepad";
 				}
-				if (cmd != null) {
-					Runtime.getRuntime().exec(new String[] { cmd, path });
+			} else if (isLinux) {
+				if ("image?".equals(type)) {
+					cmd = "eog";
+				} else {
+					cmd = "cat";
+				}
+			} else if (isMac) {
+				cmd = "open";
+			}
+			if (cmd != null) {
+				//Runtime.getRuntime().exec(new String[] { cmd, path });
+				new OpenFileProcess(cmd, path, cont);
+			}
+		} catch (Exception e) {
+			logger.error("실행 실패: " + path);
+			logger.debug(e);
+		}
+	}
+	private class OpenFileProcess implements Runnable {
+		private Container cont;
+		private File file;
+		private Process exec;
+		
+		public OpenFileProcess(String cmd, String path, Container cont) throws Exception {
+			this.cont= cont;
+			file = new File(path);
+			exec = Runtime.getRuntime().exec(new String[] { cmd, path });
+			new Thread(this).start();
+		}
+		
+		@Override
+		public void run() {
+			long lastModified = file.lastModified();
+			try {
+				while (exec.isAlive()) {
+					Thread.sleep(100);
 				}
 			} catch (Exception e) {
-				logger.error("실행 실패: " + path);
-				logger.debug(e);
+				e.printStackTrace();
+			} finally {
+				if (file.lastModified() > lastModified) {
+					if (confirm("파일 수정 사항을 적용하시겠습니까?", "WinPNG")) {
+						try {
+							Container newCont = new Container(cont.path, file);
+							FileItem removeItem = null;
+							for (FileItem item : explorer.getDirItems()) {
+								if (cont.path.equals(item.container.path)) {
+									removeItem = item;
+									break;
+								}
+							}
+							explorer.add(new FileItem(newCont, file.getAbsolutePath()), false);
+							explorer.remove(removeItem, false);
+							
+						} catch (Exception e) {
+							logger.error(e);
+							alert("적용하지 못했습니다.");
+						}
+					}
+				}
+				if (file.delete()) {
+					file.getParentFile().delete();
+				}
 			}
 		}
 	}
