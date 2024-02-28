@@ -57,6 +57,16 @@ public class Container {
 	public byte[] binary; // 파일 내용물
 	
 	/**
+	 * 임시 폴더 역할
+	 * @param path
+	 * @throws Exception
+	 */
+	public Container(String path) {
+		logger.info(this.path = path);
+		binary = null;
+	}
+	
+	/**
 	 * 파일에서 생성
 	 * @param path
 	 * @param file

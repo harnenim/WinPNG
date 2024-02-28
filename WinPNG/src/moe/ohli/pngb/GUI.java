@@ -7,6 +7,7 @@ import java.awt.Dimension;
 import java.awt.FileDialog;
 import java.awt.Font;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.Rectangle;
@@ -147,6 +148,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 					Toolkit.getDefaultToolkit().getSystemClipboard().setContents(contents, null);
 				} else if (source == miAddFile) {
 					addFileWithDialog();
+				} else if (source == miAddFolder) {
+					explorer.addFolder();
 				} else if (source == miSelectAll) {
 					explorer.selectAll();
 				} else if (source == miIfError) {
@@ -164,6 +167,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 	private JMenuItem miRemove    = new MyMenuItem();
 	private JMenuItem miCopyFiles = new MyMenuItem();
 	private JMenuItem miAddFile   = new MyMenuItem();
+	private JMenuItem miAddFolder = new MyMenuItem();
 	private JMenuItem miSelectAll = new MyMenuItem();
 	private JMenuItem miIfError   = new MyMenuItem();
 	
@@ -436,6 +440,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 			miRemove   .setText(Strings.get("파일 삭제"  ));
 			miCopyFiles.setText(Strings.get("파일 복사"  ));
 			miAddFile  .setText(Strings.get("파일 추가"  ));
+			miAddFolder.setText(Strings.get("폴더 생성"  ));
 			miSelectAll.setText(Strings.get("전체 선택"  ));
 			miIfError  .setText(Strings.get("해석 오류"  ));
 			
@@ -549,6 +554,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 					miRemove   .setAccelerator(KeyStroke.getKeyStroke("D"));
 					miCopyFiles.setAccelerator(KeyStroke.getKeyStroke("C"));
 					miAddFile  .setAccelerator(KeyStroke.getKeyStroke("N"));
+					miAddFolder.setAccelerator(KeyStroke.getKeyStroke("F"));
 					miSelectAll.setAccelerator(KeyStroke.getKeyStroke("A"));
 					miIfError  .setAccelerator(KeyStroke.getKeyStroke("E"));
 				}
@@ -1259,14 +1265,19 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 					int w = image.getWidth();
 					int h = image.getHeight();
 					BufferedImage tmp = new BufferedImage(w, h, BufferedImage.TYPE_3BYTE_BGR);
-					for (int x = 0; x < w; x++) {
-						for (int y = 0; y < h; y++) {
-							tmp.setRGB(x, y, image.getRGB(x, y) & 0xFFFFFF);
-						}
-					}
-					image = tmp;
+					/*
 					// TODO: 맥에선 이걸로 해결 안 되는 것 같음...
 					// 일단 BufferedImage.TYPE_4BYTE_ABGR_PRE 인 건 확인
+					for (int x = 0; x < w; x++) {
+						for (int y = 0; y < h; y++) {
+							int rgb = image.getRGB(x, y);
+							tmp.setRGB(x, y, rgb & 0xFFFFFF);
+						}
+					}
+					*/
+					Graphics2D graphics = tmp.createGraphics();
+					graphics.drawImage(image, 0, 0, null);
+					image = tmp;
 				}
 				
 				if (c == tfPngFile) {
@@ -1880,6 +1891,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 			menu.add(new JPopupMenu.Separator());
 		}
 		menu.add(miAddFile);
+		menu.add(miAddFolder);
 		if (!explorer.isEmpty()) {
 			menu.add(miSelectAll);
 		}

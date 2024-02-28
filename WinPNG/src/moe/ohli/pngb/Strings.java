@@ -87,6 +87,10 @@ public class Strings {
 		
 		EN.put("새 이름을 입력하세요.", "Input new name.");
 		EN.put("올바른 이름이 아닙니다.", "It's not valid name.");
+		EN.put("폴더 생성", "New Folder");
+		EN.put("폴더명 중복", "Folder Duplicated");
+		EN.put("이미 존재하는 폴더입니다. 합치시겠습니까?", "The folder name is exist. Will you combine these?");
+		EN.put("이미 존재하는 파일명입니다.", "The file name is exist.");
 	}
 	private static final Map<String, String> JP = new HashMap<>();
 	static {
@@ -160,6 +164,10 @@ public class Strings {
 		
 		JP.put("새 이름을 입력하세요.", "新しい名前を入力してください。");
 		JP.put("올바른 이름이 아닙니다.", "正しい名前ではありません。");
+		JP.put("폴더 생성", "新しいフォルダー");
+		JP.put("폴더명 중복", "フォルダー名重ね");
+		JP.put("이미 존재하는 폴더입니다. 합치시겠습니까?", "既に存在しているフォルダーです。一つに合わせますか？");
+		JP.put("이미 존재하는 파일명입니다.", "既に存在しているファイル名です。");
 	}
 	
 	private static Map<String, String> selected = EN;

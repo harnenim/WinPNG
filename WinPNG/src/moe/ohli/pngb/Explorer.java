@@ -124,11 +124,11 @@ public class Explorer extends JPanel {
 			}
 		}
 		public void refreshLabel() {
-			if (container == null) return; // 디렉토리는 건드릴 일 없음
-
+			if (container == null) return; // 표현용 디렉토리는 건드릴 일 없음
+			
 			label = container.path.substring(container.path.lastIndexOf('/') + 1)
-					+ " (" + comma(container.binary.length) + ")"
-					+ (originalPath == null ? "" : ": " + originalPath);
+					+ (container.binary == null ? ""/* 강제 생성 디렉토리 */ :
+						(" (" + comma(container.binary.length) + ")" + (originalPath == null ? "" : ": " + originalPath)));
 		}
 		public String getName() {
 			if (container == null) {
@@ -320,7 +320,7 @@ public class Explorer extends JPanel {
 				public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected, boolean hasFocus) {
 					FileItem item = (FileItem) value;
 					Icon icon = dirIcon;
-					if (item.container != null) {
+					if (item.container != null && item.container.binary != null) {
 						icon = fileIcon;
 						try {
 							Icon systemIcon = getSystemIcon(item.getName());
@@ -523,7 +523,12 @@ public class Explorer extends JPanel {
 	}
 	
 	public boolean isEmpty() {
-		return list.isEmpty();
+		for (FileItem item : list) {
+			if (item.container.binary != null) {
+				return false;
+			}
+		}
+		return true;
 	}
 	public void clear() {
 		logger.info("Explorer.clear");
@@ -540,6 +545,18 @@ public class Explorer extends JPanel {
 		item.container.path = item.container.path.replace('\\', '/');
 		list.add(item);
 		refresh(withUpdate);
+	}
+	public void addFolder() {
+		String name = JOptionPane.showInputDialog(this, Strings.get("폴더명을 입력하세요."));
+		if (!isValidFileName(name)) {
+			if (name != null) {
+				JOptionPane.showMessageDialog(this, Strings.get("올바른 이름이 아닙니다."));
+			}
+			return;
+		}
+		logger.info("Explorer.addFolder: " + name);
+		list.add(new FileItem(new Container(getDir() + name)));
+		refresh(false); // 폴더 생성은 결과물에 영향 없음
 	}
 	public void remove(FileItem item) {
 		remove(item, true);
@@ -559,16 +576,18 @@ public class Explorer extends JPanel {
 		logger.info("Explorer.removeSelected");
 		List<FileItem> removeList = new ArrayList<>();
 		for (FileItem item : flv.getSelectedValuesList()) {
-			if (item.container == null) {
-				String subDir = currentDir + item.label + "/";
+			if (item.container == null || item.container.binary == null) {
+				String path = currentDir + item.label;
+				String subDir = path + "/";
 				for (FileItem subItem : list) {
 					if (subItem.container.path.startsWith(subDir)) {
 						removeList.add(subItem);
+					} else if (path.equals(subItem.container.path)) {
+						removeList.add(subItem);
 					}
 				}
-			} else {
-				removeList.add(item);
 			}
+			removeList.add(item);
 		}
 		for (FileItem item : removeList) {
 			list.remove(item);
@@ -598,12 +617,17 @@ public class Explorer extends JPanel {
 		FileItem selected = flv.getSelectedValue();
 		if (selected == null) return;
 		
-		String name = selected.label; // 디렉토리
+		String oldName = selected.label; // 디렉토리
 		if (selected.container != null) { // 파일
-			name = selected.container.path.substring(selected.container.path.lastIndexOf('/') + 1);
+			oldName = selected.container.path.substring(selected.container.path.lastIndexOf('/') + 1);
 		}
-		name = JOptionPane.showInputDialog(this, Strings.get("새 이름을 입력하세요."), name);
+		String name = JOptionPane.showInputDialog(this, Strings.get("새 이름을 입력하세요."), oldName);
 		logger.info("name: " + name);
+		
+		if (name == oldName) {
+			// 수정사항 없음
+			return;
+		}
 		
 		if (!isValidFileName(name)) {
 			if (name != null) {
@@ -614,18 +638,46 @@ public class Explorer extends JPanel {
 		
 		if (selected.container == null) {
 			// 디렉토리
-			String from = currentDir + selected.label + "/";
-			String to = currentDir + name + "/";
+			String from = currentDir + selected.label;
+			String to = currentDir + name;
+			
+			boolean canRename = true;
 			for (FileItem item : list) {
-				if (item.container.path.startsWith(from)) {
-					item.container.path = to + item.container.path.substring(from.length());
+				if (item.container.path.startsWith(to + "/")) {
+					canRename = JOptionPane.showConfirmDialog(this, "이미 존재하는 폴더입니다. 합치시겠습니까?", "폴더명 중복", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION;
+					break;
 				}
 			}
-			refresh(true);
+			if (canRename) {
+				FileItem self = null;
+				for (FileItem item : list) {
+					if (item.container.path.equals(from)) {
+						if (item.container.binary == null) {
+							self = item;
+						}
+					} else if (item.container.path.startsWith(from + "/")) {
+						item.container.path = to + item.container.path.substring(from.length());
+					}
+				}
+				list.remove(self);
+				refresh(true);
+			}
 			
 		} else {
 			// 파일
-			selected.container.path = selected.container.path.substring(0, selected.container.path.lastIndexOf('/') + 1) + name;
+			String newPath = selected.container.path.substring(0, selected.container.path.lastIndexOf('/') + 1) + name;
+			
+			for (FileItem item : list) {
+				if (newPath.equals(item.container.path)) {
+					if (item.container.binary == null) {
+						continue;
+					}
+					JOptionPane.showMessageDialog(this, Strings.get("이미 존재하는 파일명입니다."));
+					return;
+				}
+			}
+			
+			selected.container.path = newPath;
 			selected.refreshLabel();
 			sort();
 			cd(".");
@@ -651,7 +703,9 @@ public class Explorer extends JPanel {
 		logger.info("Explorer.getAllContainers");
 		List<Container> result = new ArrayList<>();
 		for (FileItem item : list) {
-			result.add(item.container);
+			if (item.container.binary != null) {
+				result.add(item.container);
+			}
 		}
 		return result;
 	}
@@ -669,10 +723,13 @@ public class Explorer extends JPanel {
 		logger.info("Explorer.getSelectedContainers");
 		List<Container> result = new ArrayList<>();
 		for (FileItem item : flv.getSelectedValuesList()) {
-			if (item.container == null) {
+			if (item.container == null || item.container.binary == null) {
 				// 디렉토리일 경우 하위 모든 파일 선택
 				String subDir = currentDir + item.label + "/";
 				for (FileItem subItem : list) {
+					if (subItem.container.binary == null) { // 폴더
+						continue;
+					}
 					if (subItem.container.path.startsWith(subDir)) {
 						// 앞에 경로 뗀 컨테이너 생성
 						result.add(subItem.container.copy(subItem.container.path.substring(currentDir.length())));
@@ -766,7 +823,7 @@ public class Explorer extends JPanel {
 			DirTreeNode parent = dlRoot;
 			String[] names = item.container.path.split("/");
 			String path = "";
-			for (int i = 0; i < names.length - 1; i++) {
+			for (int i = 0; i < names.length - (item.container.binary == null ? 0 : 1); i++) {
 				String name = names[i];
 				
 				path += name + "/";
@@ -798,7 +855,8 @@ public class Explorer extends JPanel {
 	private static final Comparator<FileItem> COMP = new Comparator<FileItem>() {
 		@Override
 		public int compare(FileItem item1, FileItem item2) {
-			return compare(item1.container.path, item2.container.path);
+			return compare(item1.container.path + (item1.container.binary == null ? "/" : "")
+			             , item2.container.path + (item2.container.binary == null ? "/" : ""));
 		}
 		private int compare(String path1, String path2) {
 			int index1 = path1.indexOf("/");
@@ -854,7 +912,7 @@ public class Explorer extends JPanel {
 			}
 		} else if (dir.equals(".")) {
 			// refresh
-			openDir(currentDir.length() == 0 ? "/" : currentDir.substring(0, currentDir.length() - 1), true);
+			openDir((currentDir.startsWith("/") ? "" : "/") + currentDir.substring(0, currentDir.length() - 1), true);
 			return;
 		} else {
 			currentDir += dir + "/";
@@ -932,7 +990,13 @@ public class Explorer extends JPanel {
 			
 			if (path.indexOf("/") < 0) {
 				// 파일
-				item.label = path + " (" + comma(item.container.binary.length) + ")" + (item.originalPath == null ? "" : ": " + item.originalPath);
+				//item.label = path + " (" + comma(item.container.binary.length) + ")" + (item.originalPath == null ? "" : ": " + item.originalPath);
+				if (item.container.binary == null) { // 디렉토리
+					if (dirLabels.contains(item.label)) {
+						continue;
+					}
+					dirLabels.add(item.label);
+				}
 				flModel.addElement(item);
 				
 			} else {
@@ -960,7 +1024,7 @@ public class Explorer extends JPanel {
 		if (item == null) {
 			return;
 		}
-		if (item.container == null) {
+		if (item.container == null || item.container.binary == null) {
 			cd(item.label);
 		} else {
 			logger.info("Explorer.Lisetener.runFile: " + item.container.path);
