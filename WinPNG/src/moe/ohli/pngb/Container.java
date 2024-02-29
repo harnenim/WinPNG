@@ -73,7 +73,7 @@ public class Container {
 	 * @throws Exception
 	 */
 	public Container(String path, File file) throws Exception {
-		logger.info(path);
+		logger.info("new Container for file: " + path);
 		if (!file.isFile()) {
 			throw new Exception("파일이 아닙니다.");
 		}
@@ -119,6 +119,7 @@ public class Container {
 		}
 		offset += ((pathLength + 3) / 4 * 4);
 		this.binary = Arrays.copyOfRange(bytes, offset, offset + binaryLength);
+		logger.info("get Container from bytes: " + this.path);
 	}
 	/**
 	 * 이미지 픽셀 RGB 값에서 생성
@@ -187,6 +188,7 @@ public class Container {
 			logger.warn("이미지 해석 오류");
 			logger.debug(e);
 		}
+		logger.info("get Container from bitmap: " + this.path);
 	}
 	
 	/**
