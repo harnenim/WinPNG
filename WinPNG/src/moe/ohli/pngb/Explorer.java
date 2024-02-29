@@ -767,9 +767,23 @@ public class Explorer extends JPanel {
 		for (int i = dlv.getRowCount() - 1; i > 0; i--) {
 			dlv.collapseRow(i);
 		}
+		
+		List<String> dirs = new ArrayList<>();
+		
 		list.clear();
 		for (Container cont : containers) {
 			cont.path = cont.path.replace('\\', '/');
+			
+			// 폴더 객체도 생성해둠 (파일 삭제 시에도 폴더 계속 보이도록)
+			int index = 0;
+			while ((index = cont.path.indexOf("/", index + 1)) > 0) {
+				String dir = cont.path.substring(0, index);
+				if (!dirs.contains(dir)) {
+					dirs.add(dir);
+					list.add(new FileItem(new Container(dir)));
+				}
+			}
+			
 			list.add(new FileItem(cont));
 		}
 		dlRoot.setUserObject(name);
@@ -787,10 +801,6 @@ public class Explorer extends JPanel {
 		sort();
 		refreshTree();
 		cd("/" + currentDir);
-		
-		while (flModel.size() == 1 && currentDir.length() > 0) {
-			cd("..");
-		}
 		
 		if (withUpdate) {
 			listener.onUpdate();

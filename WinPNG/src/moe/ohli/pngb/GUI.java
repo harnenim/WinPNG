@@ -1829,16 +1829,13 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 				if (file.lastModified() > lastModified) {
 					if (confirm("파일 수정 사항을 적용하시겠습니까?", "WinPNG")) {
 						try {
-							Container newCont = new Container(cont.path, file);
-							FileItem removeItem = null;
 							for (FileItem item : explorer.getDirItems()) {
 								if (cont.path.equals(item.container.path)) {
-									removeItem = item;
+									explorer.remove(item, false);
 									break;
 								}
 							}
-							explorer.add(new FileItem(newCont, file.getAbsolutePath()), false);
-							explorer.remove(removeItem, false);
+							explorer.add(new FileItem(new Container(cont.path, file), file.getAbsolutePath()), false);
 							
 						} catch (Exception e) {
 							logger.error(e);
