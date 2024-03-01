@@ -636,7 +636,7 @@ public class Explorer extends JPanel {
 			return;
 		}
 		
-		if (selected.container == null) {
+		if (selected.container == null || selected.container.binary == null) {
 			// 디렉토리
 			String from = currentDir + selected.label;
 			String to = currentDir + name;
