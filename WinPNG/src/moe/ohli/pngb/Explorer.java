@@ -198,7 +198,7 @@ public class Explorer extends JPanel {
 		if (name != null) { // null: 폴더 / not null: 파일
 			String ext = name;
 			if (ext.indexOf(".") > 0) {
-				ext = ext.substring(ext.indexOf("."));
+				ext = ext.substring(ext.lastIndexOf("."));
 			}
 			path += "icon/icon" + ext;
 		}
