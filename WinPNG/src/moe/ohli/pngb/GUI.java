@@ -1796,7 +1796,6 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 				cmd = "open";
 			}
 			if (cmd != null) {
-				//Runtime.getRuntime().exec(new String[] { cmd, path });
 				new OpenFileProcess(cmd, path, cont);
 			}
 		} catch (Exception e) {

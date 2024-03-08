@@ -61,8 +61,8 @@ public class Container {
 	 * @param path
 	 * @throws Exception
 	 */
-	public Container(String path) {
-		logger.info(this.path = path);
+	protected Container(String path) {
+		logger.info("new Container for directory: " + (this.path = path));
 		binary = null;
 	}
 	

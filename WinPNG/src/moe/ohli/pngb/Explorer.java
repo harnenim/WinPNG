@@ -41,7 +41,7 @@ public class Explorer extends JPanel {
 	
 	// 구버전에서 잘못 생성된 아이콘 임시파일 삭제
 	static {
-		try {
+		try { // 극초기 버전에서 상위폴더에 시간.확장자 형식으로 파일 증식했던 것
 			File[] files = new File(System.getProperty("java.io.tmpdir")).listFiles();
 			for (File file : files) {
 				if (file.isDirectory()) {
@@ -53,6 +53,25 @@ public class Explorer extends JPanel {
 				}
 				try {
 					Integer.parseInt(name.substring(4, 10));
+					file.delete();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		try { // 파일명 중간에 .이 있는 경우
+			File[] files = new File(TMP_DIR + "icon").listFiles();
+			for (File file : files) {
+				if (file.isDirectory()) {
+					continue;
+				}
+				String name = file.getName();
+				if (name.indexOf(".") == name.lastIndexOf(".")) {
+					continue;
+				}
+				try {
 					file.delete();
 				} catch (Exception e) {
 					e.printStackTrace();

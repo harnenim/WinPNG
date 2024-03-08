@@ -43,10 +43,10 @@ public class Sample extends JFrame {
 		}
 		
 		try {
-			addSample("1:1:4 Leagacy", new Container.WithTarget(targetImage, null).toBitmapLegacy(dataImage));
-			addSample("1:1:4 v1", new Container.WithTarget(targetImage, null).toBitmap114v1(dataImage));
-			addSample("1:1:4 v2", new Container.WithTarget(targetImage, null).toBitmap114v2(dataImage));
-			addSample("1:1:4 v3", new Container.WithTarget(targetImage, null).toBitmap114v3(dataImage));
+			addSample("1:1:4 Leagacy", new Container.WithTarget(targetImage, null).toBitmapLegacy(dataImage),  1, 64, 64);
+			addSample("1:1:4 v1"     , new Container.WithTarget(targetImage, null).toBitmap114v1 (dataImage),  1, 32, 32);
+			addSample("1:1:4 v2"     , new Container.WithTarget(targetImage, null).toBitmap114v2 (dataImage), 16, 32, 32);
+			addSample("1:1:4 v3"     , new Container.WithTarget(targetImage, null).toBitmap114v3 (dataImage),  8, 16, 16);
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -57,7 +57,7 @@ public class Sample extends JFrame {
 		setEnabled(true);
 	}
 	
-	private void addSample(String title, BufferedImage result) {
+	private void addSample(String title, BufferedImage result, int ax, int bx, int cx) {
 		BufferedImage[] parsed = {
 				new BufferedImage(256, 256, BufferedImage.TYPE_3BYTE_BGR)
 			,	new BufferedImage(256, 256, BufferedImage.TYPE_3BYTE_BGR)
@@ -94,10 +94,13 @@ public class Sample extends JFrame {
 				sumC += c;
 				sumStd += std;
 				
-				aB += b; aC += c; aA += a; 
-				chart.setRGB(x, 255-b, chart.getRGB(x, 255-b) | 0xFF0000);
-				chart.setRGB(x, 255-c, chart.getRGB(x, 255-c) | 0x0000FF);
-				chart.setRGB(x, 255-a, chart.getRGB(x, 255-a) | 0x00FF00);
+				aB += b; aC += c; aA += a;
+				int rgbB = Math.min(((chart.getRGB(x, 255-b) & 0xFF0000) >> 16) + bx, 0xFF);
+				int rgbC = Math.min(((chart.getRGB(x, 255-c) & 0x0000FF) >>  0) + cx, 0xFF);
+				int rgbA = Math.min(((chart.getRGB(x, 255-a) & 0x00FF00) >>  8) + ax, 0xFF);
+				chart.setRGB(x, 255-b, rgbB << 16);
+				chart.setRGB(x, 255-c, rgbC <<  0);
+				chart.setRGB(x, 255-a, rgbA <<  8);
 			}
 			avgs[0].setRGB(x, 0, (sumB + 255) / 256 * 0x010100);
 			avgs[1].setRGB(x, 0, (sumC + 255) / 256 * 0x010100);
