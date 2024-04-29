@@ -1497,7 +1497,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 		for (File file : files) {
 			try {
 				for (Container cont : Container.fileToContainers(file)) {
-					cont.path = dir + cont.path;
+					String contPath = cont.path;
+					cont.path = dir + contPath;
 					FileItem removeItem = null;
 					if (paths.contains(cont.path)) {
 						if (confirm(Strings.get("파일 경로가 중복됩니다.\n덮어쓰시겠습니까?") + "\n" + cont.path, Strings.get("파일 중복"))) {
@@ -1513,7 +1514,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 							continue;
 						}
 					}
-					explorer.add(new FileItem(cont, file.getParent() + "/" + cont.path), false);
+					explorer.add(new FileItem(cont, file.getParent() + "/" + contPath), false);
 					if (removeItem != null) {
 						// 파일 추가를 먼저 하고 기존 것 삭제해야 함
 						explorer.remove(removeItem, false);
