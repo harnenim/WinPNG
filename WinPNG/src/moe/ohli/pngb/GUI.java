@@ -857,6 +857,11 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 						ivOutput.setIcon(makeImageIcon(outputImage));
 						jlOutput.setText(Strings.get("출력 이미지") + "(" + outputImage.getWidth() + "×" + outputImage.getHeight() + ")");
 						
+					} catch (Container.PathLengthException e) {
+						logger.error("파일명 오류");
+						logger.debug(e);
+						alert("파일명이 너무 깁니다.\n" + e.getPath());
+						
 					} catch (Exception e) {
 						logger.error("이미지 생성 실패");
 						logger.debug(e);

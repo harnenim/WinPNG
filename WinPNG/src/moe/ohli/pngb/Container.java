@@ -204,6 +204,17 @@ public class Container {
 		return new byte[0];
 	}
 	
+	@SuppressWarnings("serial")
+	public static class PathLengthException extends Exception {
+		private String path;
+		public PathLengthException(String path) {
+			this.path = path;
+		}
+		public String getPath() {
+			return path;
+		}
+	}
+	
 	/**
 	 * RGB로 표현할 때 필요한 픽셀 개수
 	 * @return
@@ -218,12 +229,15 @@ public class Container {
 	 * @param xors: 출력물 xor 연산 수행
 	 * @return
 	 */
-	private int[] toRGBs(int width, int shift, int[] xors, boolean randomJunk) {
+	private int[] toRGBs(int width, int shift, int[] xors, boolean randomJunk) throws PathLengthException {
 		int contPixelCount = getRGBPixelCount();
 		int contHeight = (contPixelCount + width - 1) / width;
 		int rectPixelCount = width * contHeight;
 		
 		byte[] pathBytes = getPathBytes();
+		if (pathBytes.length > 255) {
+			throw new PathLengthException(path);
+		}
 		int[] rgbs = new int[rectPixelCount];
 		int offset = (shift = shift % width);
 		
@@ -634,7 +648,7 @@ public class Container {
 	 * @param height
 	 * @return
 	 */
-	private static int setJunkRGB(BufferedImage bmp, int shift, int[] xors, int offsetY, int width, int height, boolean randomJunk) {
+	private static int setJunkRGB(BufferedImage bmp, int shift, int[] xors, int offsetY, int width, int height, boolean randomJunk) throws PathLengthException {
 		int pixelCount = width * height;
 		if (height == 0) {
 			return 0;
