@@ -839,6 +839,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 				@Override
 				public void run() {
 					List<Container> containers = explorer.getAllContainers();
+					Collections.sort(containers, COMP);
+					
 					try {
 						String password = tfPw.getText();
 						if        (rbTarget114.isSelected()) {
@@ -886,6 +888,46 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 		}
 	}
 	private int updateStatus = 0;
+	
+	/**
+	 * 출력물 컨테이너 정
+	 */
+	private static final Comparator<Container> COMP = new Comparator<Container>() {
+		@Override
+		public int compare(Container item1, Container item2) {
+			return compare(item1.path + (item1.binary == null ? "/" : "")
+			             , item2.path + (item2.binary == null ? "/" : ""));
+		}
+		private int compare(String path1, String path2) {
+			int index1 = path1.indexOf("/");
+			int index2 = path2.indexOf("/");
+			if (index1 < 0) {
+				if (index2 < 0) {
+					// 파일끼리 대소문자 무시하고 비교
+					return path1.toUpperCase().compareTo(path2.toUpperCase());
+				} else {
+					// 이미지 생성은 루트 파일에 우선순위를 줌
+					return -1;
+				}
+			} else {
+				if (index2 < 0) {
+					// 이미지 생성은 루트 파일에 우선순위를 줌
+					return 1;
+				} else {
+					String dir1 = path1.substring(0, index1);
+					String dir2 = path2.substring(0, index2);
+					if (dir1.equals(dir2)) {
+						// 같은 폴더면 하위 내용물 비교
+						return compare(path1.substring(index1 + 1), path2.substring(index2 + 1));
+					} else {
+						// 폴더끼리 대소문자 무시하고 비교
+						return dir1.toUpperCase().compareTo(dir2.toUpperCase());
+					}
+				}
+			}
+		}
+	};
+	
 	
 	/**
 	 * 출력물에 활용할 이미지 설정
