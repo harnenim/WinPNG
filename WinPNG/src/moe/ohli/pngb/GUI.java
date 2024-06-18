@@ -1561,20 +1561,22 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 							continue;
 						}
 					}
-					explorer.add(new FileItem(cont, file.getParent() + "/" + contPath), false);
+					explorer.addWithoutRefresh(new FileItem(cont, file.getParent() + "/" + contPath));
 					if (removeItem != null) {
 						// 파일 추가를 먼저 하고 기존 것 삭제해야 함
-						explorer.remove(removeItem, false);
+						explorer.removeWithoutRefresh(removeItem);
 						// 삭제 먼저 하면 폴더 안에 파일 하나만 있었을 경우 상위 폴더로 나가 버림
 					}
 					count++;
 				}
+				
 			} catch (Exception e) {
 				logger.error("파일 추가 실패");
 				logger.debug(e);
 			}
 		}
 		if (count > 0) {
+			explorer.refresh(false);
 			explorer.sort();
 			updateOutput();
 		}

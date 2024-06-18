@@ -565,6 +565,11 @@ public class Explorer extends JPanel {
 		list.add(item);
 		refresh(withUpdate);
 	}
+	public void addWithoutRefresh(FileItem item) {
+		logger.info("Explorer.addWithoutRefresh: " + item.container.path);
+		item.container.path = item.container.path.replace('\\', '/');
+		list.add(item);
+	}
 	public void addFolder() {
 		String name = JOptionPane.showInputDialog(this, Strings.get("폴더명을 입력하세요."));
 		if (!isValidFileName(name)) {
@@ -584,6 +589,13 @@ public class Explorer extends JPanel {
 		logger.info("Explorer.remove: " + item.container.path);
 		if (list.remove(item)) {
 			refresh(withUpdate);
+			return true;
+		}
+		return false;
+	}
+	public boolean removeWithoutRefresh(FileItem item) {
+		logger.info("Explorer.removeWithoutRefresh: " + item.container.path);
+		if (list.remove(item)) {
 			return true;
 		}
 		return false;
