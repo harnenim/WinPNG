@@ -73,6 +73,9 @@ public class Container {
 	 * @throws Exception
 	 */
 	public Container(String path, File file) throws Exception {
+		this(path, file, false);
+	}
+	public Container(String path, File file, boolean withSmiOptimize) throws Exception {
 		logger.info("new Container for file: " + path);
 		if (!file.isFile()) {
 			throw new Exception("파일이 아닙니다.");
@@ -93,7 +96,79 @@ public class Container {
 		} finally {
 			if (fis != null) try { fis.close(); } catch (Exception e2) { }
 		}
+		
+		if (withSmiOptimize && path.toLowerCase().endsWith(".smi")) {
+			// Jamaker 역정규화용 주석 삭제
+			List<int[]> comments = new ArrayList<int[]>();
+			int smiEnd = this.binary.length;
+			int removeLength = 0;
+			
+			for (int i = 0; i < this.binary.length; i++) {
+				{	boolean isComment = true;
+					for (int j = 0; j < smiCommentStart.length; j++) {
+						if (this.binary[i+j] != smiCommentStart[j]) {
+							isComment = false;
+							break;
+						}
+					}
+					if (isComment) {
+						for (int j = i; j < this.binary.length; j++) {
+							boolean isEnded = true;
+							for (int k = 0; k < smiCommentEnd.length; k++) {
+								if (this.binary[j+k] != smiCommentEnd[k]) {
+									isEnded = false;
+									break;
+								}
+							}
+							if (isEnded) {
+								j += smiCommentEnd.length;
+								comments.add(new int[] { i, j });
+								removeLength += (j - i);
+								i = j;
+								break;
+							}
+						}
+					}
+				}
+				{	boolean isFileEnd = true;
+					for (int j = 0; j < smiFileEnd.length; j++) {
+						if (this.binary[i+j] != smiFileEnd[j]) {
+							isFileEnd = false;
+							break;
+						}
+					}
+					if (isFileEnd) {
+						smiEnd = i + smiFileEnd.length;
+						break;
+					}
+				}
+			}
+			
+			if (removeLength > 0) {
+				byte[] newBinary = new byte[smiEnd - removeLength];
+				int pos = 0;
+				int last = 0;
+				for (int[] commentRange : comments)  {
+					int length = commentRange[0] - last;
+					for (int i = 0; i < length; i++) {
+						newBinary[pos + i] = this.binary[last + i];
+					}
+					pos += length;
+					last = commentRange[1];
+				}
+				{
+					int length = smiEnd - last;
+					for (int i = 0; i < length; i++) {
+						newBinary[pos + i] = this.binary[last + i];
+					}
+				}
+				this.binary = newBinary;
+			}
+		}
 	}
+	private static final char[] smiCommentStart = "\n<!-- End=".toCharArray();
+	private static final char[] smiCommentEnd = "-->".toCharArray();
+	private static final char[] smiFileEnd = "\n</SAMI>".toCharArray();
 	
 	/**
 	 * 바이너리에서 생성
