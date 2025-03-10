@@ -49,6 +49,7 @@ public class Strings {
 		EN.put("붙여넣기"                                               , "Paste");
 		EN.put("이미지 복사"                                            , "Copy Image");
 		EN.put("이미지 저장"                                            , "Save Image");
+		EN.put("Jamaker 생성 주석 생략"                                 , "Clear Jamaker comments");
 
 		EN.put("PNG 파일(*.png)"                                        , "PNG File(*.png)");
 
@@ -126,6 +127,7 @@ public class Strings {
 		JP.put("붙여넣기"                                               , "ペースト");
 		JP.put("이미지 복사"                                            , "画像をコピー");
 		JP.put("이미지 저장"                                            , "画像保存");
+		JP.put("Jamaker 생성 주석 생략"                                 , "Jamakerからのコメント消去");
 
 		JP.put("PNG 파일(*.png)"                                        , "PNGファイル(*.png)");
 

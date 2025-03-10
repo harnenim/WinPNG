@@ -229,6 +229,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 	private JRadioButton rbTarget011 = new JRadioButton();
 	private ButtonGroup rbGroupTarget = new ButtonGroup();
 	private JTextField tfRatioW = new JTextField("16"), tfRatioH = new JTextField("9"), tfPw = new JTextField(""), tfWidth = new JTextField("0");
+	private JCheckBox cbJamaker = new JCheckBox();
 	private JButton btnSave = new MyButton(this), btnCopy = new MyButton(this), btnLog = new MyButton(this);
 
 	private static final int IMAGE_VIEW_WIDTH = 280, IMAGE_VIEW_HEIGHT = 158;
@@ -268,7 +269,13 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 				try {
 					if (isAndroid) {
 						File logFile = new File("/storage/emulated/0/Download/WinPNG/WinPNG_log.txt");
-						logger.set(new PrintStream(logFile)); // 로그 파일 로깅 수준은 설정값에 따름
+						try {
+							// 로그 파일 로깅 수준은 설정값에 따름
+							logger.set(new PrintStream(logFile, "UTF-8"));
+						} catch (UnsupportedEncodingException e) {
+							e.printStackTrace();
+							logger.set(new PrintStream(logFile));
+						}
 						
 					} else {
 						String logPath = TMP_DIR + "log";
@@ -277,10 +284,22 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 						System.out.println("로그 파일 위치: " + logPath);
 
 						File logFile = new File(logPath + "/" + Calendar.getInstance().getTimeInMillis() + ".log");
-						logger.set(new PrintStream(logFile)); // 로그 파일 로깅 수준은 설정값에 따름
+						// 로그 파일 로깅 수준은 설정값에 따름
+						try {
+							logger.set(new PrintStream(logFile, "UTF-8"));
+						} catch (UnsupportedEncodingException e1) {
+							e1.printStackTrace();
+							logger.set(new PrintStream(logFile));
+						}
 						
 						logFile = new File(logPath + "/" + Calendar.getInstance().getTimeInMillis() + ".info.log");
-						logger.set(new PrintStream(logFile), Logger.L.INFO); // INFO 로그 파일도 남김
+						// INFO 로그 파일도 남김
+						try {
+							logger.set(new PrintStream(logFile, "UTF-8"), Logger.L.INFO);
+						} catch (UnsupportedEncodingException e) {
+							e.printStackTrace();
+							logger.set(new PrintStream(logFile), Logger.L.INFO);
+						}
 					}
 				} catch (FileNotFoundException e) {
 					System.out.println("로그 파일 설정 실패");
@@ -378,6 +397,12 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 				logger.warn("디렉토리 트리 크기 가져오기 실패");
 				logger.debug(e);
 			}
+			try {
+				cbJamaker.setSelected("true".equals(props.getProperty("clearJamaker")));
+			} catch (Exception e) {
+				logger.warn("Jamaker 주석 생략 설정 가져오기 실패");
+				logger.debug(e);
+			}
 			
 			if (isAndroid) {
 				// Android JRE 실행을 가정
@@ -431,6 +456,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 			jlOutput.setText(Strings.get("출력 이미지"));
 			jlPw.setText(Strings.get("비밀번호 걸기") + " ");
 			jlWidth.setText(Strings.get("최소 폭") + " ");
+			cbJamaker.setText(Strings.get("Jamaker 생성 주석 생략"));
 			btnSave.setText(Strings.get("이미지 저장"));
 			btnCopy.setText(Strings.get("이미지 복사"));
 			btnLog .setText("Show Log");
@@ -525,6 +551,11 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 						panelPw.add(jlPw, BorderLayout.WEST);
 						panelPw.add(tfPw, BorderLayout.CENTER);
 						panelOutput.add(panelPw, BorderLayout.SOUTH);
+					}
+					{	// Jamaker 주석
+						JPanel panelJamaker = new JPanel();
+						panelJamaker.add(cbJamaker);
+						panelPreview.add(panelJamaker);
 					}
 					panelPreview.add(new JPanel());
 					panelRight.add(panelPreview, BorderLayout.CENTER);
@@ -734,6 +765,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 		} else if (rbTarget011.isSelected()) {
 			props.setProperty("useTargetImage", "011");
 		}
+		props.setProperty("clearJamaker", cbJamaker.isSelected() ? "true" : "false");
 		
 		FileOutputStream fos = null;
 		try {
@@ -1543,7 +1575,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 		int count = 0;
 		for (File file : files) {
 			try {
-				for (Container cont : Container.fileToContainers(file)) {
+				for (Container cont : Container.fileToContainers(file, cbJamaker.isSelected())) {
 					String contPath = cont.path;
 					cont.path = dir + contPath;
 					FileItem removeItem = null;

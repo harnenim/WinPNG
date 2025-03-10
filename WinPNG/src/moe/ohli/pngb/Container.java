@@ -73,9 +73,9 @@ public class Container {
 	 * @throws Exception
 	 */
 	public Container(String path, File file) throws Exception {
-		this(path, file, false);
+		this(path, file, true);
 	}
-	public Container(String path, File file, boolean withSmiOptimize) throws Exception {
+	public Container(String path, File file, boolean clearJamaker) throws Exception {
 		logger.info("new Container for file: " + path);
 		if (!file.isFile()) {
 			throw new Exception("파일이 아닙니다.");
@@ -97,7 +97,7 @@ public class Container {
 			if (fis != null) try { fis.close(); } catch (Exception e2) { }
 		}
 		
-		if (withSmiOptimize && path.toLowerCase().endsWith(".smi")) {
+		if (clearJamaker && path.toLowerCase().endsWith(".smi")) {
 			// Jamaker 역정규화용 주석 삭제
 			List<int[]> comments = new ArrayList<int[]>();
 			int smiEnd = this.binary.length;
@@ -491,8 +491,18 @@ public class Container {
 	 * @throws Exception
 	 */
 	public static List<Container> fileToContainers(File file) throws Exception {
+		return fileToContainers(file, false);
+	}
+	/**
+	 * 파일/디렉토리를 컨테이너 목록으로 변환
+	 * @param file: 파일/디렉토리
+	 * @param clearJamaker: Jamaker 생성 주석 생략
+	 * @return 컨테이너 목록
+	 * @throws Exception
+	 */
+	public static List<Container> fileToContainers(File file, boolean clearJamaker) throws Exception {
 		List<Container> containers = new ArrayList<>();
-		fileToContainers(containers, "", file);
+		fileToContainers(containers, "", file, clearJamaker);
 		return containers;
 	}
 	/**
@@ -502,13 +512,13 @@ public class Container {
 	 * @param file: 하위 파일/디렉토리
 	 * @throws Exception
 	 */
-	private static void fileToContainers(List<Container> containers, String path, File file) throws Exception {
+	private static void fileToContainers(List<Container> containers, String path, File file, boolean clearJamaker) throws Exception {
 		if (file.isDirectory()) {
 			String subPath = path + file.getName() + "/";
 			File[] files = file.listFiles();
 			for (File subFile : files) {
 				try {
-					fileToContainers(containers, subPath, subFile);
+					fileToContainers(containers, subPath, subFile, clearJamaker);
 				} catch (Exception e) {
 					throw e;
 				}
@@ -516,7 +526,7 @@ public class Container {
 		} else {
 			if (file.isFile()) {
 				try {
-					containers.add(new Container(path + file.getName(), file));
+					containers.add(new Container(path + file.getName(), file, clearJamaker));
 				} catch (Exception e) {
 					logger.warn("파일 컨테이너 생성 실패");
 					logger.debug(e);
