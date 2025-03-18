@@ -229,7 +229,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 	private JRadioButton rbTarget011 = new JRadioButton();
 	private ButtonGroup rbGroupTarget = new ButtonGroup();
 	private JTextField tfRatioW = new JTextField("16"), tfRatioH = new JTextField("9"), tfPw = new JTextField(""), tfWidth = new JTextField("0");
-	private JCheckBox cbJamaker = new JCheckBox();
+	private JCheckBox cbJamaker = new JCheckBox(); boolean showClearJamaker = false;
 	private JButton btnSave = new MyButton(this), btnCopy = new MyButton(this), btnLog = new MyButton(this);
 
 	private static final int IMAGE_VIEW_WIDTH = 280, IMAGE_VIEW_HEIGHT = 158;
@@ -398,7 +398,12 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 				logger.debug(e);
 			}
 			try {
-				cbJamaker.setSelected("true".equals(props.getProperty("clearJamaker")));
+				String clearJamaker = props.getProperty("clearJamaker");
+				if (clearJamaker != null) {
+					// 설정 파일 수작업으로 건드렸을 경우에만 노출됨
+					cbJamaker.setSelected("true".equals(clearJamaker));
+					showClearJamaker = true;
+				}
 			} catch (Exception e) {
 				logger.warn("Jamaker 주석 생략 설정 가져오기 실패");
 				logger.debug(e);
@@ -552,7 +557,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 						panelPw.add(tfPw, BorderLayout.CENTER);
 						panelOutput.add(panelPw, BorderLayout.SOUTH);
 					}
-					{	// Jamaker 주석
+					if (showClearJamaker) {
+						// Jamaker 주석
 						JPanel panelJamaker = new JPanel();
 						panelJamaker.add(cbJamaker);
 						panelPreview.add(panelJamaker);
@@ -765,7 +771,9 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 		} else if (rbTarget011.isSelected()) {
 			props.setProperty("useTargetImage", "011");
 		}
-		props.setProperty("clearJamaker", cbJamaker.isSelected() ? "true" : "false");
+		if (showClearJamaker) {
+			props.setProperty("clearJamaker", cbJamaker.isSelected() ? "true" : "false");
+		}
 		
 		FileOutputStream fos = null;
 		try {
