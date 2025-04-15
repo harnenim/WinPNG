@@ -691,7 +691,7 @@ public class Explorer extends JPanel {
 					}
 				}
 				list.remove(self);
-				refresh(true);
+				refresh(true, from, to);
 			}
 			
 		} else {
@@ -828,9 +828,12 @@ public class Explorer extends JPanel {
 		refresh(false);
 	}
 	public void refresh(boolean withUpdate) {
+		refresh(withUpdate, "?", null);
+	}
+	public void refresh(boolean withUpdate, String replacedFrom, String replacedTo) {
 		logger.info("Explorer.refresh" + (withUpdate ? " with update" : ""));
 		sort();
-		refreshTree();
+		refreshTree(replacedFrom, replacedTo);
 		cd("/" + currentDir);
 		
 		if (withUpdate) {
@@ -843,13 +846,22 @@ public class Explorer extends JPanel {
 	}
 	private Map<String, TreePath> pathMap = new HashMap<>();
 	public void refreshTree() {
+		refreshTree("?", null);
+	}
+	public void refreshTree(String replacedFrom, String replacedTo) {
 		logger.info("Explorer.refreshTree");
+		logger.info(replacedFrom + " -> " + replacedTo);
+		replacedFrom = dlRoot.getUserObject().toString() + "/" + replacedFrom;
+		replacedTo   = dlRoot.getUserObject().toString() + "/" + replacedTo  ;
 		
 		// 열려있었던 것들 기억
 		List<String> wasExpanded = new ArrayList<>();
 		for (int i = 0; i < dlv.getRowCount(); i++) {
 			String path = strPath(dlv.getPathForRow(i));
 			if (dlv.isExpanded(i)) {
+				if (path.startsWith(replacedFrom)) {
+					path = replacedTo + path.substring(replacedFrom.length());
+				}
 				wasExpanded.add(path);
 			}
 			dlv.expandRow(i);
