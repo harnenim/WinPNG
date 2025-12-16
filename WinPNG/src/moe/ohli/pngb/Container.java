@@ -97,7 +97,7 @@ public class Container {
 			if (fis != null) try { fis.close(); } catch (Exception e2) { }
 		}
 		
-		if (clearJamaker && path.toLowerCase().endsWith(".smi")) {
+		if (clearJamaker && (path.toLowerCase().endsWith(".smi") || path.toLowerCase().endsWith(".sami"))) {
 			// Jamaker 역정규화용 주석 삭제
 			List<int[]> comments = new ArrayList<int[]>();
 			int smiEnd = this.binary.length;
@@ -122,6 +122,32 @@ public class Container {
 							}
 							if (isEnded) {
 								j += smiCommentEnd.length;
+								comments.add(new int[] { i, j });
+								removeLength += (j - i);
+								i = j;
+								break;
+							}
+						}
+					}
+				}
+				{	boolean isComment = true;
+					for (int j = 0; j < assCommentStart.length; j++) {
+						if (this.binary[i+j] != assCommentStart[j]) {
+							isComment = false;
+							break;
+						}
+					}
+					if (isComment) {
+						for (int j = i; j < this.binary.length; j++) {
+							boolean isEnded = true;
+							for (int k = 0; k < assCommentEnd.length; k++) {
+								if (this.binary[j+k] != assCommentEnd[k]) {
+									isEnded = false;
+									break;
+								}
+							}
+							if (isEnded) {
+								j += assCommentEnd.length;
 								comments.add(new int[] { i, j });
 								removeLength += (j - i);
 								i = j;
@@ -168,6 +194,8 @@ public class Container {
 	}
 	private static final char[] smiCommentStart = "\n<!-- End=".toCharArray();
 	private static final char[] smiCommentEnd = "-->".toCharArray();
+	private static final char[] assCommentStart = "\n<!-- ASS".toCharArray();
+	private static final char[] assCommentEnd = "-->".toCharArray();
 	private static final char[] smiFileEnd = "\n</SAMI>".toCharArray();
 	
 	/**
