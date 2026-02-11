@@ -1924,7 +1924,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 									break;
 								}
 							}
-							explorer.add(new FileItem(new Container(cont.path, file), file.getAbsolutePath()), false);
+							explorer.add(new FileItem(new Container(cont.path, file), file.getAbsolutePath()), true);
 							
 						} catch (Exception e) {
 							logger.error(e);
