@@ -45,7 +45,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 	private static final Border DRAG_BORDER = BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(0, 120, 215));
 	
 	private static Logger logger = new Logger(Logger.L.DEBUG); // 로그 파일 로깅 수준 기본값 디버그
-
+	
 	private static String strSize(int size) {
 		String strSize = size + " Bytes";
 		if (size > 10240) { // 10.0kB 이상
@@ -231,7 +231,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 	private JTextField tfRatioW = new JTextField("16"), tfRatioH = new JTextField("9"), tfPw = new JTextField(""), tfWidth = new JTextField("0");
 	private JCheckBox cbJamaker = new JCheckBox(); boolean showClearJamaker = false;
 	private JButton btnSave = new MyButton(this), btnCopy = new MyButton(this), btnLog = new MyButton(this);
-
+	
 	private static final int IMAGE_VIEW_WIDTH = 280, IMAGE_VIEW_HEIGHT = 158;
 	
 	private static final String OS = System.getProperty("os.name");
@@ -282,7 +282,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 						File logDir = new File(logPath);
 						logDir.mkdirs();
 						System.out.println("로그 파일 위치: " + logPath);
-
+						
 						File logFile = new File(logPath + "/" + Calendar.getInstance().getTimeInMillis() + ".log");
 						// 로그 파일 로깅 수준은 설정값에 따름
 						try {
@@ -694,7 +694,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 				@Override
 				public void windowClosing(WindowEvent evt) {
 					super.windowClosing(evt);
-
+					
 					saveConfig();
 					
 					// 임시 디렉토리는 deleteOnExit 동작이 잘 안 돼서
@@ -738,7 +738,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 				}
 			});
 		}
-
+		
 		if (USE_JFC) {
 			fcPng.setFileFilter(new FileNameExtensionFilter(Strings.get("PNG 파일(*.png)"), "png"));
 			fcPng.setFileSelectionMode(JFileChooser.FILES_ONLY);
@@ -1640,7 +1640,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 			return;
 		}
 		logger.info("export to: " + exportPath);
-
+		
 		exportSelected(exportPath, true);
 	}
 	/**
@@ -1762,12 +1762,12 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 		}
 	}
 	private JFileChooser fcFile = new JFileChooser();
-
+	
 	@Override
 	public void keyTyped(KeyEvent e) {
 		logger.all("keyTyped: " + e.getKeyCode());
 	}
-
+	
 	@Override
 	public void keyPressed(KeyEvent e) {
 		switch (e.getKeyCode()) {
@@ -1988,7 +1988,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 		
 		menu.show(explorer, e.getX() + explorer.getDirWidth(), e.getY());
 	}
-
+	
 	@Override
 	public void keyReleased(KeyEvent e) {
 		Component component = e.getComponent();
@@ -2042,7 +2042,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 			}
 		}
 	}
-
+	
 	/**
 	 * 프로그램 -> 탐색기 파일 드래그
 	 * 
@@ -2096,7 +2096,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
         	}
         	return null;
         }
-
+        
         @Override
         public int getSourceActions(JComponent c) {
             return MOVE;
@@ -2178,22 +2178,31 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
     		logger.debug("FileDropTarget.drop");
 			try {
 				Transferable tr = evt.getTransferable();
-
+				
 				logger.debug("allHtmlFlavor      : " + tr.isDataFlavorSupported(DataFlavor.allHtmlFlavor      ));
 				logger.debug("fragmentHtmlFlavor : " + tr.isDataFlavorSupported(DataFlavor.fragmentHtmlFlavor ));
 				logger.debug("imageFlavor        : " + tr.isDataFlavorSupported(DataFlavor.imageFlavor        ));
 				logger.debug("javaFileListFlavor : " + tr.isDataFlavorSupported(DataFlavor.javaFileListFlavor ));
 				logger.debug("selectionHtmlFlavor: " + tr.isDataFlavorSupported(DataFlavor.selectionHtmlFlavor));
 				logger.debug("stringFlavor       : " + tr.isDataFlavorSupported(DataFlavor.stringFlavor       ));
-
+				
+				boolean handled = false;
 				if (tr.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
 					logger.debug("DataFlavor supports javaFileListFlavor");
 					evt.acceptDrop(DnDConstants.ACTION_COPY);
-					gui.dropFiles((List<File>) tr.getTransferData(DataFlavor.javaFileListFlavor), c);
-					evt.getDropTargetContext().dropComplete(true);
-					logger.debug("dropComplete");
-					
-				} else if (tr.isDataFlavorSupported(DataFlavor.imageFlavor)) {
+					try {
+						gui.dropFiles((List<File>) tr.getTransferData(DataFlavor.javaFileListFlavor), c);
+						evt.getDropTargetContext().dropComplete(true);
+						logger.debug("dropComplete");
+						handled = true;
+						
+					} catch (Exception e) {
+						logger.debug(e);
+						logger.warn("이미지 가져오기 실패");
+					}
+				}
+				
+				if (!handled && tr.isDataFlavorSupported(DataFlavor.imageFlavor)) {
 					logger.debug("DataFlavor supports imageFlavor");
 					evt.acceptDrop(DnDConstants.ACTION_COPY);
 					try {
@@ -2209,18 +2218,19 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 								}
 							}
 						}
+						handled = true;
 						
 					} catch (Exception e) {
 						logger.debug(e);
+						logger.warn("이미지 가져오기 실패");
 					}
-					logger.warn("이미지 가져오기 실패");
-					
-				} else {
+				}
+				
+				if (!handled) {
 					logger.debug("DataFlavor don't support javaFileListFlavor and imageFlavor");
 					
 					DataFlavor[] flavors = tr.getTransferDataFlavors();
-					boolean handled = false;
-
+					
 					for (DataFlavor flavor : flavors) {
 						logger.debug("MimeType: " + flavor.getMimeType());
 					}
@@ -2237,7 +2247,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 							
 							BufferedReader br = new BufferedReader(reader);
 							logger.debug("br: " + br);
-
+							
 							// BufferedReader로 가져오기 시도
 							logger.info("BufferedReader로 가져오기 시도");
 							List<File> fileList = createFileList(br);
@@ -2281,7 +2291,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
     		logger.debug("FileDropTarget.dragExit");
 			c.setBorder(normalBorder);
 		}
-
+		
 		/**
 		 * DataFlavor에서 가져온 BufferedReader를 읽어 파일 목록 생성
 		 * @param bReader
@@ -2536,11 +2546,11 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 		conn.setReadTimeout(2000);
 		conn.setRequestMethod("GET");
 		conn.getResponseCode();
-
+		
 		BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
 		String line;
 		StringBuffer response = new StringBuffer();
-
+		
 		while ((line = in.readLine()) != null) {
 			response.append(line);
 		}
