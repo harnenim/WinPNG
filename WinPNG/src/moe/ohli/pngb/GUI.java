@@ -2072,7 +2072,8 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
         		}
         		
         		// 임시 PNG 파일 생성해서 전달
-        		File file = new File(TMP_DIR + name);
+        		File file = new File(TMP_DIR + "t/" + name);
+        		file.mkdirs();
         		file.deleteOnExit();
         		
 				// 파일만 생성해서 전달 후 스레드에서 PNG 파일 내용 작성
@@ -2422,7 +2423,7 @@ public class GUI extends JFrame implements ActionListener, KeyListener, Explorer
 					}
 					
 					if (!explorer.isEmpty()) {
-						if (file.getAbsolutePath().replace('\\', '/').startsWith(TMP_DIR)) {
+						if (file.getAbsolutePath().replace('\\', '/').startsWith(TMP_DIR + "t/")) {
 							// 임시 파일이면 잘못 드래그한 경우
 							logger.info("임시 파일 무시");
 							return;
